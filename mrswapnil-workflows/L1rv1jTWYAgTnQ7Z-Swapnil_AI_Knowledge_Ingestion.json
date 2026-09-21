@@ -1,0 +1,315 @@
+{
+  "name": "Swapnil AI — Knowledge Ingestion",
+  "nodes": [
+    {
+      "id": "11d3eb0f-6347-4817-aa93-d3ed46939347",
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1088,
+        368
+      ],
+      "parameters": {
+        "inputSource": "workflowInputs",
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "title",
+              "type": "string"
+            },
+            {
+              "name": "description",
+              "type": "string"
+            },
+            {
+              "name": "source_type",
+              "type": "string"
+            },
+            {
+              "name": "source_url",
+              "type": "string"
+            },
+            {
+              "name": "file_path",
+              "type": "string"
+            },
+            {
+              "name": "project_id",
+              "type": "string"
+            },
+            {
+              "name": "content",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "43a22042-dda0-425c-a2c0-cf910e516b8f",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1792,
+        1440
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const input = $input.first().json || {};\n\nconst title = (input.title ?? \"\").toString().trim();\nconst source_type = (input.source_type ?? \"\").toString().trim();\nconst content = (input.content ?? \"\").toString();\n\nconst errors = [];\nif (!title) errors.push(\"title is required\");\nif (!source_type) errors.push(\"source_type is required\");\nif (!content.trim()) errors.push(\"content is required\");\nif (errors.length) {\n  throw new Error(\"Knowledge Ingestion input validation failed: \" + errors.join(\"; \"));\n}\n\n// UUID fields must be null, never an empty string\nlet project_id = input.project_id;\nif (project_id === undefined || project_id === null || project_id.toString().trim() === \"\") {\n  project_id = null;\n} else {\n  project_id = project_id.toString().trim();\n}\n\nreturn [{\n  json: {\n    title,\n    description: (input.description ?? \"\").toString(),\n    source_type,\n    source_url: (input.source_url ?? \"\").toString(),\n    file_path: (input.file_path ?? \"\").toString(),\n    project_id,\n    content,\n  },\n}];"
+      }
+    },
+    {
+      "id": "ef1f6489-9b85-455b-b8fc-fbb6de76424c",
+      "name": "Create Document",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1904,
+        1440
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://qjhrmctbrobpnoumzmju.supabase.co/rest/v1/documents",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpTemplatedCustomAuth",
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"title\": {{ JSON.stringify($json.title) }},\n  \"description\": {{ JSON.stringify($json.description) }},\n  \"source_type\": {{ JSON.stringify($json.source_type) }},\n  \"source_url\": {{ JSON.stringify($json.source_url) }},\n  \"file_path\": {{ JSON.stringify($json.file_path) }},\n  \"project_id\": {{ $json.project_id ? JSON.stringify($json.project_id) : \"null\" }},\n  \"status\": \"active\",\n  \"metadata\": {}\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "httpTemplatedCustomAuth": {
+          "id": "IulgvvW35A6tvx5K",
+          "name": "Swapnil AI — Supabase (Miftahur R)"
+        }
+      }
+    },
+    {
+      "id": "531a6e2c-f408-458e-848a-6e275cb60aaa",
+      "name": "Create Chunks",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2352,
+        1440
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "language": "javaScript",
+        "jsCode": "const input = $(\"Validate Input\").first().json;\nconst doc = $input.first().json;\n\nconst text = (input.content || \"\").trim();\nconst chunkSize = 1200;\nconst overlap = 200;\n\nconst chunks = [];\nlet start = 0;\nlet chunkIndex = 0;\n\nwhile (start < text.length) {\n  let end = Math.min(start + chunkSize, text.length);\n\n  if (end < text.length) {\n    const paragraphBreak = text.lastIndexOf(\"\\n\\n\", end);\n    const sentenceBreak = text.lastIndexOf(\". \", end);\n    if (paragraphBreak > start + 600) {\n      end = paragraphBreak + 2;\n    } else if (sentenceBreak > start + 600) {\n      end = sentenceBreak + 2;\n    }\n  }\n\n  const chunk = text.slice(start, end).trim();\n  if (chunk) {\n    chunks.push({\n      document_id: doc.id,\n      chunk_index: chunkIndex,\n      content: chunk,\n      metadata: { title: input.title },\n    });\n    chunkIndex++;\n  }\n\n  if (end >= text.length) break;\n  start = Math.max(end - overlap, start + 1);\n}\n\nif (chunks.length === 0) {\n  throw new Error(\"No chunks were produced from the document content\");\n}\n\nreturn chunks.map((c) => ({ json: c }));"
+      }
+    },
+    {
+      "id": "5157f711-1daa-49e8-8898-c0dd093605b6",
+      "name": "Save Chunks",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        2576,
+        1440
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://qjhrmctbrobpnoumzmju.supabase.co/rest/v1/document_chunks",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpTemplatedCustomAuth",
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"document_id\": {{ JSON.stringify($json.document_id) }},\n  \"chunk_index\": {{ $json.chunk_index }},\n  \"content\": {{ JSON.stringify($json.content) }},\n  \"metadata\": {{ JSON.stringify($json.metadata) }}\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "httpTemplatedCustomAuth": {
+          "id": "IulgvvW35A6tvx5K",
+          "name": "Swapnil AI — Supabase (Miftahur R)"
+        }
+      }
+    },
+    {
+      "id": "4fb67c19-438a-4919-b2d0-6a253929af5d",
+      "name": "Hash Content",
+      "type": "n8n-nodes-base.crypto",
+      "typeVersion": 2,
+      "position": [
+        2688,
+        1440
+      ],
+      "parameters": {
+        "action": "hash",
+        "type": "SHA256",
+        "binaryData": false,
+        "value": "={{ $json.content.trim().replace(/\\s+/g, \" \") }}",
+        "dataPropertyName": "content_hash",
+        "encoding": "hex"
+      }
+    },
+    {
+      "id": "d51b746d-dbef-4a20-b025-3361ad11f99c",
+      "name": "Queue Embedding Job",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        2912,
+        1440
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://qjhrmctbrobpnoumzmju.supabase.co/rest/v1/embedding_jobs",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpTemplatedCustomAuth",
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"entity_type\": \"document_chunk\",\n  \"entity_id\": {{ JSON.stringify($json.id) }},\n  \"content_hash\": {{ JSON.stringify($json.content_hash) }},\n  \"status\": \"pending\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "httpTemplatedCustomAuth": {
+          "id": "IulgvvW35A6tvx5K",
+          "name": "Swapnil AI — Supabase (Miftahur R)"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Input": {
+      "main": [
+        [
+          {
+            "node": "Create Document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Document": {
+      "main": [
+        [
+          {
+            "node": "Create Chunks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Chunks": {
+      "main": [
+        [
+          {
+            "node": "Save Chunks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Chunks": {
+      "main": [
+        [
+          {
+            "node": "Hash Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hash Content": {
+      "main": [
+        [
+          {
+            "node": "Queue Embedding Job",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "staticData": null,
+  "pinData": {},
+  "triggerCount": 0,
+  "meta": null
+}

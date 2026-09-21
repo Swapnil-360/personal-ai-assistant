@@ -1,0 +1,2362 @@
+{
+  "id": "Crgeg9xYtG3oeT2S",
+  "name": "Swapnil AI — Context Retrieval",
+  "description": null,
+  "active": true,
+  "activeVersionId": "d9d2ed8b-e92e-4c3b-920a-62436f667ce0",
+  "createdAt": "2026-09-21T15:08:51.202Z",
+  "updatedAt": "2026-09-21T16:02:54.825Z",
+  "isArchived": false,
+  "versionId": "d9d2ed8b-e92e-4c3b-920a-62436f667ce0",
+  "versionCounter": 17,
+  "sourceWorkflowId": null,
+  "triggerCount": 0,
+  "nodes": [
+    {
+      "id": "3a2608ce-f918-49e0-9a16-1cd33dca2116",
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -1088,
+        368
+      ],
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "query"
+            },
+            {
+              "name": "project_id"
+            },
+            {
+              "name": "conversation_id"
+            },
+            {
+              "name": "include_memories",
+              "type": "boolean"
+            },
+            {
+              "name": "include_knowledge",
+              "type": "boolean"
+            },
+            {
+              "name": "memory_limit",
+              "type": "number"
+            },
+            {
+              "name": "knowledge_limit",
+              "type": "number"
+            },
+            {
+              "name": "knowledge_threshold",
+              "type": "number"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "e54bcb7e-4ccd-4a1b-93df-47d0587d7d22",
+      "name": "Get Profile",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "url": "https://qjhrmctbrobpnoumzmju.supabase.co/rest/v1/rpc/get_profile",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqaHJtY3Ricm9icG5vdW16bWp1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTkxNTc3NywiZXhwIjoyMTA1NDkxNzc3fQ.0_xov-GTLYTFGnm_gXxO2lmS1w_9Kc-pnWc0-T17UJ8"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqaHJtY3Ricm9icG5vdW16bWp1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTkxNTc3NywiZXhwIjoyMTA1NDkxNzc3fQ.0_xov-GTLYTFGnm_gXxO2lmS1w_9Kc-pnWc0-T17UJ8"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "d34eb808-8ab0-4950-b02b-adca52ddc978",
+      "name": "Get Current State",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        0,
+        160
+      ],
+      "parameters": {
+        "url": "https://qjhrmctbrobpnoumzmju.supabase.co/rest/v1/rpc/get_current_state",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqaHJtY3Ricm9icG5vdW16bWp1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTkxNTc3NywiZXhwIjoyMTA1NDkxNzc3fQ.0_xov-GTLYTFGnm_gXxO2lmS1w_9Kc-pnWc0-T17UJ8"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqaHJtY3Ricm9icG5vdW16bWp1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTkxNTc3NywiZXhwIjoyMTA1NDkxNzc3fQ.0_xov-GTLYTFGnm_gXxO2lmS1w_9Kc-pnWc0-T17UJ8"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "eb65afee-b9cb-43b8-85b1-99f169100f15",
+      "name": "Get Active Goals",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        0,
+        320
+      ],
+      "parameters": {
+        "url": "https://qjhrmctbrobpnoumzmju.supabase.co/rest/v1/rpc/get_active_goals",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "{\n  \"apikey\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqaHJtY3Ricm9icG5vdW16bWp1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTkxNTc3NywiZXhwIjoyMTA1NDkxNzc3fQ.0_xov-GTLYTFGnm_gXxO2lmS1w_9Kc-pnWc0-T17UJ8\",\n  \"Authorization\": \"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqaHJtY3Ricm9icG5vdW16bWp1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTkxNTc3NywiZXhwIjoyMTA1NDkxNzc3fQ.0_xov-GTLYTFGnm_gXxO2lmS1w_9Kc-pnWc0-T17UJ8\",\n  \"Content-Type\": \"application/json\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "584985a7-40d2-4bd9-a7cc-5a3d9b311ecb",
+      "name": "Merge",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        240,
+        64
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "a7c091a5-bcdb-4234-b827-a8fcc104a5da",
+      "name": "Merge1",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        448,
+        176
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "a9812348-ad54-485f-9779-a19b7ab80740",
+      "name": "Get Projects",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        0,
+        496
+      ],
+      "parameters": {
+        "url": "https://qjhrmctbrobpnoumzmju.supabase.co/rest/v1/projects?select=*",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "{\n  \"apikey\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqaHJtY3Ricm9icG5vdW16bWp1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTkxNTc3NywiZXhwIjoyMTA1NDkxNzc3fQ.0_xov-GTLYTFGnm_gXxO2lmS1w_9Kc-pnWc0-T17UJ8\",\n  \"Authorization\": \"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqaHJtY3Ricm9icG5vdW16bWp1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTkxNTc3NywiZXhwIjoyMTA1NDkxNzc3fQ.0_xov-GTLYTFGnm_gXxO2lmS1w_9Kc-pnWc0-T17UJ8\",\n  \"Content-Type\": \"application/json\"\n}",
+        "options": {}
+      }
+    },
+    {
+      "id": "24b02600-e53d-4c16-abae-152a9441193b",
+      "name": "Format Projects",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        464,
+        400
+      ],
+      "parameters": {
+        "jsCode": "const projects = $input.all().map(item => item.json);\n\nreturn [\n  {\n    json: {\n      projects\n    }\n  }\n];"
+      }
+    },
+    {
+      "id": "e8cf6c1e-13d2-4704-9439-4a85523b4107",
+      "name": "Format Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        176
+      ],
+      "parameters": {
+        "jsCode": "const items = $input.all().map(item => item.json);\n\nconst profile = items.find(item => item.full_name);\n\nconst currentState = items.filter(item =>\n  item.area &&\n  !item.title\n);\n\nconst activeGoals = items.filter(item =>\n  item.title &&\n  item.status === 'active'\n);\n\nreturn [\n  {\n    json: {\n      profile: profile || null,\n      current_state: currentState,\n      active_goals: activeGoals\n    }\n  }\n];"
+      }
+    },
+    {
+      "id": "08a042ed-7a33-4b80-8d62-f637abadbfa8",
+      "name": "Get Project Decisions",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        0,
+        656
+      ],
+      "parameters": {
+        "url": "https://qjhrmctbrobpnoumzmju.supabase.co/rest/v1/project_decisions?select=*",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "{\n  \"apikey\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqaHJtY3Ricm9icG5vdW16bWp1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTkxNTc3NywiZXhwIjoyMTA1NDkxNzc3fQ.0_xov-GTLYTFGnm_gXxO2lmS1w_9Kc-pnWc0-T17UJ8\",\n  \"Authorization\": \"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqaHJtY3Ricm9icG5vdW16bWp1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTkxNTc3NywiZXhwIjoyMTA1NDkxNzc3fQ.0_xov-GTLYTFGnm_gXxO2lmS1w_9Kc-pnWc0-T17UJ8\",\n  \"Content-Type\": \"application/json\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "52ac2e96-ddd8-4464-a8a3-7dd1ded1e27a",
+      "name": "Format Project Decisions",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        464,
+        640
+      ],
+      "parameters": {
+        "jsCode": "const decisions = $input.all().map(item => item.json);\n\nreturn [\n  {\n    json: {\n      project_decisions: decisions\n    }\n  }\n];"
+      }
+    },
+    {
+      "id": "0d1f9309-bbf8-41be-8be3-ed0262a4b402",
+      "name": "Merge3",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        992,
+        528
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "90565cea-196d-4744-95df-48e9a8e4a24e",
+      "name": "Final Merge",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        816,
+        320
+      ],
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      }
+    },
+    {
+      "id": "2dcb7184-db9c-456c-805e-912ce1a1a6c5",
+      "name": "Combine Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1312,
+        736
+      ],
+      "parameters": {
+        "jsCode": "const items = $input.all().map(item => item.json);\n\nreturn [\n  {\n    json: {\n      ...items[0],\n      ...items[1]\n    }\n  }\n];"
+      }
+    },
+    {
+      "id": "4b44c910-3b28-4fcb-b404-e33706168c51",
+      "name": "Get Project Tasks",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        -16,
+        864
+      ],
+      "parameters": {
+        "url": "https://qjhrmctbrobpnoumzmju.supabase.co/rest/v1/tasks?select=*",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "{\n  \"apikey\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqaHJtY3Ricm9icG5vdW16bWp1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTkxNTc3NywiZXhwIjoyMTA1NDkxNzc3fQ.0_xov-GTLYTFGnm_gXxO2lmS1w_9Kc-pnWc0-T17UJ8\",\n  \"Authorization\": \"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqaHJtY3Ricm9icG5vdW16bWp1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTkxNTc3NywiZXhwIjoyMTA1NDkxNzc3fQ.0_xov-GTLYTFGnm_gXxO2lmS1w_9Kc-pnWc0-T17UJ8\",\n  \"Content-Type\": \"application/json\"\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "a2c0d9e6-c93b-4ce4-9f4b-91708c1552b8",
+      "name": "Get Recent Messages",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        0,
+        1088
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://qjhrmctbrobpnoumzmju.supabase.co/rest/v1/rpc/get_recent_messages",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "{\n  \"apikey\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqaHJtY3Ricm9icG5vdW16bWp1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTkxNTc3NywiZXhwIjoyMTA1NDkxNzc3fQ.0_xov-GTLYTFGnm_gXxO2lmS1w_9Kc-pnWc0-T17UJ8\",\n  \"Authorization\": \"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqaHJtY3Ricm9icG5vdW16bWp1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTkxNTc3NywiZXhwIjoyMTA1NDkxNzc3fQ.0_xov-GTLYTFGnm_gXxO2lmS1w_9Kc-pnWc0-T17UJ8\",\n  \"Content-Type\": \"application/json\"\n}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"p_conversation_id\": null,\n  \"p_limit\": 20\n}",
+        "options": {}
+      }
+    },
+    {
+      "id": "39430758-fdf6-47ab-ab3b-a3efe0d3a122",
+      "name": "Memory Search",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        -16,
+        1344
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "pqKLuDAyfRSQskSg",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/pqKLuDAyfRSQskSg",
+          "cachedResultName": "Swapnil AI — Memory Search"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "query": "={{$json.query}}",
+            "project_id": "=={{$json.project_id || \"\"}}",
+            "limit": 5,
+            "threshold": 0.3
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "query",
+              "displayName": "query",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "project_id",
+              "displayName": "project_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "limit",
+              "displayName": "limit",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "number"
+            },
+            {
+              "id": "threshold",
+              "displayName": "threshold",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "number",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "6551b31b-abc4-4cad-8fe4-b8a0ad25d865",
+      "name": "Format Memories",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        768,
+        1248
+      ],
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nconst memories = [];\n\nfor (const item of items) {\n  const data = item.json;\n\n  if (Array.isArray(data.memories)) {\n    memories.push(...data.memories);\n  }\n}\n\nreturn [\n  {\n    json: {\n      memories\n    }\n  }\n];"
+      }
+    },
+    {
+      "id": "e032bc76-333d-4470-b3da-200270811a72",
+      "name": "Merge2",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1616,
+        1008
+      ],
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {
+          "includeUnpaired": true
+        }
+      }
+    },
+    {
+      "id": "5e20b530-fd41-4498-93e7-ed4cb2275db0",
+      "name": "Get Recent Messages1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "alwaysOutputData": true,
+      "position": [
+        -400,
+        1616
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://qjhrmctbrobpnoumzmju.supabase.co/rest/v1/rpc/get_recent_messages",
+        "sendHeaders": true,
+        "specifyHeaders": "json",
+        "jsonHeaders": "{\n  \"apikey\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqaHJtY3Ricm9icG5vdW16bWp1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTkxNTc3NywiZXhwIjoyMTA1NDkxNzc3fQ.0_xov-GTLYTFGnm_gXxO2lmS1w_9Kc-pnWc0-T17UJ8\",\n  \"Authorization\": \"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqaHJtY3Ricm9icG5vdW16bWp1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTkxNTc3NywiZXhwIjoyMTA1NDkxNzc3fQ.0_xov-GTLYTFGnm_gXxO2lmS1w_9Kc-pnWc0-T17UJ8\",\n  \"Content-Type\": \"application/json\"\n}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"p_conversation_id\": {{ $json.conversation_id ? JSON.stringify($json.conversation_id) : \"null\" }},\n  \"p_limit\": {{ $json.message_limit || 20 }}\n}",
+        "options": {}
+      }
+    },
+    {
+      "id": "2075cb7d-29af-4958-a7c6-ceecf61a2b43",
+      "name": "Format Recent Messages",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        1616
+      ],
+      "parameters": {
+        "jsCode": "const messages = $input.all()\n  .map(item => item.json)\n  .filter(item => Object.keys(item).length > 0);\n\nreturn [\n  {\n    json: {\n      recent_messages: messages\n    }\n  }\n];"
+      }
+    },
+    {
+      "id": "ed4f44dd-575d-4139-b463-8f4410e489c5",
+      "name": "Prepare Recent Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        944,
+        1616
+      ],
+      "parameters": {
+        "jsCode": "return [\n  {\n    json: {\n      recent_messages: $json.recent_messages || []\n    }\n  }\n];"
+      }
+    },
+    {
+      "id": "bc0ce032-9a31-4dc9-9d4c-de4626148aa3",
+      "name": "Combine All Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2150,
+        1300
+      ],
+      "parameters": {
+        "jsCode": "const items = $input.all().map(item => item.json);\n\nconst context = {\n  profile: null,\n  current_state: [],\n  active_goals: [],\n  projects: [],\n  project_decisions: [],\n  memories: [],\n  knowledge: [],\n  recent_messages: []\n};\n\nfor (const item of items) {\n  if (!item || Object.keys(item).length === 0) continue;\n\n  if (item.profile) context.profile = item.profile;\n  if (item.current_state?.length) context.current_state = item.current_state;\n  if (item.active_goals?.length) context.active_goals = item.active_goals;\n  if (item.projects?.length) context.projects = item.projects;\n  if (item.project_decisions?.length) context.project_decisions = item.project_decisions;\n  if (item.memories?.length) context.memories = item.memories;\n  if (Array.isArray(item.knowledge)) {\n    context.knowledge = item.knowledge;\n  }\n  if (Array.isArray(item.recent_messages)) {\n    context.recent_messages = item.recent_messages;\n  }\n}\n\nreturn [{ json: context }];"
+      }
+    },
+    {
+      "id": "4a786fee-9d2e-4c73-932d-e34ddbdc8ad5",
+      "name": "Merge4",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1800,
+        1150
+      ],
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {
+          "includeUnpaired": true
+        }
+      }
+    },
+    {
+      "id": "64b1949c-c2a3-429a-b8b7-1e6d4468c00b",
+      "name": "Knowledge Search",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        -16,
+        1488
+      ],
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "u9TTT1hU55FZauy7",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/u9TTT1hU55FZauy7",
+          "cachedResultName": "Swapnil AI — Knowledge Search"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "query": "={{$json.query}}",
+            "project_id": "{{$json.project_id || \"\"}}",
+            "limit": "={{$json.knowledge_limit || 5}}",
+            "threshold": "={{$json.knowledge_threshold || 0.30}}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "query",
+              "displayName": "query",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "project_id",
+              "displayName": "project_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string"
+            },
+            {
+              "id": "limit",
+              "displayName": "limit",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "number"
+            },
+            {
+              "id": "threshold",
+              "displayName": "threshold",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "number"
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "a2b3c4d5-e6f7-4890-abcd-1234567890ef",
+      "name": "Merge5",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1950,
+        1300
+      ],
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {
+          "includeUnpaired": true
+        }
+      }
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Get Profile",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Current State",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Active Goals",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Projects",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Project Tasks",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Project Decisions",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Recent Messages",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Memory Search",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Recent Messages1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Knowledge Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Profile": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Current State": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Active Goals": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "Format Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Projects": {
+      "main": [
+        [
+          {
+            "node": "Format Projects",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Projects": {
+      "main": [
+        [
+          {
+            "node": "Final Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Format Context": {
+      "main": [
+        [
+          {
+            "node": "Final Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Project Decisions": {
+      "main": [
+        [
+          {
+            "node": "Format Project Decisions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Project Decisions": {
+      "main": [
+        [
+          {
+            "node": "Merge3",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Final Merge": {
+      "main": [
+        [
+          {
+            "node": "Merge3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge3": {
+      "main": [
+        [
+          {
+            "node": "Combine Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Memory Search": {
+      "main": [
+        [
+          {
+            "node": "Format Memories",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine Context": {
+      "main": [
+        [
+          {
+            "node": "Merge2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Memories": {
+      "main": [
+        [
+          {
+            "node": "Merge2",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge2": {
+      "main": [
+        [
+          {
+            "node": "Merge4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Recent Messages1": {
+      "main": [
+        [
+          {
+            "node": "Format Recent Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Recent Messages": {
+      "main": [
+        [
+          {
+            "node": "Prepare Recent Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Recent Context": {
+      "main": [
+        [
+          {
+            "node": "Merge5",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Knowledge Search": {
+      "main": [
+        [
+          {
+            "node": "Merge4",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge4": {
+      "main": [
+        [
+          {
+            "node": "Merge5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge5": {
+      "main": [
+        [
+          {
+            "node": "Combine All Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "nodeGroups": [],
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "staticData": null,
+  "pinData": {
+    "Combine Context": [
+      {
+        "json": {
+          "profile": {
+            "id": "008c2716-9b0c-4daf-839a-ad6f84b0fe6e",
+            "cgpa": 3.6,
+            "intake": "51",
+            "country": "Bangladesh",
+            "location": "Dhaka",
+            "metadata": {},
+            "full_name": "Md. Miftahur Rahman Swapnil",
+            "languages": [
+              "Bangla",
+              "English",
+              "Hindi"
+            ],
+            "department": "CSE",
+            "university": "Bangladesh University of Business and Technology",
+            "date_of_birth": "2002-01-25",
+            "primary_email": "miftahurr503@gmail.com",
+            "preferred_name": "Swapnil",
+            "career_direction": "Software Development, AI, Automation, and Product Building",
+            "current_semester": "9th"
+          },
+          "current_state": [
+            {
+              "area": "career",
+              "state_key": "direction",
+              "state_value": {
+                "primary": "Software Development / Engineering",
+                "secondary": [
+                  "AI",
+                  "Automation",
+                  "Product Development"
+                ],
+                "additional_strength": "Web3 / Crypto"
+              },
+              "source": "user_profile",
+              "updated_at": "2026-09-20T16:27:49.45307+00:00"
+            },
+            {
+              "area": "career",
+              "state_key": "work_preferences",
+              "state_value": {
+                "work_types": [
+                  "Remote",
+                  "Onsite",
+                  "Hybrid"
+                ],
+                "opportunities": [
+                  "Full-time",
+                  "Internship",
+                  "Freelance",
+                  "Local software-development orders",
+                  "Business opportunities",
+                  "Collaboration"
+                ]
+              },
+              "source": "user_profile",
+              "updated_at": "2026-09-20T16:27:49.45307+00:00"
+            },
+            {
+              "area": "career_transition",
+              "state_key": "direction_change",
+              "state_value": {
+                "from": "Crypto/community operations as primary identity",
+                "toward": "Software development, AI, automation and product building",
+                "web3_role": "Additional professional strength"
+              },
+              "source": "user_profile",
+              "updated_at": "2026-09-20T16:27:49.45307+00:00"
+            },
+            {
+              "area": "current_focus",
+              "state_key": "main_areas",
+              "state_value": [
+                "Software career",
+                "Personal portfolio",
+                "Edu51Portal",
+                "OpusGenAI",
+                "Personal AI Assistant",
+                "Crypto BD"
+              ],
+              "source": "user_profile",
+              "updated_at": "2026-09-20T16:27:49.45307+00:00"
+            },
+            {
+              "area": "education",
+              "state_key": "status",
+              "state_value": {
+                "cgpa": 3.6,
+                "stage": "last semester",
+                "intake": "51",
+                "semester": "9th",
+                "department": "CSE",
+                "university": "Bangladesh University of Business and Technology"
+              },
+              "source": "user_profile",
+              "updated_at": "2026-09-20T16:27:49.45307+00:00"
+            },
+            {
+              "area": "learning",
+              "state_key": "current_topics",
+              "state_value": [
+                "Generative AI",
+                "AI APIs",
+                "Prompt Engineering",
+                "n8n",
+                "AI workflows",
+                "Automation",
+                "Software architecture",
+                "Modern application development"
+              ],
+              "source": "user_profile",
+              "updated_at": "2026-09-20T16:27:49.45307+00:00"
+            },
+            {
+              "area": "personal_ai_assistant",
+              "state_key": "stage",
+              "state_value": {
+                "next": "Goals, current state, memory and retrieval system",
+                "status": "planning and database implementation",
+                "completed": [
+                  "Core Supabase schema",
+                  "Knowledge/document schema",
+                  "Profile data",
+                  "Skills data",
+                  "Project data",
+                  "Project decisions"
+                ]
+              },
+              "source": "current_conversation",
+              "updated_at": "2026-09-20T16:27:49.45307+00:00"
+            }
+          ],
+          "active_goals": [
+            {
+              "id": "d4f6f117-ae72-47cc-9db9-4dd40afad508",
+              "title": "Build a career in software development",
+              "description": "Develop a professional career as a Software Developer/Engineer with strong focus on web development, AI-powered applications, automation, and product development.",
+              "category": "Career",
+              "timeframe": "long_term",
+              "priority": 10,
+              "status": "active"
+            },
+            {
+              "id": "be827796-f789-4e19-b4cc-cb7b5f3b1eb7",
+              "title": "Build a personal AI assistant",
+              "description": "Create a persistent personal AI operating layer that understands personal context, retrieves relevant knowledge, uses tools, automates workflows, and maintains useful memory.",
+              "category": "AI / Automation",
+              "timeframe": "medium_term",
+              "priority": 10,
+              "status": "active"
+            },
+            {
+              "id": "46d4ac66-0be1-4cc5-823a-fa65e703004e",
+              "title": "Build and launch useful software products",
+              "description": "Create practical applications and platforms that solve real problems and can potentially grow into products or businesses.",
+              "category": "Entrepreneurship",
+              "timeframe": "long_term",
+              "priority": 9,
+              "status": "active"
+            },
+            {
+              "id": "b0d4b3ad-c2d1-4c01-9964-28f4fa08a24b",
+              "title": "Build a strong professional portfolio",
+              "description": "Present software development, AI, automation, creative work, and relevant professional experience in a polished personal portfolio for job and business opportunities.",
+              "category": "Career",
+              "timeframe": "short_term",
+              "priority": 9,
+              "status": "active"
+            },
+            {
+              "id": "8cb48598-7d33-4a82-968b-0c623a5f2b50",
+              "title": "Continue developing OpusGenAI",
+              "description": "Improve the AI product photography and video generation platform, templates, generation quality, performance, security, and product experience.",
+              "category": "Project",
+              "timeframe": "short_to_medium_term",
+              "priority": 9,
+              "status": "active"
+            },
+            {
+              "id": "96f8455d-0ebf-4489-af9b-1a8d09825108",
+              "title": "Complete and improve Edu51Portal",
+              "description": "Continue developing Edu51Portal into a useful educational platform for BUBT students with academic, social, team, and administrative features.",
+              "category": "Project",
+              "timeframe": "short_to_medium_term",
+              "priority": 9,
+              "status": "active"
+            },
+            {
+              "id": "4c9ca687-b3fc-4821-9d77-f0505583d6f7",
+              "title": "Strengthen AI and automation skills",
+              "description": "Learn and build practical systems using generative AI, AI APIs, prompt engineering, n8n, workflow automation, and AI-agent architectures.",
+              "category": "Learning",
+              "timeframe": "short_to_medium_term",
+              "priority": 9,
+              "status": "active"
+            },
+            {
+              "id": "52fb6e51-dfa6-4131-9fef-b0729725f171",
+              "title": "Maintain Web3 and crypto business opportunities",
+              "description": "Continue using existing crypto/Web3 experience in community management, project support, outreach, listing-related work, and business development while software development becomes the primary career direction.",
+              "category": "Business",
+              "timeframe": "ongoing",
+              "priority": 7,
+              "status": "active"
+            }
+          ],
+          "projects": [
+            {
+              "id": "a4cfe217-d0f9-402b-a07d-b6e8b47975d6",
+              "name": "Edu51Portal",
+              "slug": "edu51portal",
+              "description": "A BUBT-focused educational and student platform originally developed as Edu51Five. It provides academic resources, routines, course materials, semester tracking, exam materials, profiles, teams, communication features, and administrative functionality.",
+              "category": "Education Platform",
+              "status": "active",
+              "priority": 10,
+              "visibility": "public",
+              "start_date": null,
+              "end_date": null,
+              "repository_url": null,
+              "live_url": "https://edu51portal.live/",
+              "tech_stack": [
+                "Next.js",
+                "React",
+                "Supabase",
+                "Google Drive API",
+                "Vercel"
+              ],
+              "metadata": {
+                "backend": "Supabase",
+                "old_version": "https://edu51five.vercel.app/home",
+                "full_version": "https://bubt.edu51portal.live/",
+                "previous_name": "Edu51Five",
+                "important_note": "Do not assume Firebase for this project.",
+                "study_material_storage": "Google Drive API"
+              },
+              "created_at": "2026-09-20T16:26:22.707187+00:00",
+              "updated_at": "2026-09-20T16:26:22.707187+00:00"
+            },
+            {
+              "id": "8f413cc5-72bf-4439-a990-e3485d3969ed",
+              "name": "OpusGenAI",
+              "slug": "opusgenai",
+              "description": "An AI product photography and video generation platform focused on creating studio-quality product visuals and marketing videos using generative AI APIs and reusable templates.",
+              "category": "AI / Generative Media",
+              "status": "active",
+              "priority": 10,
+              "visibility": "public",
+              "start_date": null,
+              "end_date": null,
+              "repository_url": null,
+              "live_url": "https://opusgenai.com",
+              "tech_stack": [
+                "Next.js",
+                "AI APIs",
+                "Seedance API",
+                "Generative AI",
+                "Image Generation",
+                "Video Generation"
+              ],
+              "metadata": {
+                "focus": "AI product photography and video generation",
+                "important_note": "Marketing templates should make the uploaded product the visual hero.",
+                "template_based_generation": true
+              },
+              "created_at": "2026-09-20T16:26:22.707187+00:00",
+              "updated_at": "2026-09-20T16:26:22.707187+00:00"
+            },
+            {
+              "id": "d54ced09-e1fb-4e82-a8f3-cd2fa5539924",
+              "name": "Personal Portfolio",
+              "slug": "personal-portfolio",
+              "description": "Personal professional portfolio for showcasing software development, AI and automation work, creative work, projects, and relevant professional experience.",
+              "category": "Personal / Career",
+              "status": "active",
+              "priority": 9,
+              "visibility": "public",
+              "start_date": null,
+              "end_date": null,
+              "repository_url": null,
+              "live_url": "https://www.mrswapnil.me/",
+              "tech_stack": [
+                "Web Development",
+                "Frontend Development",
+                "3D UI",
+                "Animation",
+                "Vercel"
+              ],
+              "metadata": {
+                "purpose": "Job applications and professional personal brand",
+                "design_direction": "Premium cinematic, interactive, modern",
+                "planned_features": [
+                  "Multiple themes",
+                  "Background video",
+                  "Admin panel",
+                  "Editable project information",
+                  "Editable website content"
+                ],
+                "old_development_url": "https://swapnil-personal-protfolio.vercel.app/"
+              },
+              "created_at": "2026-09-20T16:26:22.707187+00:00",
+              "updated_at": "2026-09-20T16:26:22.707187+00:00"
+            },
+            {
+              "id": "72fa372c-c719-48cc-a740-62ba573c6d5a",
+              "name": "Pawfect Match",
+              "slug": "pawfect-match",
+              "description": "Bangladesh-focused pet adoption Android application connecting pet owners and adopters with supporting services and AI-powered pet assistance.",
+              "category": "Mobile Application",
+              "status": "active",
+              "priority": 7,
+              "visibility": "private",
+              "start_date": null,
+              "end_date": null,
+              "repository_url": null,
+              "live_url": null,
+              "tech_stack": [
+                "Kotlin",
+                "Jetpack Compose",
+                "Supabase",
+                "Android"
+              ],
+              "metadata": {
+                "backend": "Supabase",
+                "country": "Bangladesh",
+                "features": [
+                  "Pet adoption",
+                  "Admin approval",
+                  "User/admin chat",
+                  "Pet shops",
+                  "Veterinarians",
+                  "Pet hotels",
+                  "AI pet counselor",
+                  "Offline support"
+                ],
+                "package_name": "com.pawfectmatch.app",
+                "important_note": "Backend was changed from Firebase to Supabase."
+              },
+              "created_at": "2026-09-20T16:26:22.707187+00:00",
+              "updated_at": "2026-09-20T16:26:22.707187+00:00"
+            },
+            {
+              "id": "6e7404e1-93f3-4836-b076-5ed1814376f9",
+              "name": "Smart Classroom",
+              "slug": "smart-classroom",
+              "description": "AI-enabled smart classroom monitoring and safety automation system using ESP32 hardware, sensors, ESP32-CAM, and a mobile application.",
+              "category": "IoT / Academic Research",
+              "status": "active",
+              "priority": 8,
+              "visibility": "private",
+              "start_date": null,
+              "end_date": null,
+              "repository_url": null,
+              "live_url": null,
+              "tech_stack": [
+                "ESP32",
+                "ESP32-CAM",
+                "Firebase RTDB",
+                "Expo",
+                "Android",
+                "IoT"
+              ],
+              "metadata": {
+                "modes": [
+                  "Normal",
+                  "Lecture"
+                ],
+                "title": "AI-Enabled Smart Classroom Monitoring and Safety Automation",
+                "architecture": {
+                  "eye": "ESP32-CAM",
+                  "brain": "ESP32 DevKit"
+                },
+                "important_note": "Avoid using behavior monitoring wording."
+              },
+              "created_at": "2026-09-20T16:26:22.707187+00:00",
+              "updated_at": "2026-09-20T16:26:22.707187+00:00"
+            },
+            {
+              "id": "3b9e2762-ef3b-4615-a755-5b3de3eb3b66",
+              "name": "MuteBD",
+              "slug": "mutebd",
+              "description": "A Bangladesh-focused location-based mobile application concept for silent-zone alerts and map-based awareness.",
+              "category": "Mobile Application",
+              "status": "planning",
+              "priority": 5,
+              "visibility": "private",
+              "start_date": null,
+              "end_date": null,
+              "repository_url": null,
+              "live_url": null,
+              "tech_stack": [
+                "Kotlin",
+                "MapLibre",
+                "Android"
+              ],
+              "metadata": {
+                "concept": "Silent Zone Alert",
+                "design_direction": "Dark, modern map interface"
+              },
+              "created_at": "2026-09-20T16:26:22.707187+00:00",
+              "updated_at": "2026-09-20T16:26:22.707187+00:00"
+            },
+            {
+              "id": "57f3bcd3-67f7-4af5-af3e-32028cdc3e28",
+              "name": "ReliefLink Bangladesh",
+              "slug": "relieflink-bangladesh",
+              "description": "A Dhaka-focused emergency and relief assistance mobile application concept.",
+              "category": "Mobile Application",
+              "status": "planning",
+              "priority": 5,
+              "visibility": "private",
+              "start_date": null,
+              "end_date": null,
+              "repository_url": null,
+              "live_url": null,
+              "tech_stack": [
+                "Flutter",
+                "Dart",
+                "Firebase",
+                "Maps"
+              ],
+              "metadata": {
+                "location_scope": "Dhaka",
+                "flutter_version": "3.32.7"
+              },
+              "created_at": "2026-09-20T16:26:22.707187+00:00",
+              "updated_at": "2026-09-20T16:26:22.707187+00:00"
+            },
+            {
+              "id": "7c787a7b-91f2-484a-9db6-3d6e9ce65b2f",
+              "name": "Crypto BD Sourcing Platform",
+              "slug": "crypto-bd-sourcing",
+              "description": "An internal crypto project sourcing and business development platform for discovering, scoring, assigning, tracking, and managing potential crypto projects.",
+              "category": "Business / Web3",
+              "status": "active",
+              "priority": 7,
+              "visibility": "private",
+              "start_date": null,
+              "end_date": null,
+              "repository_url": null,
+              "live_url": null,
+              "tech_stack": [
+                "Next.js",
+                "Supabase",
+                "PWA",
+                "APIs",
+                "Telegram"
+              ],
+              "metadata": {
+                "sources": [
+                  "X",
+                  "CoinMarketCap",
+                  "CoinGecko",
+                  "CryptoRank",
+                  "RootData",
+                  "GitHub",
+                  "Launchpads",
+                  "Project websites"
+                ],
+                "features": [
+                  "Lead scoring",
+                  "Project tiers",
+                  "Assignments",
+                  "Reminders",
+                  "Telegram alerts",
+                  "Outreach logs",
+                  "Dashboard",
+                  "Event ledger",
+                  "Admin panel"
+                ]
+              },
+              "created_at": "2026-09-20T16:26:22.707187+00:00",
+              "updated_at": "2026-09-20T16:26:22.707187+00:00"
+            },
+            {
+              "id": "c70e90f6-e1f3-4206-a401-4cf8f42ada05",
+              "name": "Personal AI Assistant",
+              "slug": "personal-ai-assistant",
+              "description": "A personal AI operating layer designed to understand Swapnil, retrieve relevant personal and project context, reason over information, use tools, automate workflows, maintain memory, and assist with tasks and decisions.",
+              "category": "AI / Automation",
+              "status": "active",
+              "priority": 10,
+              "visibility": "private",
+              "start_date": null,
+              "end_date": null,
+              "repository_url": null,
+              "live_url": null,
+              "tech_stack": [
+                "n8n",
+                "Supabase",
+                "PostgreSQL",
+                "pgvector",
+                "AI APIs",
+                "Automation"
+              ],
+              "metadata": {
+                "ai_role": "Brain",
+                "n8n_role": "Workflow orchestration",
+                "core_concept": "Personal AI operating layer",
+                "current_stage": "Database and knowledge architecture",
+                "supabase_role": "Long-term memory and structured data",
+                "knowledge_role": "Documents, research and external knowledge"
+              },
+              "created_at": "2026-09-20T16:26:22.707187+00:00",
+              "updated_at": "2026-09-20T16:26:22.707187+00:00"
+            }
+          ]
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ]
+  },
+  "meta": null,
+  "tags": [],
+  "shared": [
+    {
+      "role": "workflow:owner",
+      "workflowId": "Crgeg9xYtG3oeT2S",
+      "projectId": "ujjCrY16TZfbPPFM",
+      "project": {
+        "id": "ujjCrY16TZfbPPFM",
+        "name": "Miftahur Rahman Swapnil <miftahurr503@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "customTelemetryTags": [],
+        "creatorId": "56d7b5db-c729-4eb4-b12a-583fb8ddce37",
+        "createdAt": "2026-09-21T14:53:51.460Z",
+        "updatedAt": "2026-09-21T14:54:48.660Z"
+      },
+      "createdAt": "2026-09-21T15:08:51.204Z",
+      "updatedAt": "2026-09-21T15:08:51.204Z"
+    }
+  ],
+  "activeVersion": {
+    "versionId": "d9d2ed8b-e92e-4c3b-920a-62436f667ce0",
+    "workflowId": "Crgeg9xYtG3oeT2S",
+    "nodes": [
+      {
+        "id": "3a2608ce-f918-49e0-9a16-1cd33dca2116",
+        "name": "When Executed by Another Workflow",
+        "type": "n8n-nodes-base.executeWorkflowTrigger",
+        "typeVersion": 1.2,
+        "position": [
+          -1088,
+          368
+        ],
+        "parameters": {
+          "workflowInputs": {
+            "values": [
+              {
+                "name": "query"
+              },
+              {
+                "name": "project_id"
+              },
+              {
+                "name": "conversation_id"
+              },
+              {
+                "name": "include_memories",
+                "type": "boolean"
+              },
+              {
+                "name": "include_knowledge",
+                "type": "boolean"
+              },
+              {
+                "name": "memory_limit",
+                "type": "number"
+              },
+              {
+                "name": "knowledge_limit",
+                "type": "number"
+              },
+              {
+                "name": "knowledge_threshold",
+                "type": "number"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "e54bcb7e-4ccd-4a1b-93df-47d0587d7d22",
+        "name": "Get Profile",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.5,
+        "position": [
+          0,
+          0
+        ],
+        "parameters": {
+          "url": "https://qjhrmctbrobpnoumzmju.supabase.co/rest/v1/rpc/get_profile",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "apikey",
+                "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqaHJtY3Ricm9icG5vdW16bWp1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTkxNTc3NywiZXhwIjoyMTA1NDkxNzc3fQ.0_xov-GTLYTFGnm_gXxO2lmS1w_9Kc-pnWc0-T17UJ8"
+              },
+              {
+                "name": "Authorization",
+                "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqaHJtY3Ricm9icG5vdW16bWp1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTkxNTc3NywiZXhwIjoyMTA1NDkxNzc3fQ.0_xov-GTLYTFGnm_gXxO2lmS1w_9Kc-pnWc0-T17UJ8"
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          },
+          "options": {
+            "response": {
+              "response": {
+                "responseFormat": "json"
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "d34eb808-8ab0-4950-b02b-adca52ddc978",
+        "name": "Get Current State",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.5,
+        "position": [
+          0,
+          160
+        ],
+        "parameters": {
+          "url": "https://qjhrmctbrobpnoumzmju.supabase.co/rest/v1/rpc/get_current_state",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "apikey",
+                "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqaHJtY3Ricm9icG5vdW16bWp1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTkxNTc3NywiZXhwIjoyMTA1NDkxNzc3fQ.0_xov-GTLYTFGnm_gXxO2lmS1w_9Kc-pnWc0-T17UJ8"
+              },
+              {
+                "name": "Authorization",
+                "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqaHJtY3Ricm9icG5vdW16bWp1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTkxNTc3NywiZXhwIjoyMTA1NDkxNzc3fQ.0_xov-GTLYTFGnm_gXxO2lmS1w_9Kc-pnWc0-T17UJ8"
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          },
+          "options": {
+            "response": {
+              "response": {
+                "responseFormat": "json"
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "eb65afee-b9cb-43b8-85b1-99f169100f15",
+        "name": "Get Active Goals",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.5,
+        "position": [
+          0,
+          320
+        ],
+        "parameters": {
+          "url": "https://qjhrmctbrobpnoumzmju.supabase.co/rest/v1/rpc/get_active_goals",
+          "sendHeaders": true,
+          "specifyHeaders": "json",
+          "jsonHeaders": "{\n  \"apikey\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqaHJtY3Ricm9icG5vdW16bWp1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTkxNTc3NywiZXhwIjoyMTA1NDkxNzc3fQ.0_xov-GTLYTFGnm_gXxO2lmS1w_9Kc-pnWc0-T17UJ8\",\n  \"Authorization\": \"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqaHJtY3Ricm9icG5vdW16bWp1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTkxNTc3NywiZXhwIjoyMTA1NDkxNzc3fQ.0_xov-GTLYTFGnm_gXxO2lmS1w_9Kc-pnWc0-T17UJ8\",\n  \"Content-Type\": \"application/json\"\n}",
+          "options": {
+            "response": {
+              "response": {
+                "responseFormat": "json"
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "584985a7-40d2-4bd9-a7cc-5a3d9b311ecb",
+        "name": "Merge",
+        "type": "n8n-nodes-base.merge",
+        "typeVersion": 3.2,
+        "position": [
+          240,
+          64
+        ],
+        "parameters": {}
+      },
+      {
+        "id": "a7c091a5-bcdb-4234-b827-a8fcc104a5da",
+        "name": "Merge1",
+        "type": "n8n-nodes-base.merge",
+        "typeVersion": 3.2,
+        "position": [
+          448,
+          176
+        ],
+        "parameters": {}
+      },
+      {
+        "id": "a9812348-ad54-485f-9779-a19b7ab80740",
+        "name": "Get Projects",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.5,
+        "position": [
+          0,
+          496
+        ],
+        "parameters": {
+          "url": "https://qjhrmctbrobpnoumzmju.supabase.co/rest/v1/projects?select=*",
+          "sendHeaders": true,
+          "specifyHeaders": "json",
+          "jsonHeaders": "{\n  \"apikey\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqaHJtY3Ricm9icG5vdW16bWp1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTkxNTc3NywiZXhwIjoyMTA1NDkxNzc3fQ.0_xov-GTLYTFGnm_gXxO2lmS1w_9Kc-pnWc0-T17UJ8\",\n  \"Authorization\": \"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqaHJtY3Ricm9icG5vdW16bWp1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTkxNTc3NywiZXhwIjoyMTA1NDkxNzc3fQ.0_xov-GTLYTFGnm_gXxO2lmS1w_9Kc-pnWc0-T17UJ8\",\n  \"Content-Type\": \"application/json\"\n}",
+          "options": {}
+        }
+      },
+      {
+        "id": "24b02600-e53d-4c16-abae-152a9441193b",
+        "name": "Format Projects",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          464,
+          400
+        ],
+        "parameters": {
+          "jsCode": "const projects = $input.all().map(item => item.json);\n\nreturn [\n  {\n    json: {\n      projects\n    }\n  }\n];"
+        }
+      },
+      {
+        "id": "e8cf6c1e-13d2-4704-9439-4a85523b4107",
+        "name": "Format Context",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          624,
+          176
+        ],
+        "parameters": {
+          "jsCode": "const items = $input.all().map(item => item.json);\n\nconst profile = items.find(item => item.full_name);\n\nconst currentState = items.filter(item =>\n  item.area &&\n  !item.title\n);\n\nconst activeGoals = items.filter(item =>\n  item.title &&\n  item.status === 'active'\n);\n\nreturn [\n  {\n    json: {\n      profile: profile || null,\n      current_state: currentState,\n      active_goals: activeGoals\n    }\n  }\n];"
+        }
+      },
+      {
+        "id": "08a042ed-7a33-4b80-8d62-f637abadbfa8",
+        "name": "Get Project Decisions",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.5,
+        "position": [
+          0,
+          656
+        ],
+        "parameters": {
+          "url": "https://qjhrmctbrobpnoumzmju.supabase.co/rest/v1/project_decisions?select=*",
+          "sendHeaders": true,
+          "specifyHeaders": "json",
+          "jsonHeaders": "{\n  \"apikey\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqaHJtY3Ricm9icG5vdW16bWp1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTkxNTc3NywiZXhwIjoyMTA1NDkxNzc3fQ.0_xov-GTLYTFGnm_gXxO2lmS1w_9Kc-pnWc0-T17UJ8\",\n  \"Authorization\": \"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqaHJtY3Ricm9icG5vdW16bWp1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTkxNTc3NywiZXhwIjoyMTA1NDkxNzc3fQ.0_xov-GTLYTFGnm_gXxO2lmS1w_9Kc-pnWc0-T17UJ8\",\n  \"Content-Type\": \"application/json\"\n}",
+          "options": {
+            "response": {
+              "response": {
+                "responseFormat": "json"
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "52ac2e96-ddd8-4464-a8a3-7dd1ded1e27a",
+        "name": "Format Project Decisions",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          464,
+          640
+        ],
+        "parameters": {
+          "jsCode": "const decisions = $input.all().map(item => item.json);\n\nreturn [\n  {\n    json: {\n      project_decisions: decisions\n    }\n  }\n];"
+        }
+      },
+      {
+        "id": "0d1f9309-bbf8-41be-8be3-ed0262a4b402",
+        "name": "Merge3",
+        "type": "n8n-nodes-base.merge",
+        "typeVersion": 3.2,
+        "position": [
+          992,
+          528
+        ],
+        "parameters": {}
+      },
+      {
+        "id": "90565cea-196d-4744-95df-48e9a8e4a24e",
+        "name": "Final Merge",
+        "type": "n8n-nodes-base.merge",
+        "typeVersion": 3.2,
+        "position": [
+          816,
+          320
+        ],
+        "parameters": {
+          "mode": "combine",
+          "combineBy": "combineByPosition",
+          "options": {}
+        }
+      },
+      {
+        "id": "2dcb7184-db9c-456c-805e-912ce1a1a6c5",
+        "name": "Combine Context",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1312,
+          736
+        ],
+        "parameters": {
+          "jsCode": "const items = $input.all().map(item => item.json);\n\nreturn [\n  {\n    json: {\n      ...items[0],\n      ...items[1]\n    }\n  }\n];"
+        }
+      },
+      {
+        "id": "4b44c910-3b28-4fcb-b404-e33706168c51",
+        "name": "Get Project Tasks",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.5,
+        "position": [
+          -16,
+          864
+        ],
+        "parameters": {
+          "url": "https://qjhrmctbrobpnoumzmju.supabase.co/rest/v1/tasks?select=*",
+          "sendHeaders": true,
+          "specifyHeaders": "json",
+          "jsonHeaders": "{\n  \"apikey\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqaHJtY3Ricm9icG5vdW16bWp1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTkxNTc3NywiZXhwIjoyMTA1NDkxNzc3fQ.0_xov-GTLYTFGnm_gXxO2lmS1w_9Kc-pnWc0-T17UJ8\",\n  \"Authorization\": \"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqaHJtY3Ricm9icG5vdW16bWp1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTkxNTc3NywiZXhwIjoyMTA1NDkxNzc3fQ.0_xov-GTLYTFGnm_gXxO2lmS1w_9Kc-pnWc0-T17UJ8\",\n  \"Content-Type\": \"application/json\"\n}",
+          "options": {
+            "response": {
+              "response": {
+                "responseFormat": "json"
+              }
+            }
+          }
+        }
+      },
+      {
+        "id": "a2c0d9e6-c93b-4ce4-9f4b-91708c1552b8",
+        "name": "Get Recent Messages",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.5,
+        "position": [
+          0,
+          1088
+        ],
+        "parameters": {
+          "method": "POST",
+          "url": "https://qjhrmctbrobpnoumzmju.supabase.co/rest/v1/rpc/get_recent_messages",
+          "sendHeaders": true,
+          "specifyHeaders": "json",
+          "jsonHeaders": "{\n  \"apikey\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqaHJtY3Ricm9icG5vdW16bWp1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTkxNTc3NywiZXhwIjoyMTA1NDkxNzc3fQ.0_xov-GTLYTFGnm_gXxO2lmS1w_9Kc-pnWc0-T17UJ8\",\n  \"Authorization\": \"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqaHJtY3Ricm9icG5vdW16bWp1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTkxNTc3NywiZXhwIjoyMTA1NDkxNzc3fQ.0_xov-GTLYTFGnm_gXxO2lmS1w_9Kc-pnWc0-T17UJ8\",\n  \"Content-Type\": \"application/json\"\n}",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "{\n  \"p_conversation_id\": null,\n  \"p_limit\": 20\n}",
+          "options": {}
+        }
+      },
+      {
+        "id": "39430758-fdf6-47ab-ab3b-a3efe0d3a122",
+        "name": "Memory Search",
+        "type": "n8n-nodes-base.executeWorkflow",
+        "typeVersion": 1.3,
+        "position": [
+          -16,
+          1344
+        ],
+        "parameters": {
+          "workflowId": {
+            "__rl": true,
+            "value": "pqKLuDAyfRSQskSg",
+            "mode": "list",
+            "cachedResultUrl": "/workflow/pqKLuDAyfRSQskSg",
+            "cachedResultName": "Swapnil AI — Memory Search"
+          },
+          "workflowInputs": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "query": "=={{$json.query}}",
+              "project_id": "=={{$json.project_id || \"\"}}",
+              "limit": 5,
+              "threshold": 0.3
+            },
+            "matchingColumns": [],
+            "schema": [
+              {
+                "id": "query",
+                "displayName": "query",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string"
+              },
+              {
+                "id": "project_id",
+                "displayName": "project_id",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string"
+              },
+              {
+                "id": "limit",
+                "displayName": "limit",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "number"
+              },
+              {
+                "id": "threshold",
+                "displayName": "threshold",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "number",
+                "removed": false
+              }
+            ],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": true
+          },
+          "options": {}
+        }
+      },
+      {
+        "id": "6551b31b-abc4-4cad-8fe4-b8a0ad25d865",
+        "name": "Format Memories",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          768,
+          1248
+        ],
+        "parameters": {
+          "jsCode": "const items = $input.all();\n\nconst memories = [];\n\nfor (const item of items) {\n  const data = item.json;\n\n  if (Array.isArray(data.memories)) {\n    memories.push(...data.memories);\n  }\n}\n\nreturn [\n  {\n    json: {\n      memories\n    }\n  }\n];"
+        }
+      },
+      {
+        "id": "e032bc76-333d-4470-b3da-200270811a72",
+        "name": "Merge2",
+        "type": "n8n-nodes-base.merge",
+        "typeVersion": 3.2,
+        "position": [
+          1616,
+          1008
+        ],
+        "parameters": {
+          "mode": "combine",
+          "combineBy": "combineByPosition",
+          "options": {}
+        }
+      },
+      {
+        "id": "5e20b530-fd41-4498-93e7-ed4cb2275db0",
+        "name": "Get Recent Messages1",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.5,
+        "alwaysOutputData": true,
+        "position": [
+          -400,
+          1616
+        ],
+        "parameters": {
+          "method": "POST",
+          "url": "https://qjhrmctbrobpnoumzmju.supabase.co/rest/v1/rpc/get_recent_messages",
+          "sendHeaders": true,
+          "specifyHeaders": "json",
+          "jsonHeaders": "{\n  \"apikey\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqaHJtY3Ricm9icG5vdW16bWp1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTkxNTc3NywiZXhwIjoyMTA1NDkxNzc3fQ.0_xov-GTLYTFGnm_gXxO2lmS1w_9Kc-pnWc0-T17UJ8\",\n  \"Authorization\": \"Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqaHJtY3Ricm9icG5vdW16bWp1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTkxNTc3NywiZXhwIjoyMTA1NDkxNzc3fQ.0_xov-GTLYTFGnm_gXxO2lmS1w_9Kc-pnWc0-T17UJ8\",\n  \"Content-Type\": \"application/json\"\n}",
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={\n  \"p_conversation_id\": {{ $json.conversation_id ? JSON.stringify($json.conversation_id) : \"null\" }},\n  \"p_limit\": {{ $json.message_limit || 20 }}\n}",
+          "options": {}
+        }
+      },
+      {
+        "id": "2075cb7d-29af-4958-a7c6-ceecf61a2b43",
+        "name": "Format Recent Messages",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          480,
+          1616
+        ],
+        "parameters": {
+          "jsCode": "const messages = $input.all()\n  .map(item => item.json)\n  .filter(item => Object.keys(item).length > 0);\n\nreturn [\n  {\n    json: {\n      recent_messages: messages\n    }\n  }\n];"
+        }
+      },
+      {
+        "id": "ed4f44dd-575d-4139-b463-8f4410e489c5",
+        "name": "Prepare Recent Context",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          944,
+          1616
+        ],
+        "parameters": {
+          "jsCode": "return [\n  {\n    json: {\n      recent_messages: $json.recent_messages || []\n    }\n  }\n];"
+        }
+      },
+      {
+        "id": "bc0ce032-9a31-4dc9-9d4c-de4626148aa3",
+        "name": "Combine All Context",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          2150,
+          1300
+        ],
+        "parameters": {
+          "jsCode": "const items = $input.all().map(item => item.json);\n\nconst context = {\n  profile: null,\n  current_state: [],\n  active_goals: [],\n  projects: [],\n  project_decisions: [],\n  memories: [],\n  knowledge: [],\n  recent_messages: []\n};\n\nfor (const item of items) {\n  if (!item || Object.keys(item).length === 0) continue;\n\n  if (item.profile) context.profile = item.profile;\n  if (item.current_state?.length) context.current_state = item.current_state;\n  if (item.active_goals?.length) context.active_goals = item.active_goals;\n  if (item.projects?.length) context.projects = item.projects;\n  if (item.project_decisions?.length) context.project_decisions = item.project_decisions;\n  if (item.memories?.length) context.memories = item.memories;\n  if (Array.isArray(item.knowledge)) {\n    context.knowledge = item.knowledge;\n  }\n  if (Array.isArray(item.recent_messages)) {\n    context.recent_messages = item.recent_messages;\n  }\n}\n\nreturn [{ json: context }];"
+        }
+      },
+      {
+        "id": "4a786fee-9d2e-4c73-932d-e34ddbdc8ad5",
+        "name": "Merge4",
+        "type": "n8n-nodes-base.merge",
+        "typeVersion": 3.2,
+        "position": [
+          1800,
+          1150
+        ],
+        "parameters": {
+          "mode": "combine",
+          "combineBy": "combineByPosition",
+          "options": {}
+        }
+      },
+      {
+        "id": "64b1949c-c2a3-429a-b8b7-1e6d4468c00b",
+        "name": "Knowledge Search",
+        "type": "n8n-nodes-base.executeWorkflow",
+        "typeVersion": 1.3,
+        "position": [
+          -16,
+          1488
+        ],
+        "parameters": {
+          "workflowId": {
+            "__rl": true,
+            "value": "u9TTT1hU55FZauy7",
+            "mode": "list",
+            "cachedResultUrl": "/workflow/u9TTT1hU55FZauy7",
+            "cachedResultName": "Swapnil AI — Knowledge Search"
+          },
+          "workflowInputs": {
+            "mappingMode": "defineBelow",
+            "value": {
+              "query": "={{$json.query}}",
+              "project_id": "{{$json.project_id || \"\"}}",
+              "limit": "={{$json.knowledge_limit || 5}}",
+              "threshold": "={{$json.knowledge_threshold || 0.30}}"
+            },
+            "matchingColumns": [],
+            "schema": [
+              {
+                "id": "query",
+                "displayName": "query",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string"
+              },
+              {
+                "id": "project_id",
+                "displayName": "project_id",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "string"
+              },
+              {
+                "id": "limit",
+                "displayName": "limit",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "number"
+              },
+              {
+                "id": "threshold",
+                "displayName": "threshold",
+                "required": false,
+                "defaultMatch": false,
+                "display": true,
+                "canBeUsedToMatch": true,
+                "type": "number"
+              }
+            ],
+            "attemptToConvertTypes": false,
+            "convertFieldsToString": true
+          },
+          "options": {}
+        }
+      },
+      {
+        "id": "a2b3c4d5-e6f7-4890-abcd-1234567890ef",
+        "name": "Merge5",
+        "type": "n8n-nodes-base.merge",
+        "typeVersion": 3.2,
+        "position": [
+          1950,
+          1300
+        ],
+        "parameters": {
+          "mode": "combine",
+          "combineBy": "combineByPosition",
+          "options": {}
+        }
+      }
+    ],
+    "connections": {
+      "When Executed by Another Workflow": {
+        "main": [
+          [
+            {
+              "node": "Get Profile",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Get Current State",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Get Active Goals",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Get Projects",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Get Project Tasks",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Get Project Decisions",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Get Recent Messages",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Memory Search",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Get Recent Messages1",
+              "type": "main",
+              "index": 0
+            },
+            {
+              "node": "Knowledge Search",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Profile": {
+        "main": [
+          [
+            {
+              "node": "Merge",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Current State": {
+        "main": [
+          [
+            {
+              "node": "Merge",
+              "type": "main",
+              "index": 1
+            }
+          ]
+        ]
+      },
+      "Merge": {
+        "main": [
+          [
+            {
+              "node": "Merge1",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Active Goals": {
+        "main": [
+          [
+            {
+              "node": "Merge1",
+              "type": "main",
+              "index": 1
+            }
+          ]
+        ]
+      },
+      "Merge1": {
+        "main": [
+          [
+            {
+              "node": "Format Context",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Projects": {
+        "main": [
+          [
+            {
+              "node": "Format Projects",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Format Projects": {
+        "main": [
+          [
+            {
+              "node": "Final Merge",
+              "type": "main",
+              "index": 1
+            }
+          ]
+        ]
+      },
+      "Format Context": {
+        "main": [
+          [
+            {
+              "node": "Final Merge",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Project Decisions": {
+        "main": [
+          [
+            {
+              "node": "Format Project Decisions",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Format Project Decisions": {
+        "main": [
+          [
+            {
+              "node": "Merge3",
+              "type": "main",
+              "index": 1
+            }
+          ]
+        ]
+      },
+      "Final Merge": {
+        "main": [
+          [
+            {
+              "node": "Merge3",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Merge3": {
+        "main": [
+          [
+            {
+              "node": "Combine Context",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Memory Search": {
+        "main": [
+          [
+            {
+              "node": "Format Memories",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Combine Context": {
+        "main": [
+          [
+            {
+              "node": "Merge2",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Format Memories": {
+        "main": [
+          [
+            {
+              "node": "Merge2",
+              "type": "main",
+              "index": 1
+            }
+          ]
+        ]
+      },
+      "Merge2": {
+        "main": [
+          [
+            {
+              "node": "Merge4",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Get Recent Messages1": {
+        "main": [
+          [
+            {
+              "node": "Format Recent Messages",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Format Recent Messages": {
+        "main": [
+          [
+            {
+              "node": "Prepare Recent Context",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Prepare Recent Context": {
+        "main": [
+          [
+            {
+              "node": "Merge5",
+              "type": "main",
+              "index": 1
+            }
+          ]
+        ]
+      },
+      "Knowledge Search": {
+        "main": [
+          [
+            {
+              "node": "Merge4",
+              "type": "main",
+              "index": 1
+            }
+          ]
+        ]
+      },
+      "Merge4": {
+        "main": [
+          [
+            {
+              "node": "Merge5",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Merge5": {
+        "main": [
+          [
+            {
+              "node": "Combine All Context",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "nodeGroups": [],
+    "authors": "Miftahur Rahman Swapnil",
+    "name": null,
+    "description": null,
+    "autosaved": false,
+    "createdAt": "2026-09-21T16:02:54.827Z",
+    "updatedAt": "2026-09-21T16:02:54.827Z",
+    "workflowPublishHistory": [
+      {
+        "id": 5,
+        "workflowId": "Crgeg9xYtG3oeT2S",
+        "versionId": "d9d2ed8b-e92e-4c3b-920a-62436f667ce0",
+        "event": "activated",
+        "userId": "56d7b5db-c729-4eb4-b12a-583fb8ddce37",
+        "createdAt": "2026-09-21T16:02:54.945Z"
+      }
+    ]
+  }
+}

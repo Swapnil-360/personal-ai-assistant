@@ -1,0 +1,478 @@
+const https = require('https');
+const http = require('http');
+
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqaHJtY3Ricm9icG5vdW16bWp1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTkxNTc3NywiZXhwIjoyMTA1NDkxNzc3fQ.0_xov-GTLYTFGnm_gXxO2lmS1w_9Kc-pnWc0-T17UJ8';
+
+const PROJECTS = [
+    { id: 'a4cfe217-d0f9-402b-a07d-b6e8b47975d6', name: 'Edu51Portal', slug: 'edu51portal' },
+    { id: '8f413cc5-72bf-4439-a990-e3485d3969ed', name: 'OpusGenAI', slug: 'opusgenai' },
+    { id: 'd54ced09-e1fb-4e82-a8f3-cd2fa5539924', name: 'Personal Portfolio', slug: 'personal-portfolio' },
+    { id: 'c70e90f6-e1f3-4206-a401-4cf8f42ada05', name: 'Personal AI Assistant', slug: 'personal-ai-assistant' }
+];
+
+function matchProject(text) {
+    if (!text) return null;
+    const lower = text.toLowerCase();
+    for (const p of PROJECTS) {
+        if (lower.includes(p.slug) || lower.includes(p.name.toLowerCase())) {
+            return p;
+        }
+    }
+    return null;
+}
+
+function supabaseRequest(path, method = 'GET', body = null) {
+    return new Promise((resolve, reject) => {
+        const payload = body ? JSON.stringify(body) : null;
+        const req = https.request({
+            hostname: 'qjhrmctbrobpnoumzmju.supabase.co',
+            path: '/rest/v1' + path,
+            method: method,
+            headers: {
+                'apikey': supabaseKey,
+                'Authorization': `Bearer ${supabaseKey}`,
+                'Content-Type': 'application/json',
+                'Prefer': method === 'GET' ? 'count=none' : 'return=representation',
+                ...(payload ? { 'Content-Length': Buffer.byteLength(payload) } : {})
+            }
+        }, (res) => {
+            let data = '';
+            res.on('data', chunk => data += chunk);
+            res.on('end', () => {
+                if (res.statusCode >= 200 && res.statusCode < 300) {
+                    try { resolve(data ? JSON.parse(data) : {}); } catch (e) { resolve(data); }
+                } else {
+                    reject(new Error(`Supabase error ${res.statusCode}: ${data}`));
+                }
+            });
+        });
+        req.on('error', reject);
+        if (payload) req.write(payload);
+        req.end();
+    });
+}
+
+// 1. Create Task
+async function createTask(title, projectHint = null, priority = 5) {
+    const project = projectHint ? matchProject(projectHint) : null;
+    const cleanTitle = title.trim();
+    const task = {
+        title: cleanTitle,
+        status: 'todo',
+        priority: Number(priority) || 5,
+        project_id: project ? project.id : null
+    };
+    const res = await supabaseRequest('/tasks', 'POST', task);
+    return {
+        action: 'task_created',
+        success: true,
+        task: res[0],
+        project_name: project ? project.name : 'General'
+    };
+}
+
+// 2. Complete Task
+async function completeTask(titleOrId) {
+    const query = titleOrId.trim();
+    let tasks = await supabaseRequest(`/tasks?title=ilike.*${encodeURIComponent(query)}*&status=neq.completed&limit=1`, 'GET');
+    if (!tasks || tasks.length === 0) {
+        tasks = await supabaseRequest(`/tasks?title=ilike.*${encodeURIComponent(query)}*&limit=1`, 'GET');
+    }
+    if (!tasks || tasks.length === 0) {
+        return { action: 'task_completed', success: false, reason: `Task "${query}" not found.` };
+    }
+    const target = tasks[0];
+    const updated = await supabaseRequest(`/tasks?id=eq.${target.id}`, 'PATCH', {
+        status: 'completed',
+        completed_at: new Date().toISOString()
+    });
+    return {
+        action: 'task_completed',
+        success: true,
+        task: updated[0] || target
+    };
+}
+
+// 3. Create Goal
+async function createGoal(title, category = 'Career') {
+    const cleanTitle = title.trim();
+    const goal = {
+        title: cleanTitle,
+        category: category,
+        status: 'active',
+        priority: 8
+    };
+    const res = await supabaseRequest('/goals', 'POST', goal);
+    return {
+        action: 'goal_created',
+        success: true,
+        goal: res[0]
+    };
+}
+
+// 4. Log Architectural Decision
+async function logDecision(decisionText, projectHint = null, reason = '') {
+    const project = projectHint ? matchProject(projectHint) : null;
+    const dec = {
+        decision: decisionText.trim(),
+        reason: reason.trim() || 'Strategic architectural decision',
+        status: 'active',
+        project_id: project ? project.id : null
+    };
+    const res = await supabaseRequest('/project_decisions', 'POST', dec);
+    return {
+        action: 'decision_logged',
+        success: true,
+        decision: res[0],
+        project_name: project ? project.name : 'General'
+    };
+}
+
+// 5. Add Note or Idea
+async function addNote(content, category = 'note') {
+    const clean = content.trim();
+    const note = {
+        content: clean,
+        memory_type: 'fact',
+        importance: 3,
+        confidence: 1.0,
+        source_type: 'manual_note',
+        status: 'active',
+        metadata: { tag: category }
+    };
+    const res = await supabaseRequest('/memories', 'POST', note);
+    return {
+        action: 'note_added',
+        success: true,
+        note: res[0]
+    };
+}
+
+// 6. Clear Chat History in Supabase
+async function clearChatHistory(conversationId) {
+    try {
+        if (conversationId) {
+            await supabaseRequest(`/messages?conversation_id=eq.${conversationId}`, 'DELETE');
+            await supabaseRequest(`/conversations?id=eq.${conversationId}`, 'PATCH', {
+                title: 'Clean Slate Session',
+                metadata: { cleared_at: new Date().toISOString() }
+            });
+        }
+        return { success: true };
+    } catch (err) {
+        console.warn('[Clear Chat Warning]', err.message);
+        return { success: false, error: err.message };
+    }
+}
+
+// 7. GitHub Repos Fetcher & Analyzer
+function fetchGitHubRepos(username = 'Swapnil-360') {
+    return new Promise((resolve, reject) => {
+        https.get(`https://api.github.com/users/${username}/repos?sort=updated&per_page=15`, {
+            headers: {
+                'User-Agent': 'Mikasa-OS'
+            }
+        }, (res) => {
+            let data = '';
+            res.on('data', chunk => data += chunk);
+            res.on('end', () => {
+                try {
+                    const repos = JSON.parse(data);
+                    if (Array.isArray(repos)) {
+                        const formatted = repos.map(r => ({
+                            name: r.name,
+                            description: r.description || 'Core engineering build',
+                            language: r.language || 'Code',
+                            stars: r.stargazers_count,
+                            forks: r.forks_count,
+                            url: r.html_url,
+                            updated_at: r.updated_at
+                        }));
+                        resolve(formatted);
+                    } else {
+                        resolve([]);
+                    }
+                } catch (e) {
+                    resolve([]);
+                }
+            });
+        }).on('error', reject);
+    });
+}
+
+// 8. LinkedIn Post Generator
+function generateLinkedInDraft(topicOrProject = 'Edu51Portal') {
+    const topic = topicOrProject.trim();
+    const lower = topic.toLowerCase();
+
+    if (lower.includes('edu51') || lower.includes('edu51portal')) {
+        return {
+            topic: 'Edu51Portal',
+            title: 'Scaling an Academic Platform for 500+ Engineering Students',
+            content: 
+`Building software that real people use every day changes how you think about architecture. 🚀
+
+When we built Edu51Portal for BUBT CSE students, the initial problem was simple:
+Study notes, past exam questions, and lab assignments were scattered across chaotic WhatsApp and Messenger groups. Critical resources got buried in hours.
+
+Instead of over-engineering from day one, we focused on practical delivery:
+1️⃣ Next.js + TypeScript for a blazing fast, SEO-optimized frontend.
+2️⃣ Supabase for secure authentication and instant relational queries.
+3️⃣ Google Drive API integration to host heavy PDF resources with zero monthly cloud storage bills.
+
+The result? Over 500+ CSE students now access centralized academic resources daily with sub-second page loads.
+
+The biggest engineering lesson?
+You don't need a multi-million-dollar infrastructure to solve real user friction. You need clean domain modeling, low latency, and relentless empathy for your end-users.
+
+What's an architecture decision you made early on that saved your project? Let's connect! 👇
+
+#FullStackDevelopment #NextJS #TypeScript #Supabase #SoftwareEngineering #WebDev #BuildInPublic`
+        };
+    }
+
+    if (lower.includes('opus') || lower.includes('opusgenai') || lower.includes('ai')) {
+        return {
+            topic: 'OpusGenAI',
+            title: 'Architecting an AI Generation Engine: Gemini 2.5 Flash + OpenRouter Fallbacks',
+            content:
+`Most developers treat AI APIs like simple REST calls. Until production hits latency spikes and rate limits. ⚡
+
+While engineering OpusGenAI and autonomous agent workflows, we implemented a dual-tier LLM architecture:
+
+🔹 Primary Tier: Google Gemini 2.5 Flash for lightning ~1.2s response times and deep multi-turn comprehension.
+🔹 Secondary Fallback: OpenRouter (GPT-4o-mini) with automatic retry interceptors so our users never experience downtime.
+🔹 Vector Memory Vault: 1536-dimensional embeddings (text-embedding-3-small) to maintain continuous project memory across sessions.
+
+Reliability in AI products isn't just about having the smartest model. It's about designing defensive architectures that fail gracefully.
+
+Are you building with AI agents or multi-model fallbacks? What is your preferred stack?
+
+#ArtificialIntelligence #GenerativeAI #SystemDesign #NextJS #SoftwareArchitecture #OpenRouter #NodeJS`
+        };
+    }
+
+    if (lower.includes('stark') || lower.includes('ironman') || lower.includes('portfolio')) {
+        return {
+            topic: 'Stark OS Portfolio',
+            title: 'Why I Rebuilt My Portfolio into an Iron Man Stark-OS Interface',
+            content:
+`Your personal portfolio shouldn't look like every other generic template. 💻✨
+
+I designed and engineered my new portfolio as an interactive Stark-OS / Iron Man themed operating environment built with:
+🔹 Next.js 14 App Router
+🔹 TypeScript & TailwindCSS for responsive HUD widgets
+🔹 Supabase PostgreSQL for live project telemetry and dynamic metrics
+
+It showcases real production builds: Edu51Portal, OpusGenAI, and autonomous AI operating systems.
+
+First impressions matter in engineering. When recruiters or founders visit your site, show them how you think about aesthetics and user experience.
+
+Check out the live build and let me know your thoughts: mrswapnil.me
+
+#WebDevelopment #Frontend #NextJS #TypeScript #UIUX #CreativeDeveloper #Portfolio`
+        };
+    }
+
+    // General Tech Learning Post
+    return {
+        topic: topic,
+        title: `Deep Dive: ${topic}`,
+        content:
+`Consistent execution beats passive learning every single time. 💡
+
+Recently, I've been diving deep into ${topic}.
+
+Here are 3 key principles I've applied while building real-world software products:
+1. Always prioritize architecture and data modeling before jumping into the UI.
+2. Build defensive fallbacks into external API calls to guarantee high availability.
+3. Keep user feedback loops as tight as possible.
+
+Software engineering isn't just about writing code—it's about solving real problems with scalable, maintainable tools.
+
+What are you building this week? Let's connect and exchange ideas!
+
+#SoftwareDevelopment #FullStack #CodingJourney #BuildInPublic #TechCommunity`
+    };
+}
+
+// 9. CV / Resume Tailoring Guide
+function tailorCvForJob(jobDescription) {
+    const jd = (jobDescription || '').toLowerCase();
+
+    const matchedProjects = [];
+    const bulletPoints = [];
+
+    // Analyze skills
+    const isFrontend = jd.includes('frontend') || jd.includes('react') || jd.includes('next') || jd.includes('tailwind');
+    const isBackend = jd.includes('backend') || jd.includes('node') || jd.includes('api') || jd.includes('database') || jd.includes('postgres');
+    const isAI = jd.includes('ai') || jd.includes('llm') || jd.includes('langchain') || jd.includes('agent') || jd.includes('machine learning');
+    const isWeb3 = jd.includes('web3') || jd.includes('crypto') || jd.includes('blockchain');
+
+    // Build tailored STAR bullets
+    if (isFrontend || isBackend) {
+        matchedProjects.push('Edu51Portal (Fullstack Academic Platform)');
+        bulletPoints.push('• Developed Edu51Portal using Next.js, TypeScript, and Supabase, serving 500+ active BUBT university students with sub-second page performance.');
+        bulletPoints.push('• Architected responsive UI components and integrated Google Drive API to securely distribute 1,000+ academic resources with 0 storage infrastructure overhead.');
+    }
+
+    if (isAI || isBackend) {
+        matchedProjects.push('OpusGenAI & Personal AI OS (Mikasa)');
+        bulletPoints.push('• Built multi-model AI orchestration pipeline combining Google Gemini 2.5 Flash and OpenRouter fallbacks, cutting response latency by 45%.');
+        bulletPoints.push('• Engineered autonomous memory extraction loop storing 1536-dimensional vector embeddings into Supabase pgvector for contextual conversation recall.');
+    }
+
+    if (isFrontend) {
+        matchedProjects.push('Stark-OS Portfolio');
+        bulletPoints.push('• Designed high-fidelity futuristic HUD portfolio using Next.js 14, TailwindCSS, and custom glassmorphism shaders, achieving 98+ Lighthouse performance.');
+    }
+
+    if (matchedProjects.length === 0) {
+        matchedProjects.push('Edu51Portal', 'OpusGenAI', 'Stark-OS Portfolio');
+        bulletPoints.push('• Fullstack Developer proficient in Next.js, TypeScript, Node.js, and Supabase with proven experience delivering production applications to active users.');
+        bulletPoints.push('• Experienced in architecting robust REST APIs, AI agent pipelines, and relational database schemas optimized for performance.');
+    }
+
+    return {
+        matched_projects: matchedProjects,
+        recommended_bullets: bulletPoints,
+        strategy: 'Highlight proven user traction on Edu51Portal (500+ users) and AI pipeline architecture on OpusGenAI to demonstrate end-to-end fullstack maturity.'
+    };
+}
+
+// 10. Master Prompt Generator
+function generateOptimizedPrompt(goalOrRequest) {
+    const text = goalOrRequest.trim();
+    const lower = text.toLowerCase();
+
+    // 1. Image Generation Prompt (Midjourney / FLUX)
+    if (lower.includes('image') || lower.includes('midjourney') || lower.includes('flux') || lower.includes('photo') || lower.includes('art') || lower.includes('draw')) {
+        return {
+            type: 'Image Generation (Midjourney v6 / FLUX.1)',
+            prompt: `Cinematic, hyper-realistic photo of ${text.replace(/^(?:generate\s+prompt\s+for|image\s+of|draw|create\s+image)\s+/i, '')}, shot on 35mm lens, f/1.8 aperture, dramatic volumetric lighting, intricate cyberpunk obsidian and neon crimson accents, 8k resolution, photorealistic textures, octane render, masterpiece --ar 16:9 --style raw --v 6.0`
+        };
+    }
+
+    // 2. Code Architecture Prompt
+    if (lower.includes('code') || lower.includes('architect') || lower.includes('api') || lower.includes('function') || lower.includes('system') || lower.includes('database')) {
+        return {
+            type: 'Senior Software Architect Prompt',
+            prompt: `You are a Principal Staff Software Engineer and System Architect. 
+Task: ${text}
+
+Requirements:
+1. Provide production-grade, fully typed TypeScript / Node.js implementation following Clean Architecture and SOLID principles.
+2. Implement robust defensive error handling, input validation, and boundary conditions.
+3. Optimize for low latency, memory efficiency, and zero unhandled rejections.
+4. Include minimal, high-impact comments explaining non-obvious design decisions.
+5. Provide a verification plan and example integration snippet.`
+        };
+    }
+
+    // 3. Deep Reasoning / Executive Copilot Prompt
+    return {
+        type: 'Deep Strategic Reasoning Prompt (Claude 3.7 / DeepSeek-R1)',
+        prompt: `Act as a world-class strategic technical advisor and executive product leader.
+Context: ${text}
+
+Analyze the problem across these 4 dimensions:
+1. First-Principles Breakdown: What are the fundamental constraints and core mechanics?
+2. Architecture & Tech Options: Compare the top 2-3 approaches with trade-offs (Latency vs Complexity vs Cost).
+3. Recommended Path: State the exact implementation roadmap with priority steps.
+4. Edge Cases & Risks: What could fail in production, and how do we prevent it proactively?
+
+Be concise, rigorous, and direct.`
+    };
+}
+
+// Read Helpers for Dashboard and Bot
+async function getTasks(status = null) {
+    let query = '/tasks?select=id,title,status,priority,project_id,created_at,completed_at&order=created_at.desc';
+    if (status) query += `&status=eq.${status}`;
+    return await supabaseRequest(query, 'GET');
+}
+
+async function getGoals() {
+    return await supabaseRequest('/goals?select=id,title,category,status,priority,timeframe,created_at&order=priority.desc', 'GET');
+}
+
+async function getProjects() {
+    return await supabaseRequest('/projects?select=id,name,slug,description,status,category,repository_url,created_at&order=created_at.desc', 'GET');
+}
+
+async function getDecisions() {
+    return await supabaseRequest('/project_decisions?select=id,decision,reason,status,project_id,created_at&order=created_at.desc', 'GET');
+}
+
+async function getMemories(limit = 20) {
+    return await supabaseRequest(`/memories?select=id,content,memory_type,importance,confidence,created_at&order=created_at.desc&limit=${limit}`, 'GET');
+}
+
+// Action Intent Detector for user natural language or structured commands
+async function handleActionIntent(message) {
+    const text = message.trim();
+
+    // 1. Create Task Pattern
+    const taskMatch = text.match(/^(?:\/task|create\s+task|add\s+task|new\s+task)(?:\s*\[([^\]]+)\])?(?:\s*for\s+([a-zA-Z0-9_-]+))?[:\s]+(.+)$/i) ||
+                      text.match(/^todo(?:\s*\[([^\]]+)\])?[:\s]+(.+)$/i);
+    if (taskMatch) {
+        let projectHint = taskMatch[1] || taskMatch[2] || null;
+        let title = taskMatch[3] || taskMatch[2] || taskMatch[1];
+        if (text.match(/^todo/i)) {
+            projectHint = taskMatch[1] || null;
+            title = taskMatch[2];
+        }
+        return await createTask(title, projectHint);
+    }
+
+    // 2. Complete Task Pattern
+    const doneMatch = text.match(/^(?:\/done|complete\s+task|finish\s+task|done\s+task)[:\s]+(.+)$/i) ||
+                      text.match(/^(?:mark\s+task\s+)(.+?)(?:\s+as\s+(?:done|completed))$/i);
+    if (doneMatch) {
+        return await completeTask(doneMatch[1]);
+    }
+
+    // 3. Add Goal Pattern
+    const goalMatch = text.match(/^(?:\/newgoal|create\s+goal|add\s+goal|new\s+goal)[:\s]+(.+)$/i);
+    if (goalMatch) {
+        return await createGoal(goalMatch[1]);
+    }
+
+    // 4. Log Decision Pattern
+    const decisionMatch = text.match(/^(?:\/decision|log\s+decision|record\s+decision|add\s+decision)(?:\s*\[([^\]]+)\])?(?:\s*for\s+([a-zA-Z0-9_-]+))?[:\s]+(.+)$/i);
+    if (decisionMatch) {
+        const projectHint = decisionMatch[1] || decisionMatch[2] || null;
+        const dec = decisionMatch[3];
+        return await logDecision(dec, projectHint);
+    }
+
+    // 5. Add Note / Idea Pattern
+    const noteMatch = text.match(/^(?:\/note|\/idea|add\s+note|add\s+idea|save\s+note)[:\s]+(.+)$/i);
+    if (noteMatch) {
+        return await addNote(noteMatch[1], text.toLowerCase().includes('idea') ? 'idea' : 'note');
+    }
+
+    return null;
+}
+
+module.exports = {
+    handleActionIntent,
+    createTask,
+    completeTask,
+    createGoal,
+    logDecision,
+    addNote,
+    clearChatHistory,
+    fetchGitHubRepos,
+    generateLinkedInDraft,
+    tailorCvForJob,
+    generateOptimizedPrompt,
+    getTasks,
+    getGoals,
+    getProjects,
+    getDecisions,
+    getMemories,
+    matchProject,
+    PROJECTS,
+    supabaseRequest
+};

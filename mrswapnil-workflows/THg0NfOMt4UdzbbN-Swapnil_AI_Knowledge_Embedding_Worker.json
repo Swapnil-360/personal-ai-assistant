@@ -1,0 +1,293 @@
+{
+  "name": "Swapnil AI — Knowledge Embedding Worker",
+  "nodes": [
+    {
+      "id": "bad90419-4be7-4364-8203-4d357b839f4d",
+      "name": "Every 5 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "45c8ef91-d6bb-4a16-9e04-597517d7207c",
+      "name": "Get Pending Jobs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        224,
+        0
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://qjhrmctbrobpnoumzmju.supabase.co/rest/v1/embedding_jobs?status=eq.pending&entity_type=eq.document_chunk&order=created_at.asc&limit=10",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpTemplatedCustomAuth",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "httpTemplatedCustomAuth": {
+          "id": "IulgvvW35A6tvx5K",
+          "name": "Swapnil AI — Supabase (Miftahur R)"
+        }
+      }
+    },
+    {
+      "id": "d13fb14c-7f69-498e-a90a-de54d1a2ece5",
+      "name": "Get Chunk Content",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        448,
+        0
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "=https://qjhrmctbrobpnoumzmju.supabase.co/rest/v1/document_chunks?id=eq.{{ $json.entity_id }}&select=id,content",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpTemplatedCustomAuth",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "httpTemplatedCustomAuth": {
+          "id": "IulgvvW35A6tvx5K",
+          "name": "Swapnil AI — Supabase (Miftahur R)"
+        }
+      }
+    },
+    {
+      "id": "42e58db2-9635-42c4-850b-d13f23a09fde",
+      "name": "Generate Embedding",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        672,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/embeddings",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openRouterApi",
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"openai/text-embedding-3-small\",\n  \"input\": {{ JSON.stringify($json.content) }},\n  \"dimensions\": 1536\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "openRouterApi": {
+          "id": "BWv2EQMGabNxsune",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "id": "97ebf96f-3d69-4eb0-8ff5-a48cd5b226a6",
+      "name": "Update Chunk Embedding",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        896,
+        0
+      ],
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://qjhrmctbrobpnoumzmju.supabase.co/rest/v1/document_chunks?id=eq.{{ $('Get Chunk Content').item.json.id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpTemplatedCustomAuth",
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"embedding\": {{ JSON.stringify(JSON.stringify($json.data[0].embedding)) }}\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "httpTemplatedCustomAuth": {
+          "id": "IulgvvW35A6tvx5K",
+          "name": "Swapnil AI — Supabase (Miftahur R)"
+        }
+      }
+    },
+    {
+      "id": "9ab4fe36-1ebb-4c14-93da-67a0877a3837",
+      "name": "Mark Job Completed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1120,
+        0
+      ],
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://qjhrmctbrobpnoumzmju.supabase.co/rest/v1/embedding_jobs?id=eq.{{ $('Get Pending Jobs').item.json.id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpTemplatedCustomAuth",
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"status\": \"completed\",\n  \"completed_at\": {{ JSON.stringify($now.toISO()) }}\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "httpTemplatedCustomAuth": {
+          "id": "IulgvvW35A6tvx5K",
+          "name": "Swapnil AI — Supabase (Miftahur R)"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every 5 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Get Pending Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Pending Jobs": {
+      "main": [
+        [
+          {
+            "node": "Get Chunk Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Chunk Content": {
+      "main": [
+        [
+          {
+            "node": "Generate Embedding",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Embedding": {
+      "main": [
+        [
+          {
+            "node": "Update Chunk Embedding",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Chunk Embedding": {
+      "main": [
+        [
+          {
+            "node": "Mark Job Completed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": {
+    "node:Every 5 Minutes": {
+      "recurrenceRules": [
+        null
+      ],
+      "recurrenceRuleSignatures": [
+        null
+      ]
+    }
+  },
+  "pinData": {},
+  "triggerCount": 1,
+  "meta": null
+}

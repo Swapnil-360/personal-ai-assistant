@@ -1,0 +1,316 @@
+{
+  "name": "Swapnil AI — Cleanup Test Docs (one-off)",
+  "nodes": [
+    {
+      "id": "56f0d707-6f5f-4155-9b9c-aa4af9f5a62a",
+      "name": "Run Cleanup",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "c597dbfa-ea27-4016-97c1-2b1da0a8fbbe",
+      "name": "Get Test Docs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        224,
+        0
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://qjhrmctbrobpnoumzmju.supabase.co/rest/v1/documents",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpTemplatedCustomAuth",
+        "sendQuery": true,
+        "specifyQuery": "keypair",
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "select",
+              "value": "id,title"
+            },
+            {
+              "name": "title",
+              "value": "ilike.*Ingestion Check*"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "httpTemplatedCustomAuth": {
+          "id": "IulgvvW35A6tvx5K",
+          "name": "Swapnil AI — Supabase (Miftahur R)"
+        }
+      }
+    },
+    {
+      "id": "a3fe1f6a-5ddc-4c08-87d8-9c2d07d85fff",
+      "name": "Get Test Chunks",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        448,
+        0
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://qjhrmctbrobpnoumzmju.supabase.co/rest/v1/document_chunks",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpTemplatedCustomAuth",
+        "sendQuery": true,
+        "specifyQuery": "keypair",
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "select",
+              "value": "id,document_id"
+            },
+            {
+              "name": "document_id",
+              "value": "=in.({{ $('Get Test Docs').all().map(i => i.json.id).join(',') }})"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "httpTemplatedCustomAuth": {
+          "id": "IulgvvW35A6tvx5K",
+          "name": "Swapnil AI — Supabase (Miftahur R)"
+        }
+      }
+    },
+    {
+      "id": "08d0ee6c-d0a7-4432-91e6-b6192eba45e5",
+      "name": "Delete Embedding Jobs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        672,
+        0
+      ],
+      "parameters": {
+        "method": "DELETE",
+        "url": "https://qjhrmctbrobpnoumzmju.supabase.co/rest/v1/embedding_jobs",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpTemplatedCustomAuth",
+        "sendQuery": true,
+        "specifyQuery": "keypair",
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "entity_id",
+              "value": "=in.({{ $('Get Test Chunks').all().map(i => i.json.id).join(',') }})"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "httpTemplatedCustomAuth": {
+          "id": "IulgvvW35A6tvx5K",
+          "name": "Swapnil AI — Supabase (Miftahur R)"
+        }
+      },
+      "executeOnce": true
+    },
+    {
+      "id": "d7da1248-b297-49a8-8368-c01f62faa5f2",
+      "name": "Delete Document Chunks",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        896,
+        0
+      ],
+      "parameters": {
+        "method": "DELETE",
+        "url": "https://qjhrmctbrobpnoumzmju.supabase.co/rest/v1/document_chunks",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpTemplatedCustomAuth",
+        "sendQuery": true,
+        "specifyQuery": "keypair",
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "document_id",
+              "value": "=in.({{ $('Get Test Docs').all().map(i => i.json.id).join(',') }})"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "httpTemplatedCustomAuth": {
+          "id": "IulgvvW35A6tvx5K",
+          "name": "Swapnil AI — Supabase (Miftahur R)"
+        }
+      },
+      "executeOnce": true
+    },
+    {
+      "id": "f070fc0c-e0cf-4512-9b93-75872cdd9992",
+      "name": "Delete Documents",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1120,
+        0
+      ],
+      "parameters": {
+        "method": "DELETE",
+        "url": "https://qjhrmctbrobpnoumzmju.supabase.co/rest/v1/documents",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpTemplatedCustomAuth",
+        "sendQuery": true,
+        "specifyQuery": "keypair",
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "id",
+              "value": "=in.({{ $('Get Test Docs').all().map(i => i.json.id).join(',') }})"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "credentials": {
+        "httpTemplatedCustomAuth": {
+          "id": "IulgvvW35A6tvx5K",
+          "name": "Swapnil AI — Supabase (Miftahur R)"
+        }
+      },
+      "executeOnce": true
+    }
+  ],
+  "connections": {
+    "Run Cleanup": {
+      "main": [
+        [
+          {
+            "node": "Get Test Docs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Test Docs": {
+      "main": [
+        [
+          {
+            "node": "Get Test Chunks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Test Chunks": {
+      "main": [
+        [
+          {
+            "node": "Delete Embedding Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Embedding Jobs": {
+      "main": [
+        [
+          {
+            "node": "Delete Document Chunks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Document Chunks": {
+      "main": [
+        [
+          {
+            "node": "Delete Documents",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "pinData": {},
+  "triggerCount": 0,
+  "meta": null
+}

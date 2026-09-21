@@ -1,0 +1,336 @@
+{
+  "name": "Mikasa — Memory Extraction",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "user_message",
+              "type": "string"
+            },
+            {
+              "name": "assistant_reply",
+              "type": "string"
+            },
+            {
+              "name": "conversation_id",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -400,
+        0
+      ],
+      "id": "node-exec-trigger",
+      "name": "Execute Workflow Trigger"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "extract-memory",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -400,
+        200
+      ],
+      "id": "node-webhook-trigger",
+      "name": "Webhook Trigger"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst input = $json.body || $json;\nconst userMsg = (input.user_message || input.message || '').trim();\nconst asstReply = (input.assistant_reply || input.reply || '').trim();\nconst convId = input.conversation_id || null;\n\nif (!userMsg) {\n    return [{ json: { should_skip: true } }];\n}\n\nconst reflectionPrompt = `You are an expert memory reflection engine for Swapnil's personal AI operating system.\nYour task is to analyze the conversation turn below and extract any new permanent personal facts, preferences, technical decisions, habits, constraints, or life updates about Swapnil.\n\nDO NOT extract:\n- Casual chit-chat, greetings (\"hello\", \"how are you\", \"who are you\")\n- Routine questions or queries asking for information (\"what is X?\", \"tell me about Y\")\n- Assistant statements or speculation\n\nDO extract:\n- Personal preferences (\"I prefer dark mode\", \"I like working late at night\", \"I love minimalist design\")\n- Technical decisions or project updates (\"I decided to use FFmpeg for OpusGenAI\", \"I am adding Stripe to Edu51Portal\")\n- Life & study updates (\"I finished my semester exams\", \"I'm travelling to Sylhet next week\")\n- Expressed feelings or personal relationships\n\nConversation Turn:\nSwapnil: \"${userMsg}\"\nMikasa: \"${asstReply}\"\n\nOutput ONLY a raw JSON object with no markdown formatting and no code blocks, formatted like this:\n{\n  \"should_store\": true or false,\n  \"content\": \"Clear, standalone factual statement about Swapnil in 3rd person (e.g. 'Swapnil decided to use FFmpeg for OpusGenAI video processing.')\",\n  \"memory_type\": \"fact\" or \"preference\" or \"decision\" or \"project\" or \"general\",\n  \"importance\": number from 1 to 5\n}\n`;\n\nreturn [{\n    json: {\n        should_skip: false,\n        user_message: userMsg,\n        conversation_id: convId,\n        reflection_prompt: reflectionPrompt\n    }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -160,
+        100
+      ],
+      "id": "node-prep-prompt",
+      "name": "Prepare Reflection Prompt"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.reflection_prompt }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.5,
+      "position": [
+        120,
+        100
+      ],
+      "id": "node-llm-reflect",
+      "name": "Reflect on Memory"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.5-flash",
+        "options": {
+          "temperature": 0.1
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        120,
+        320
+      ],
+      "id": "node-gemini-model",
+      "name": "Gemini Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "8tkWRcx3DIfblZkA",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst rawText = ($json.text || '').trim();\nconst original = $('Prepare Reflection Prompt').first().json;\n\nif (original.should_skip) {\n    return [{ json: { should_store: false, reason: \"Skipped empty input\" } }];\n}\n\nlet parsed = null;\ntry {\n    // Clean code block ticks if any\n    const cleanJson = rawText.replace(/^[\\s\\S]*?\\{/, '{').replace(/\\}[^\\}]*$/, '}');\n    parsed = JSON.parse(cleanJson);\n} catch (e) {\n    console.error(\"JSON parse error on reflection:\", e.message, rawText);\n    return [{ json: { should_store: false, reason: \"Invalid JSON from LLM\" } }];\n}\n\nif (!parsed.should_store || !parsed.content || !parsed.content.trim()) {\n    return [{ json: { should_store: false, reason: \"Not memory worthy\" } }];\n}\n\n// Validate conversation_id as UUID or null\nconst uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;\nconst validConvId = (original.conversation_id && uuidRegex.test(original.conversation_id)) ? original.conversation_id : null;\n\nreturn [{\n    json: {\n        should_store: true,\n        content: parsed.content.trim(),\n        memory_type: parsed.memory_type || \"general\",\n        importance: parsed.importance || 3,\n        conversation_id: validConvId\n    }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        380,
+        100
+      ],
+      "id": "node-parse-reflection",
+      "name": "Parse Reflection"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.should_store }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        620,
+        100
+      ],
+      "id": "node-if-store",
+      "name": "If Should Store"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/embeddings",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openRouterApi",
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"openai/text-embedding-3-small\",\n  \"input\": {{ JSON.stringify($json.content) }},\n  \"dimensions\": 1536\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        860,
+        40
+      ],
+      "id": "node-get-embedding",
+      "name": "Generate Memory Embedding",
+      "credentials": {
+        "openRouterApi": {
+          "id": "9AKNHE3zmj8pdlUE",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://qjhrmctbrobpnoumzmju.supabase.co/rest/v1/memories",
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqaHJtY3Ricm9icG5vdW16bWp1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTkxNTc3NywiZXhwIjoyMTA1NDkxNzc3fQ.0_xov-GTLYTFGnm_gXxO2lmS1w_9Kc-pnWc0-T17UJ8"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqaHJtY3Ricm9icG5vdW16bWp1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTkxNTc3NywiZXhwIjoyMTA1NDkxNzc3fQ.0_xov-GTLYTFGnm_gXxO2lmS1w_9Kc-pnWc0-T17UJ8"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Prefer",
+              "value": "return=representation"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"content\": {{ JSON.stringify($('Parse Reflection').item.json.content) }},\n  \"memory_type\": {{ JSON.stringify($('Parse Reflection').item.json.memory_type) }},\n  \"importance\": {{ $('Parse Reflection').item.json.importance }},\n  \"confidence\": 1.0,\n  \"source_type\": \"conversation\",\n  \"source_id\": {{ $('Parse Reflection').item.json.conversation_id ? JSON.stringify($('Parse Reflection').item.json.conversation_id) : \"null\" }},\n  \"status\": \"active\",\n  \"embedding\": {{ JSON.stringify($json.data[0].embedding) }}\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1100,
+        40
+      ],
+      "id": "node-save-memory",
+      "name": "Save Memory to Supabase"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst memory = $json;\nconst meta = $('Parse Reflection').first().json;\n\nconsole.log('[Auto Memory Extracted]:', meta.content);\n\nreturn [{\n    json: {\n        status: \"saved\",\n        memory_id: memory.id,\n        content: meta.content,\n        memory_type: meta.memory_type,\n        importance: meta.importance\n    }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1340,
+        40
+      ],
+      "id": "node-format-output",
+      "name": "Format Output"
+    }
+  ],
+  "connections": {
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "Prepare Reflection Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Prepare Reflection Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Reflection Prompt": {
+      "main": [
+        [
+          {
+            "node": "Reflect on Memory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Reflect on Memory",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reflect on Memory": {
+      "main": [
+        [
+          {
+            "node": "Parse Reflection",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Reflection": {
+      "main": [
+        [
+          {
+            "node": "If Should Store",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If Should Store": {
+      "main": [
+        [
+          {
+            "node": "Generate Memory Embedding",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Generate Memory Embedding": {
+      "main": [
+        [
+          {
+            "node": "Save Memory to Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Memory to Supabase": {
+      "main": [
+        [
+          {
+            "node": "Format Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true
+  }
+}

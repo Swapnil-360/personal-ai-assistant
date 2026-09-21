@@ -1,0 +1,369 @@
+{
+  "id": "pqKLuDAyfRSQskSg",
+  "name": "Swapnil AI — Memory Search",
+  "description": null,
+  "active": true,
+  "activeVersionId": "68ef4ba7-ce95-412e-89d1-cebad9bbfe78",
+  "createdAt": "2026-09-21T15:32:56.432Z",
+  "updatedAt": "2026-09-21T15:44:12.351Z",
+  "isArchived": false,
+  "versionId": "68ef4ba7-ce95-412e-89d1-cebad9bbfe78",
+  "versionCounter": 5,
+  "sourceWorkflowId": null,
+  "triggerCount": 0,
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "query"
+            },
+            {
+              "name": "project_id"
+            },
+            {
+              "name": "limit",
+              "type": "number"
+            },
+            {
+              "name": "threshold",
+              "type": "number"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "3fede6b9-aeca-4441-b65c-c68b5df932f9",
+      "name": "When Executed by Another Workflow"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/embeddings",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.OPENROUTER_API_KEY || 'YOUR_OPENROUTER_API_KEY' }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"openai/text-embedding-3-small\",\n  \"input\": \"{{ $json.query }}\",\n  \"dimensions\": 1536\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        224,
+        0
+      ],
+      "id": "7a249617-4955-484a-be4e-f809f43ef562",
+      "name": "Generate Query Embedding"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://qjhrmctbrobpnoumzmju.supabase.co/rest/v1/rpc/match_memories",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqaHJtY3Ricm9icG5vdW16bWp1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTkxNTc3NywiZXhwIjoyMTA1NDkxNzc3fQ.0_xov-GTLYTFGnm_gXxO2lmS1w_9Kc-pnWc0-T17UJ8"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqaHJtY3Ricm9icG5vdW16bWp1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTkxNTc3NywiZXhwIjoyMTA1NDkxNzc3fQ.0_xov-GTLYTFGnm_gXxO2lmS1w_9Kc-pnWc0-T17UJ8"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"p_query_embedding\": {{ JSON.stringify($('Generate Query Embedding').item.json.data[0].embedding) }},\n  \"p_match_threshold\": 0.30,\n  \"p_match_count\": 5\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        448,
+        0
+      ],
+      "id": "ce231c07-2a61-4ea4-85b3-a40e79a49af4",
+      "name": "Search Memories",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = $input.all().map(item => item.json).filter(j => j && j.id);\n\nreturn [\n  {\n    json: {\n      count: results.length,\n      memories: results\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        0
+      ],
+      "id": "942e5842-7cbd-4992-bf61-033567c44806",
+      "name": "Format Memory Results"
+    }
+  ],
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Generate Query Embedding",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Query Embedding": {
+      "main": [
+        [
+          {
+            "node": "Search Memories",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Memories": {
+      "main": [
+        [
+          {
+            "node": "Format Memory Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "nodeGroups": [],
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "staticData": null,
+  "pinData": {},
+  "meta": null,
+  "tags": [],
+  "shared": [
+    {
+      "role": "workflow:owner",
+      "workflowId": "pqKLuDAyfRSQskSg",
+      "projectId": "ujjCrY16TZfbPPFM",
+      "project": {
+        "id": "ujjCrY16TZfbPPFM",
+        "name": "Miftahur Rahman Swapnil <miftahurr503@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "customTelemetryTags": [],
+        "creatorId": "56d7b5db-c729-4eb4-b12a-583fb8ddce37",
+        "createdAt": "2026-09-21T14:53:51.460Z",
+        "updatedAt": "2026-09-21T14:54:48.660Z"
+      },
+      "createdAt": "2026-09-21T15:32:56.433Z",
+      "updatedAt": "2026-09-21T15:32:56.433Z"
+    }
+  ],
+  "activeVersion": {
+    "versionId": "68ef4ba7-ce95-412e-89d1-cebad9bbfe78",
+    "workflowId": "pqKLuDAyfRSQskSg",
+    "nodes": [
+      {
+        "parameters": {
+          "workflowInputs": {
+            "values": [
+              {
+                "name": "query"
+              },
+              {
+                "name": "project_id"
+              },
+              {
+                "name": "limit",
+                "type": "number"
+              },
+              {
+                "name": "threshold",
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "type": "n8n-nodes-base.executeWorkflowTrigger",
+        "typeVersion": 1.2,
+        "position": [
+          0,
+          0
+        ],
+        "id": "3fede6b9-aeca-4441-b65c-c68b5df932f9",
+        "name": "When Executed by Another Workflow"
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "https://openrouter.ai/api/v1/embeddings",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "Authorization",
+                "value": "Bearer {{ $env.OPENROUTER_API_KEY || 'YOUR_OPENROUTER_API_KEY' }}"
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          },
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={\n  \"model\": \"openai/text-embedding-3-small\",\n  \"input\": \"{{ $json.query }}\",\n  \"dimensions\": 1536\n}",
+          "options": {}
+        },
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.5,
+        "position": [
+          224,
+          0
+        ],
+        "id": "7a249617-4955-484a-be4e-f809f43ef562",
+        "name": "Generate Query Embedding"
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "https://qjhrmctbrobpnoumzmju.supabase.co/rest/v1/rpc/match_memories",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "apikey",
+                "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqaHJtY3Ricm9icG5vdW16bWp1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTkxNTc3NywiZXhwIjoyMTA1NDkxNzc3fQ.0_xov-GTLYTFGnm_gXxO2lmS1w_9Kc-pnWc0-T17UJ8"
+              },
+              {
+                "name": "Authorization",
+                "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqaHJtY3Ricm9icG5vdW16bWp1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTkxNTc3NywiZXhwIjoyMTA1NDkxNzc3fQ.0_xov-GTLYTFGnm_gXxO2lmS1w_9Kc-pnWc0-T17UJ8"
+              },
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          },
+          "sendBody": true,
+          "specifyBody": "json",
+          "jsonBody": "={\n  \"p_query_embedding\": {{ JSON.stringify($('Generate Query Embedding').item.json.data[0].embedding) }},\n  \"p_match_threshold\": 0.30,\n  \"p_match_count\": 5\n}",
+          "options": {
+            "response": {
+              "response": {
+                "responseFormat": "json"
+              }
+            }
+          }
+        },
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.5,
+        "position": [
+          448,
+          0
+        ],
+        "id": "ce231c07-2a61-4ea4-85b3-a40e79a49af4",
+        "name": "Search Memories"
+      },
+      {
+        "parameters": {
+          "jsCode": "const results = $input.all().map(item => item.json);\n\nreturn [\n  {\n    json: {\n      count: results.length,\n      memories: results\n    }\n  }\n];"
+        },
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          672,
+          0
+        ],
+        "id": "942e5842-7cbd-4992-bf61-033567c44806",
+        "name": "Format Memory Results"
+      }
+    ],
+    "connections": {
+      "When Executed by Another Workflow": {
+        "main": [
+          [
+            {
+              "node": "Generate Query Embedding",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Generate Query Embedding": {
+        "main": [
+          [
+            {
+              "node": "Search Memories",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Search Memories": {
+        "main": [
+          [
+            {
+              "node": "Format Memory Results",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "nodeGroups": [],
+    "authors": "Miftahur Rahman Swapnil",
+    "name": null,
+    "description": null,
+    "autosaved": true,
+    "createdAt": "2026-09-21T15:44:12.351Z",
+    "updatedAt": "2026-09-21T15:44:12.351Z",
+    "workflowPublishHistory": [
+      {
+        "id": 2,
+        "workflowId": "pqKLuDAyfRSQskSg",
+        "versionId": "68ef4ba7-ce95-412e-89d1-cebad9bbfe78",
+        "event": "activated",
+        "userId": "56d7b5db-c729-4eb4-b12a-583fb8ddce37",
+        "createdAt": "2026-09-21T16:00:42.545Z"
+      }
+    ]
+  }
+}

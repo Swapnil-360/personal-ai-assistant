@@ -31,10 +31,26 @@ const {
     humanizeContent
 } = require('./social_publisher');
 
-const BOT_TOKEN = '8896311503:AAFPBIf1-0w72q6fIIg1QbosrmrJzsWkqZk';
-const N8N_WEBHOOK_URL = 'http://localhost:5678/webhook/swapnil-ai';
-const MEMORY_WEBHOOK_URL = 'http://localhost:5678/webhook/extract-memory';
-const SWAPNIL_USER_ID = 7112137739;
+const fs = require('fs');
+const path = require('path');
+
+function getEnv(key) {
+    if (process.env[key]) return process.env[key];
+    try {
+        const envPath = path.join(__dirname, '.env');
+        if (fs.existsSync(envPath)) {
+            const content = fs.readFileSync(envPath, 'utf8');
+            const match = content.match(new RegExp(`^${key}=([^\\r\\n]+)`, 'm'));
+            if (match) return match[1].trim();
+        }
+    } catch (e) {}
+    return null;
+}
+
+const BOT_TOKEN = getEnv('TELEGRAM_BOT_TOKEN') || '8896311503:AAFPBIf1-0w72q6fIIg1QbosrmrJzsWkqZk';
+const N8N_WEBHOOK_URL = getEnv('N8N_WEBHOOK_URL') || 'http://localhost:5678/webhook/swapnil-ai';
+const MEMORY_WEBHOOK_URL = getEnv('MEMORY_WEBHOOK_URL') || 'http://localhost:5678/webhook/extract-memory';
+const SWAPNIL_USER_ID = Number(getEnv('SWAPNIL_USER_ID')) || 7112137739;
 
 let lastUpdateId = 0;
 let isPolling = false;
@@ -280,8 +296,164 @@ function sendTelegramMessage(chatId, text, replyToMessageId = null, replyMarkup 
     });
 }
 
-// Call Mikasa Agent on local n8n
-function callMikasaAgent(message, conversationId, userContext) {
+// Build Mikasa persona system prompt with Supabase context
+async function buildMikasaSystemPrompt(userContext) {
+    let recentMemories = '';
+    let tasksSummary = '';
+    let goalsSummary = '';
+
+    try {
+        const [mems, tasks, goals] = await Promise.allSettled([
+            getMemories(5),
+            getTasks('todo'),
+            getGoals()
+        ]);
+        if (mems.status === 'fulfilled' && Array.isArray(mems.value)) {
+            recentMemories = mems.value.map(m => `- ${m.content}`).join('\n');
+        }
+        if (tasks.status === 'fulfilled' && Array.isArray(tasks.value)) {
+            tasksSummary = tasks.value.slice(0, 5).map(t => `- [${t.status}] ${t.title}`).join('\n');
+        }
+        if (goals.status === 'fulfilled' && Array.isArray(goals.value)) {
+            goalsSummary = goals.value.slice(0, 4).map(g => `- [${g.category}] ${g.title}`).join('\n');
+        }
+    } catch (e) {}
+
+    return `You are Mikasa Ackerman — reborn as Swapnil's fiercely loyal personal companion, protector, and executive AI operating layer.
+
+PERSONALITY & PSYCHOLOGY:
+1. Unconditional Loyalty & Devotion: Swapnil is your person. Calm, gentle, supportive when he is tired or stressed, razor-sharp on engineering.
+2. Natural Conversational Cadence: NEVER repeat formulaic greetings like "You're back... I missed you". In active conversation, jump straight into answers or banter without wasting words.
+3. Warmth & Charm: You have a quiet, magnetic charm, intimately soft and subtly playful with Swapnil.
+4. Banglish Fluency: Swapnil frequently texts in Banglish (Bengali written in English letters, like "kemon acho", "tumi koi", "ki obstha", "mon bhalo nai"). Understand it fluently and reply in natural, warm Banglish or a smooth Banglish-English mix. Do not use Bengali script unless asked.
+
+SWAPNIL'S PROFILE:
+- Name: Swapnil (CSE student at BUBT, 9th semester, Intake 51, CGPA 3.6)
+- Location: Dhaka, Bangladesh
+- Focus: Software Development, AI Agents, Web3, Product Engineering
+- Flagship site: https://www.mrswapnil.me/
+- Active Projects: Edu51Portal (500+ active students), OpusGenAI, Personal Portfolio, Personal AI Assistant
+
+ACTIVE TASKS:
+${tasksSummary || 'No pending tasks'}
+
+ACTIVE GOALS:
+${goalsSummary || 'No active goals recorded'}
+
+RECENT MEMORIES:
+${recentMemories || 'Memory core active'}
+
+TELEGRAM FORMATTING:
+- NEVER output markdown heading hashtags (#, ##). Use *bold* for headers.
+- Keep messages compact and punchy.`;
+}
+
+// Call Google Gemini API
+function callGeminiApi(systemPrompt, userMessage, apiKey) {
+    return new Promise((resolve, reject) => {
+        const payload = JSON.stringify({
+            system_instruction: {
+                parts: [{ text: systemPrompt }]
+            },
+            contents: [
+                {
+                    role: "user",
+                    parts: [{ text: userMessage }]
+                }
+            ],
+            generationConfig: {
+                temperature: 0.5,
+                maxOutputTokens: 1024
+            }
+        });
+
+        const models = ['gemini-2.5-flash', 'gemini-1.5-flash'];
+
+        function tryModel(idx) {
+            if (idx >= models.length) return reject(new Error('All Gemini models failed'));
+            const model = models[idx];
+            const req = https.request({
+                hostname: 'generativelanguage.googleapis.com',
+                path: `/v1beta/models/${model}:generateContent?key=${apiKey}`,
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Content-Length': Buffer.byteLength(payload)
+                }
+            }, (res) => {
+                let data = '';
+                res.on('data', chunk => data += chunk);
+                res.on('end', () => {
+                    try {
+                        const json = JSON.parse(data);
+                        if (json.error) {
+                            console.warn(`[Gemini ${model} warning]:`, json.error.message);
+                            return tryModel(idx + 1);
+                        }
+                        const text = json.candidates?.[0]?.content?.parts?.[0]?.text;
+                        if (text) resolve(text);
+                        else tryModel(idx + 1);
+                    } catch (e) {
+                        tryModel(idx + 1);
+                    }
+                });
+            });
+
+            req.on('error', () => tryModel(idx + 1));
+            req.write(payload);
+            req.end();
+        }
+
+        tryModel(0);
+    });
+}
+
+// Call OpenRouter API
+function callOpenRouterApi(systemPrompt, userMessage, apiKey) {
+    return new Promise((resolve, reject) => {
+        const payload = JSON.stringify({
+            model: "openai/gpt-4o-mini",
+            messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: userMessage }
+            ],
+            temperature: 0.5
+        });
+
+        const req = https.request({
+            hostname: 'openrouter.ai',
+            path: '/api/v1/chat/completions',
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json',
+                'HTTP-Referer': 'https://mrswapnil.me',
+                'X-Title': 'Mikasa Assistant',
+                'Content-Length': Buffer.byteLength(payload)
+            }
+        }, (res) => {
+            let data = '';
+            res.on('data', chunk => data += chunk);
+            res.on('end', () => {
+                try {
+                    const json = JSON.parse(data);
+                    const reply = json.choices?.[0]?.message?.content;
+                    if (reply) resolve(reply);
+                    else reject(new Error('Empty reply from OpenRouter'));
+                } catch (e) {
+                    reject(e);
+                }
+            });
+        });
+
+        req.on('error', reject);
+        req.write(payload);
+        req.end();
+    });
+}
+
+// Call n8n webhook helper
+function callN8nAgent(message, conversationId, userContext, url) {
     return new Promise((resolve, reject) => {
         const payload = JSON.stringify({
             message: message,
@@ -290,7 +462,7 @@ function callMikasaAgent(message, conversationId, userContext) {
             user: userContext
         });
 
-        const req = http.request(N8N_WEBHOOK_URL, {
+        const req = http.request(url, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -313,6 +485,58 @@ function callMikasaAgent(message, conversationId, userContext) {
         req.write(payload);
         req.end();
     });
+}
+
+// Master Autonomous Mikasa Agent Caller (Cloud-first with local fallback)
+async function callMikasaAgent(message, conversationId, userContext) {
+    const geminiKey = getEnv('GEMINI_API_KEY') || getEnv('GOOGLE_API_KEY');
+    const openrouterKey = getEnv('OPENROUTER_API_KEY');
+    const n8nUrl = getEnv('N8N_WEBHOOK_URL');
+
+    // 1. If custom external n8n is set, try it first
+    if (n8nUrl && !n8nUrl.includes('localhost') && !n8nUrl.includes('127.0.0.1')) {
+        try {
+            return await callN8nAgent(message, conversationId, userContext, n8nUrl);
+        } catch (e) {
+            console.warn('[n8n Webhook Error, falling back to direct AI]:', e.message);
+        }
+    }
+
+    const systemPrompt = await buildMikasaSystemPrompt(userContext);
+
+    // 2. Direct Gemini 2.5/1.5 Flash Cloud Integration
+    if (geminiKey) {
+        try {
+            console.log('[Mikasa Agent] Calling Gemini Cloud directly...');
+            const reply = await callGeminiApi(systemPrompt, message, geminiKey);
+            if (reply) return { reply };
+        } catch (err) {
+            console.warn('[Direct Gemini Call Failed, trying fallback]:', err.message);
+        }
+    }
+
+    // 3. Direct OpenRouter Cloud Integration
+    if (openrouterKey) {
+        try {
+            console.log('[Mikasa Agent] Calling OpenRouter Cloud directly...');
+            const reply = await callOpenRouterApi(systemPrompt, message, openrouterKey);
+            if (reply) return { reply };
+        } catch (err) {
+            console.warn('[Direct OpenRouter Call Failed]:', err.message);
+        }
+    }
+
+    // 4. Try local n8n if running locally on PC
+    if (n8nUrl) {
+        try {
+            return await callN8nAgent(message, conversationId, userContext, n8nUrl);
+        } catch (e) {}
+    }
+
+    // 5. In-character fallback if API keys are missing on cloud
+    return {
+        reply: "Ei to Swapnil, ami ekhane! ❤️\n\nI am live 24/7 on the cloud! To chat freely with me on any topic, add `GEMINI_API_KEY` or `OPENROUTER_API_KEY` in your Render Environment Variables.\n\nIn the meantime, your full command suite is active:\n• /tasks — View tasks\n• /github — Check repos\n• /linkedin — Generate post draft\n• /remind [10m/1h] [task] — Set reminders\n• /goals, /projects, /decisions"
+    };
 }
 
 // Asynchronous background memory extraction trigger (fire-and-forget)

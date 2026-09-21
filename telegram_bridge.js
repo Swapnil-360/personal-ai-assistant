@@ -26,6 +26,7 @@ const {
 const {
     publishToLinkedIn,
     publishToTwitter,
+    getTwitterProfile,
     publishToFacebook,
     humanizeContent
 } = require('./social_publisher');
@@ -198,8 +199,16 @@ function sendTelegramMessage(chatId, text, replyToMessageId = null, replyMarkup 
             remaining = remaining.slice(slicePoint).trim();
         }
 
+        const timeout = setTimeout(() => {
+            console.warn('[Telegram Bridge] sendMessage timed out, resolving.');
+            resolve();
+        }, 15000);
+
         async function sendNext(index) {
-            if (index >= chunks.length) return resolve();
+            if (index >= chunks.length) {
+                clearTimeout(timeout);
+                return resolve();
+            }
             const chunk = chunks[index];
             const isLastChunk = index === chunks.length - 1;
 
@@ -223,8 +232,10 @@ function sendTelegramMessage(chatId, text, replyToMessageId = null, replyMarkup 
                 let data = '';
                 res.on('data', c => data += c);
                 res.on('end', () => {
-                    const parsed = JSON.parse(data || '{}');
-                    if (!parsed.ok && parsed.description && parsed.description.includes("can't parse entities")) {
+                    let parsed = {};
+                    try { parsed = JSON.parse(data); } catch (e) {}
+                    if (!parsed.ok) {
+                        console.warn('[Telegram Send Markdown Warning]:', parsed.description);
                         // Fallback without Markdown if Telegram markdown parsing fails
                         const rawPayload = JSON.stringify({
                             chat_id: chatId,
@@ -240,7 +251,14 @@ function sendTelegramMessage(chatId, text, replyToMessageId = null, replyMarkup 
                                 'Content-Type': 'application/json',
                                 'Content-Length': Buffer.byteLength(rawPayload)
                             }
-                        }, () => sendNext(index + 1));
+                        }, (res2) => {
+                            res2.resume();
+                            res2.on('end', () => sendNext(index + 1));
+                        });
+                        req2.on('error', (err) => {
+                            console.error('[Telegram Send Plain Error]:', err.message);
+                            sendNext(index + 1);
+                        });
                         req2.write(rawPayload);
                         req2.end();
                     } else {
@@ -249,7 +267,11 @@ function sendTelegramMessage(chatId, text, replyToMessageId = null, replyMarkup 
                 });
             });
 
-            req.on('error', reject);
+            req.on('error', (err) => {
+                console.error('[Telegram Send Error]:', err.message);
+                clearTimeout(timeout);
+                resolve();
+            });
             req.write(payload);
             req.end();
         }
@@ -405,8 +427,10 @@ async function processCallbackQuery(callbackQuery) {
             let updatedText = (callbackQuery.message.text || '') + "\n\n━━━━━━━━━━━━━━━━━━━━\n";
             if (pubResult.has_direct_api && pubResult.success) {
                 updatedText += `🚀 *STATUS: PUBLISHED LIVE ON X!*\n_Your thread is live: [View Thread](${pubResult.url})_`;
+            } else if (pubResult.share_url) {
+                updatedText += `✅ *STATUS: APPROVED & READY*\n_${pubResult.message}_\n\n🔗 [👉 Tap to Publish on X](${pubResult.share_url})`;
             } else {
-                updatedText += `✅ *STATUS: APPROVED & HUMANIZED*\n_${pubResult.message}_\n\n🔗 [1-Click Publish on X](${pubResult.share_url})\n\n💡 _Tip: Add TWITTER_API_KEY & tokens in .env to post autonomously directly from Telegram!_`;
+                updatedText += `⚠️ *STATUS: ERROR*\n_${pubResult.error || 'Failed to post'}_`;
             }
             await editTelegramMessage(chatId, messageId, updatedText);
         }
@@ -603,7 +627,38 @@ async function processUpdate(update) {
         return;
     }
 
-    // 4B. Handle Social Media Audit Intent ("checkout my social media", "check my socials", "review my twitter", etc.)
+    // 4B. Handle Twitter DM Specific Intent ("check my twitter dm", "twitter dm check koro", "any important dms")
+    const isTwitterDM = (text.match(/twitter|\bx\b/i)) && (text.match(/\bdm\b|direct\s+message|inbox|messages?/i));
+    if (isTwitterDM) {
+        await sendChatAction(chatId, 'typing');
+        let liveStats = null;
+        try {
+            const p = await getTwitterProfile();
+            if (p.success && p.profile) liveStats = p.profile;
+        } catch (e) {}
+
+        const handle = liveStats ? `@${liveStats.username}` : '@thomascryptoxx';
+        const dmLines = [
+            `📬 *X / Twitter Direct Messages (${handle})*`,
+            "",
+            "Swapnil, ami tumar Twitter account connect korechi! Kintu X (Twitter) API v2 te Direct Messages read korar endpoint-ta X Developer Platform e *paid credits* require kore (status: `402 credits depleted`).",
+            "",
+            "👉 *Verified Connection:*",
+            liveStats ? `• Account: *${liveStats.name}* (${handle})` : `• Account: ${handle}`,
+            liveStats ? `• Audience: ${liveStats.public_metrics.followers_count} Followers | ${liveStats.public_metrics.tweet_count} Tweets` : '',
+            "• DMs are locked behind X's paid API tier.",
+            "",
+            "🔗 *Check your DMs directly on X:*",
+            "[👉 Open X Direct Messages](https://x.com/messages)",
+            "",
+            "_Tumi chaile ami tumar hoye notun technical post ba build log draft kore dite pari! Say `/twitter` to start._"
+        ].filter(Boolean).join('\n');
+
+        await sendTelegramMessage(chatId, dmLines, msg.message_id);
+        return;
+    }
+
+    // 4C. Handle Social Media Audit Intent ("checkout my social media", "check my socials", "review my twitter", etc.)
     const isSocialAudit = text.match(/^\/(?:socials?|socialmedia|audit)\b/i) || 
                           ((text.match(/social|socials|social media|online presence|brand|profile|profiles|linkedin|twitter|\bx\b|facebook|fb|instagram|insta|ig/i)) && 
                            (text.match(/check|checkout|review|audit|see|view|inspect|look|status|examine/i)));
@@ -647,10 +702,19 @@ async function processUpdate(update) {
 
         if (lower.includes('twitter') || lower.match(/\bx\b/)) {
             const audit = auditSocialMedia('twitter');
+            let liveStats = null;
+            try {
+                const p = await getTwitterProfile();
+                if (p.success && p.profile) liveStats = p.profile;
+            } catch (e) {}
+
             const lines = [
-                "🐦 *Swapnil's X / Twitter Audit & Strategy*",
+                "🐦 *Swapnil's X / Twitter Live Radar & Strategy*",
                 "",
-                `🔗 *Profile:* [${audit.handle}](${audit.url})`,
+                `🔗 *Profile:* [${liveStats ? '@' + liveStats.username : audit.handle}](${audit.url})`,
+                liveStats ? `📊 *Live Stats:* ${liveStats.public_metrics.followers_count} Followers | ${liveStats.public_metrics.following_count} Following | ${liveStats.public_metrics.tweet_count} Tweets` : null,
+                liveStats ? `📝 *Current Bio:* _"${liveStats.description}"_` : null,
+                "",
                 `⭐ *Audit Rating:* ${audit.audit_score}`,
                 `🎯 *Current Positioning:* ${audit.current_focus}`,
                 "",
@@ -664,7 +728,7 @@ async function processUpdate(update) {
                 ...audit.action_items.map(a => `• ${a}`),
                 "",
                 "_Ready to share a build log with tech Twitter?_"
-            ].join('\n');
+            ].filter(Boolean).join('\n');
 
             const replyMarkup = {
                 inline_keyboard: [

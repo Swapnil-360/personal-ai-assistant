@@ -191,10 +191,25 @@ async function publishToTwitter(contentOrTweets) {
             has_direct_api: true,
             message: `🚀 Live on X! Published ${results.length} tweets in thread.`,
             post_id: lastTweetId,
-            url: `https://x.com/thomascryptoxx/status/${results[0].id}`,
+            url: `https://x.com/i/web/status/${results[0].id}`,
             content: combinedText
         };
     } catch (err) {
+        if (err.message && (err.message.includes('credits depleted') || err.message.includes('402'))) {
+            await addNote(`[Approved X/Twitter Thread]\n\n${combinedText}`, 'approved_social_post');
+            const firstTweetEncoded = encodeURIComponent(tweets[0]);
+            const webIntent = `https://twitter.com/intent/tweet?text=${firstTweetEncoded}`;
+            return {
+                platform: 'twitter',
+                success: true,
+                status: 'queued_and_ready',
+                has_direct_api: false,
+                message: "Post approved & humanized! (Note: X requires prepaid credits or free plan activation on developer.x.com to send via API directly). Tap below to publish with 1 click:",
+                content: combinedText,
+                share_url: webIntent,
+                authenticated_user: "@thomascryptoxx"
+            };
+        }
         return {
             platform: 'twitter',
             success: false,
@@ -258,6 +273,71 @@ function sendTwitterV2Tweet(bodyObj, creds) {
 
         req.on('error', reject);
         req.write(payload);
+        req.end();
+    });
+}
+
+// 3b. Fetch Authenticated X / Twitter Profile & Live Metrics
+function getTwitterProfile() {
+    return new Promise((resolve) => {
+        const apiKey = getEnv('TWITTER_API_KEY');
+        const apiSecret = getEnv('TWITTER_API_SECRET');
+        const accessToken = getEnv('TWITTER_ACCESS_TOKEN');
+        const accessSecret = getEnv('TWITTER_ACCESS_SECRET');
+
+        if (!apiKey || !apiSecret || !accessToken || !accessSecret) {
+            return resolve({ success: false, error: 'Twitter API credentials not configured in .env' });
+        }
+
+        const baseUrl = 'https://api.twitter.com/2/users/me';
+        const url = `${baseUrl}?user.fields=description,public_metrics,created_at`;
+        const oauthParams = {
+            oauth_consumer_key: apiKey,
+            oauth_nonce: crypto.randomBytes(16).toString('hex'),
+            oauth_signature_method: 'HMAC-SHA1',
+            oauth_timestamp: Math.floor(Date.now() / 1000).toString(),
+            oauth_token: accessToken,
+            oauth_version: '1.0'
+        };
+
+        const allParams = { ...oauthParams, 'user.fields': 'description,public_metrics,created_at' };
+        const signatureBase = [
+            'GET',
+            encodeURIComponent(baseUrl),
+            encodeURIComponent(
+                Object.keys(allParams).sort().map(k => `${encodeURIComponent(k)}=${encodeURIComponent(allParams[k])}`).join('&')
+            )
+        ].join('&');
+
+        const signingKey = `${encodeURIComponent(apiSecret)}&${encodeURIComponent(accessSecret)}`;
+        oauthParams.oauth_signature = crypto.createHmac('sha1', signingKey).update(signatureBase).digest('base64');
+
+        const authHeader = 'OAuth ' + Object.keys(oauthParams)
+            .sort()
+            .map(k => `${encodeURIComponent(k)}="${encodeURIComponent(oauthParams[k])}"`)
+            .join(', ');
+
+        const req = https.request(url, {
+            method: 'GET',
+            headers: { 'Authorization': authHeader }
+        }, (res) => {
+            let data = '';
+            res.on('data', c => data += c);
+            res.on('end', () => {
+                try {
+                    const parsed = JSON.parse(data);
+                    if (res.statusCode === 200 && parsed.data) {
+                        resolve({ success: true, profile: parsed.data });
+                    } else {
+                        resolve({ success: false, error: data, statusCode: res.statusCode });
+                    }
+                } catch (e) {
+                    resolve({ success: false, error: data });
+                }
+            });
+        });
+
+        req.on('error', (err) => resolve({ success: false, error: err.message }));
         req.end();
     });
 }
@@ -347,6 +427,7 @@ module.exports = {
     humanizeContent,
     publishToLinkedIn,
     publishToTwitter,
+    getTwitterProfile,
     publishToFacebook,
     publishPost,
     getEnv

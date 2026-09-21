@@ -34,6 +34,7 @@ const {
 
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 
 function getEnv(key) {
     if (process.env[key]) return process.env[key];
@@ -55,7 +56,7 @@ if (!BOT_TOKEN) {
 const N8N_WEBHOOK_URL = getEnv('N8N_WEBHOOK_URL') || 'http://localhost:5678/webhook/swapnil-ai';
 const MEMORY_WEBHOOK_URL = getEnv('MEMORY_WEBHOOK_URL') || 'http://localhost:5678/webhook/extract-memory';
 const SWAPNIL_USER_ID = Number(getEnv('SWAPNIL_USER_ID')) || 7112137739;
-const IS_RENDER_CLOUD = Boolean(process.env.RENDER || process.env.RENDER_SERVICE_ID || process.env.IS_CLOUD);
+const IS_RENDER_CLOUD = Boolean(process.env.RENDER || process.env.RENDER_SERVICE_ID || process.env.IS_CLOUD || process.env.IS_RENDER_CLOUD);
 
 let lastUpdateId = 0;
 let isPolling = false;
@@ -1522,11 +1523,15 @@ async function startPolling() {
 
     // Heartbeat logic for Local PC
     if (!IS_RENDER_CLOUD) {
-        console.log('[Local Coordinator] Local instance active — broadcasting heartbeat to Supabase...');
+        console.log('[Local Coordinator] Local instance active on PC — broadcasting heartbeat to Supabase...');
         const sendHeartbeat = async () => {
             try {
                 await supabaseRequest('/current_state?key=eq.local_bridge_heartbeat', 'PATCH', {
-                    value: { active_at: new Date().toISOString() },
+                    value: {
+                        active_at: new Date().toISOString(),
+                        source: 'local_pc',
+                        hostname: os.hostname()
+                    },
                     updated_at: new Date().toISOString()
                 });
             } catch (e) {}
@@ -1537,7 +1542,7 @@ async function startPolling() {
         const clearHeartbeat = async () => {
             try {
                 await supabaseRequest('/current_state?key=eq.local_bridge_heartbeat', 'PATCH', {
-                    value: { active_at: null },
+                    value: { active_at: null, source: 'local_pc' },
                     updated_at: new Date().toISOString()
                 });
             } catch (e) {}
@@ -1552,6 +1557,10 @@ async function startPolling() {
         try {
             const res = await supabaseRequest('/current_state?key=eq.local_bridge_heartbeat', 'GET');
             if (res && res[0] && res[0].value && res[0].value.active_at) {
+                // Must be specifically stamped by Swapnil's PC
+                if (res[0].value.source !== 'local_pc' || res[0].value.hostname !== 'Swapnil-PC') {
+                    return false;
+                }
                 const diff = Date.now() - new Date(res[0].value.active_at).getTime();
                 return diff < 30000; // Local sent a heartbeat within the last 30s
             }

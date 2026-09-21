@@ -1,6 +1,9 @@
 // Main Entrypoint for 24/7 Cloud Deployment (Render, Railway, VPS)
 // Starts both the Web Command Center and the Telegram Autonomous Bridge
 
+process.env.IS_CLOUD = 'true';
+process.env.IS_RENDER_CLOUD = 'true';
+
 console.log('==============================================');
 console.log('🚀 Launching Mikasa Autonomous Assistant (Cloud)');
 console.log('==============================================');

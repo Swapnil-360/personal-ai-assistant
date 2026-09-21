@@ -23,6 +23,13 @@ const {
     addNote,
     supabaseRequest
 } = require('../actions_handler');
+const {
+    publishPost,
+    publishToLinkedIn,
+    publishToTwitter,
+    publishToFacebook,
+    humanizeContent
+} = require('../social_publisher');
 
 function getSessionUuid(id = 'web_commander') {
     const h = crypto.createHash('md5').update('web_' + id).digest('hex');
@@ -163,7 +170,24 @@ const server = http.createServer(async (req, res) => {
         if (pathname === '/api/linkedin/draft' && req.method === 'POST') {
             const body = await parseBody(req);
             const draft = generateLinkedInDraft(body.topic || 'Edu51Portal');
+            draft.content = humanizeContent(draft.content);
             return sendJson(res, 200, draft);
+        }
+
+        // Facebook Draft API
+        if (pathname === '/api/facebook/draft' && req.method === 'POST') {
+            const body = await parseBody(req);
+            const topic = body.topic || 'Edu51Portal';
+            const raw = `🚀 Edu51Portal Update for BUBT CSE 51st Intake!\n\nAll lecture slides, previous exam questions, and lab guides are updated for ${topic}. Fast, centralized, and sub-second access.\n\nCheck it out at mrswapnil.me! Let me know if any resources need updating! 👇`;
+            const content = humanizeContent(raw);
+            return sendJson(res, 200, { topic, content });
+        }
+
+        // Social Media Direct Publish API (LinkedIn, Twitter, Facebook)
+        if (pathname === '/api/socials/publish' && req.method === 'POST') {
+            const body = await parseBody(req);
+            const result = await publishPost(body.platform, body.content);
+            return sendJson(res, 200, result);
         }
 
         // CV Tailoring API

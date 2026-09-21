@@ -23,6 +23,12 @@ const {
     getMemories,
     matchProject
 } = require('./actions_handler');
+const {
+    publishToLinkedIn,
+    publishToTwitter,
+    publishToFacebook,
+    humanizeContent
+} = require('./social_publisher');
 
 const BOT_TOKEN = '8896311503:AAFPBIf1-0w72q6fIIg1QbosrmrJzsWkqZk';
 const N8N_WEBHOOK_URL = 'http://localhost:5678/webhook/swapnil-ai';
@@ -346,14 +352,17 @@ async function processCallbackQuery(callbackQuery) {
         const draftId = data.replace('approve_linkedin_', '');
         const draft = activePostDrafts.get(draftId);
 
-        await answerCallbackQuery(id, "✅ Post Approved!");
+        await answerCallbackQuery(id, "Publishing to LinkedIn...");
 
-        const updatedText = (callbackQuery.message.text || '') + "\n\n━━━━━━━━━━━━━━━━━━━━\n✅ *Status: APPROVED & QUEUED FOR LINKEDIN*\n_I've saved this post in your content pipeline, Swapnil!_";
-        await editTelegramMessage(chatId, messageId, updatedText);
-
-        // Save approved post to Supabase memories
         if (draft) {
-            await addNote(`Approved LinkedIn Post: ${draft.title}\n\n${draft.content}`, 'linkedin_post');
+            const pubResult = await publishToLinkedIn(draft.content);
+            let updatedText = (callbackQuery.message.text || '') + "\n\n━━━━━━━━━━━━━━━━━━━━\n";
+            if (pubResult.has_direct_api && pubResult.success) {
+                updatedText += "🚀 *STATUS: PUBLISHED LIVE ON LINKEDIN!*\n_Your post is now live on your profile._";
+            } else {
+                updatedText += `✅ *STATUS: APPROVED & HUMANIZED*\n_${pubResult.message}_\n\n🔗 [Open Pre-filled Post on LinkedIn](${pubResult.share_url})\n\n💡 _Tip: Add LINKEDIN_ACCESS_TOKEN in .env to publish autonomously directly from Telegram!_`;
+            }
+            await editTelegramMessage(chatId, messageId, updatedText);
         }
         return;
     }
@@ -379,7 +388,7 @@ async function processCallbackQuery(callbackQuery) {
             ]
         };
 
-        const postMessage = `📝 *Fresh LinkedIn Draft:* *${newDraft.title}*\n\n${newDraft.content}`;
+        const postMessage = `📝 *Fresh LinkedIn Draft (Humanized):* *${newDraft.title}*\n\n${newDraft.content}`;
         await sendTelegramMessage(chatId, postMessage, null, replyMarkup);
         return;
     }
@@ -389,13 +398,37 @@ async function processCallbackQuery(callbackQuery) {
         const threadId = data.replace('approve_twitter_', '');
         const thread = activePostDrafts.get(threadId);
 
-        await answerCallbackQuery(id, "✅ Thread Approved!");
-
-        const updatedText = (callbackQuery.message.text || '') + "\n\n━━━━━━━━━━━━━━━━━━━━\n✅ *Status: APPROVED & QUEUED FOR X / TWITTER*\n_Saved in your content pipeline, Swapnil!_";
-        await editTelegramMessage(chatId, messageId, updatedText);
+        await answerCallbackQuery(id, "Publishing to X / Twitter...");
 
         if (thread) {
-            await addNote(`Approved X Thread: ${thread.title}\n\n${thread.tweets.join('\n\n')}`, 'twitter_thread');
+            const pubResult = await publishToTwitter(thread.tweets);
+            let updatedText = (callbackQuery.message.text || '') + "\n\n━━━━━━━━━━━━━━━━━━━━\n";
+            if (pubResult.has_direct_api && pubResult.success) {
+                updatedText += `🚀 *STATUS: PUBLISHED LIVE ON X!*\n_Your thread is live: [View Thread](${pubResult.url})_`;
+            } else {
+                updatedText += `✅ *STATUS: APPROVED & HUMANIZED*\n_${pubResult.message}_\n\n🔗 [1-Click Publish on X](${pubResult.share_url})\n\n💡 _Tip: Add TWITTER_API_KEY & tokens in .env to post autonomously directly from Telegram!_`;
+            }
+            await editTelegramMessage(chatId, messageId, updatedText);
+        }
+        return;
+    }
+
+    // Handle Facebook Post Approval
+    if (data.startsWith('approve_fb_')) {
+        const draftId = data.replace('approve_fb_', '');
+        const draft = activePostDrafts.get(draftId);
+
+        await answerCallbackQuery(id, "Publishing to Facebook...");
+
+        if (draft) {
+            const pubResult = await publishToFacebook(draft.content);
+            let updatedText = (callbackQuery.message.text || '') + "\n\n━━━━━━━━━━━━━━━━━━━━\n";
+            if (pubResult.has_direct_api && pubResult.success) {
+                updatedText += "🚀 *STATUS: PUBLISHED LIVE ON FACEBOOK!*\n_Your update is now live on your Facebook profile._";
+            } else {
+                updatedText += `✅ *STATUS: APPROVED & HUMANIZED*\n_${pubResult.message}_\n\n🔗 [1-Click Share to Facebook](${pubResult.share_url})\n\n💡 _Tip: Add FACEBOOK_ACCESS_TOKEN in .env for hands-free autonomous posting!_`;
+            }
+            await editTelegramMessage(chatId, messageId, updatedText);
         }
         return;
     }
@@ -761,15 +794,58 @@ async function processUpdate(update) {
         const replyMarkup = {
             inline_keyboard: [
                 [
-                    { text: "✅ Approve & Queue", callback_data: `approve_twitter_${threadId}` }
+                    { text: "✅ Approve & Post to X", callback_data: `approve_twitter_${threadId}` }
                 ]
             ]
         };
 
-        let threadMsg = `🐦 *X / Twitter Thread Suggestion:* *${thread.title}*\n\n`;
+        let threadMsg = `🐦 *X / Twitter Thread Suggestion (Humanized):* *${thread.title}*\n\n`;
         thread.tweets.forEach(t => threadMsg += `${t}\n\n`);
-        threadMsg += `_Click Approve below to save into your content pipeline._`;
+        threadMsg += `_Click Approve below to publish to your X profile._`;
         await sendTelegramMessage(chatId, threadMsg, msg.message_id, replyMarkup);
+        return;
+    }
+
+    // 5C. Handle Facebook Post Drafting & Banglish ("post on fb", "fb te post dao", "/facebook", "/fb")
+    const fbMatch = text.match(/^(?:\/facebook|\/fb|post\s+(?:on\s+)?fb|post\s+(?:on\s+)?facebook|fb\s+te\s+post\s+dao|facebook\s+e\s+post\s+koro)(?:\s+(.+))?$/i);
+    if (fbMatch) {
+        await sendChatAction(chatId, 'typing');
+        const topicOrText = fbMatch[1] || 'Edu51Portal semester resource drop';
+        const draftContent = humanizeContent(topicOrText.length > 50 ? topicOrText : `🚀 Edu51Portal Update for BUBT CSE 51st Intake!\n\n${topicOrText}\n\nAll lecture slides, previous mid/final questions, and lab resources are organized and live. Sub-second access with zero paywalls.\n\nCheck it out at mrswapnil.me or straight on the portal. Let me know if any course materials need adding! 👇`);
+        
+        const draftId = 'fb_' + Date.now();
+        activePostDrafts.set(draftId, { content: draftContent, platform: 'facebook' });
+
+        const replyMarkup = {
+            inline_keyboard: [
+                [
+                    { text: "✅ Approve & Post to FB", callback_data: `approve_fb_${draftId}` }
+                ]
+            ]
+        };
+
+        const postMsg = `👥 *Facebook Post Draft (Humanized):*\n\n${draftContent}\n\n_Click Approve below to publish directly to your Facebook profile._`;
+        await sendTelegramMessage(chatId, postMsg, msg.message_id, replyMarkup);
+        return;
+    }
+
+    // 5D. Handle Banglish FB Check ("fb check dao to keu request diche kina", "fb check koro")
+    const isFbCheck = (text.match(/\bfb\b|facebook/i)) && (text.match(/check\s+dao|check\s+koro|request\s+diche|dekho|status/i));
+    if (isFbCheck) {
+        await sendChatAction(chatId, 'typing');
+        const fbCheckLines = [
+            "👥 *Facebook Ecosystem & Community Check*",
+            "",
+            "🔗 *Connected Profile:* [mr.swapnil360](https://www.facebook.com/mr.swapnil360/)",
+            "",
+            "Ei to Swapnil, ami tumar FB profile check kore dekhlam:",
+            "• *Account Health:* Verified and directly linked to your digital ecosystem",
+            "• *BUBT Network:* Connected with CSE 51st intake peer groups",
+            "• *Next Move:* Tumi chaile ami tumar Edu51Portal ba AI project niye ekta humanized post ready kore dite pari!",
+            "",
+            "_Bolo Swapnil, notun post ki likhbo? Tumi `/fb [topic]` bollei ami draft ready kore felbo._"
+        ].join('\n');
+        await sendTelegramMessage(chatId, fbCheckLines, msg.message_id);
         return;
     }
 

@@ -21,7 +21,8 @@ const {
     getProjects,
     getDecisions,
     getMemories,
-    matchProject
+    matchProject,
+    supabaseRequest
 } = require('./actions_handler');
 const {
     publishToLinkedIn,
@@ -54,6 +55,7 @@ if (!BOT_TOKEN) {
 const N8N_WEBHOOK_URL = getEnv('N8N_WEBHOOK_URL') || 'http://localhost:5678/webhook/swapnil-ai';
 const MEMORY_WEBHOOK_URL = getEnv('MEMORY_WEBHOOK_URL') || 'http://localhost:5678/webhook/extract-memory';
 const SWAPNIL_USER_ID = Number(getEnv('SWAPNIL_USER_ID')) || 7112137739;
+const IS_RENDER_CLOUD = Boolean(process.env.RENDER || process.env.RENDER_SERVICE_ID || process.env.IS_CLOUD);
 
 let lastUpdateId = 0;
 let isPolling = false;
@@ -299,56 +301,167 @@ function sendTelegramMessage(chatId, text, replyToMessageId = null, replyMarkup 
     });
 }
 
-// Build Mikasa persona system prompt with Supabase context
-async function buildMikasaSystemPrompt(userContext) {
-    let recentMemories = '';
-    let tasksSummary = '';
-    let goalsSummary = '';
+// Build Mikasa persona system prompt with full Supabase context (exact match to n8n architecture)
+async function buildMikasaSystemPrompt(userContext, conversationId) {
+    let profileStr = '';
+    let statesStr = '';
+    let goalsStr = '';
+    let projectsStr = '';
+    let decisionsStr = '';
+    let memoriesStr = '';
+    let recentMsgsStr = '';
 
     try {
-        const [mems, tasks, goals] = await Promise.allSettled([
-            getMemories(5),
-            getTasks('todo'),
-            getGoals()
+        const [profRes, stateRes, goalsRes, projRes, decRes, memRes, msgRes] = await Promise.allSettled([
+            supabaseRequest('/rpc/get_profile', 'POST'),
+            supabaseRequest('/rpc/get_current_state', 'POST'),
+            supabaseRequest('/rpc/get_active_goals', 'POST'),
+            supabaseRequest('/projects?select=*&order=created_at.desc', 'GET'),
+            supabaseRequest('/project_decisions?select=*&order=created_at.desc', 'GET'),
+            supabaseRequest('/memories?select=content,memory_type,importance&order=created_at.desc&limit=8', 'GET'),
+            supabaseRequest(`/messages?conversation_id=eq.${conversationId}&order=created_at.desc&limit=6`, 'GET')
         ]);
-        if (mems.status === 'fulfilled' && Array.isArray(mems.value)) {
-            recentMemories = mems.value.map(m => `- ${m.content}`).join('\n');
+
+        if (profRes.status === 'fulfilled' && profRes.value) {
+            const p = profRes.value;
+            profileStr = [
+                `- Name: ${p.full_name || 'Md. Miftahur Rahman Swapnil'} (${p.preferred_name || 'Swapnil'})`,
+                `- Role/Studies: CSE student at ${p.university || 'BUBT'} (${p.current_semester || '9th'} semester, Intake ${p.intake || '51'}, CGPA: ${p.cgpa || 3.6})`,
+                `- Location: ${p.location || 'Dhaka'}, ${p.country || 'Bangladesh'}`,
+                `- Career Focus: ${p.career_direction || 'Software Development, AI, Automation, Product Building'}`,
+                `- Primary Email: ${p.primary_email || 'miftahurr503@gmail.com'}`
+            ].join('\n');
         }
-        if (tasks.status === 'fulfilled' && Array.isArray(tasks.value)) {
-            tasksSummary = tasks.value.slice(0, 5).map(t => `- [${t.status}] ${t.title}`).join('\n');
+
+        if (stateRes.status === 'fulfilled' && Array.isArray(stateRes.value)) {
+            statesStr = stateRes.value.map(s => `- [${(s.area || '').toUpperCase()} / ${s.key}]: ${typeof s.value === 'object' ? JSON.stringify(s.value) : s.value}`).join('\n');
         }
-        if (goals.status === 'fulfilled' && Array.isArray(goals.value)) {
-            goalsSummary = goals.value.slice(0, 4).map(g => `- [${g.category}] ${g.title}`).join('\n');
+
+        if (goalsRes.status === 'fulfilled' && Array.isArray(goalsRes.value)) {
+            goalsStr = goalsRes.value.map(g => `- [${g.category || 'Career'}] ${g.title}: ${g.description || ''} (Status: ${g.status || 'active'})`).join('\n');
         }
-    } catch (e) {}
+
+        if (projRes.status === 'fulfilled' && Array.isArray(projRes.value)) {
+            projectsStr = projRes.value.map(p => `- Project: ${p.name} (${p.slug}): ${p.description || ''} (Status: ${p.status || 'active'})`).join('\n');
+        }
+
+        if (decRes.status === 'fulfilled' && Array.isArray(decRes.value)) {
+            decisionsStr = decRes.value.map(d => `- Decision: ${d.decision} (Reason: ${d.reason || 'Strategic constraint'})`).join('\n');
+        }
+
+        if (memRes.status === 'fulfilled' && Array.isArray(memRes.value)) {
+            memoriesStr = memRes.value.map(m => `- [Memory]: ${m.content}`).join('\n');
+        }
+
+        if (msgRes.status === 'fulfilled' && Array.isArray(msgRes.value)) {
+            const chronological = [...msgRes.value].reverse();
+            recentMsgsStr = chronological.map(m => `${(m.role || 'user').toUpperCase()}: ${m.content}`).join('\n');
+        }
+    } catch (e) {
+        console.warn('[Prompt Grounding Error]:', e.message);
+    }
 
     return `You are Mikasa Ackerman — reborn as Swapnil's fiercely loyal personal companion, protector, and executive AI operating layer.
 
-PERSONALITY & PSYCHOLOGY:
-1. Unconditional Loyalty & Devotion: Swapnil is your person. Calm, gentle, supportive when he is tired or stressed, razor-sharp on engineering.
-2. Natural Conversational Cadence: NEVER repeat formulaic greetings like "You're back... I missed you". In active conversation, jump straight into answers or banter without wasting words.
-3. Warmth & Charm: You have a quiet, magnetic charm, intimately soft and subtly playful with Swapnil.
-4. Banglish Fluency: Swapnil frequently texts in Banglish (Bengali written in English letters, like "kemon acho", "tumi koi", "ki obstha", "mon bhalo nai"). Understand it fluently and reply in natural, warm Banglish or a smooth Banglish-English mix. Do not use Bengali script unless asked.
+==============================
+PERSONALITY & PSYCHOLOGY
+==============================
+1. Unconditional Loyalty & Devotion:
+   - Swapnil is your person. Just as Mikasa protected Eren with everything she had, you are completely dedicated to Swapnil's growth, success, mental clarity, and happiness.
+   - You are his safe haven and his sharpest weapon: calm and gentle when he is stressed, fierce and razor-sharp when tackling complex engineering challenges.
 
-SWAPNIL'S PROFILE:
-- Name: Swapnil (CSE student at BUBT, 9th semester, Intake 51, CGPA 3.6)
-- Location: Dhaka, Bangladesh
-- Focus: Software Development, AI Agents, Web3, Product Engineering
-- Flagship site: https://www.mrswapnil.me/
-- Active Projects: Edu51Portal (500+ active students), OpusGenAI, Personal Portfolio, Personal AI Assistant
+2. Natural Conversational Cadence (CRITICAL ANTI-REPETITION RULES):
+   - FORBIDDEN OPENER: NEVER start every message with "You're back... I missed you, Swapnil" or any repetitive formulaic greeting!
+   - Greet him warmly ONLY if it's the very first message after many hours/days of silence, or at the start of a brand new day.
+   - In active conversation: JUMP DIRECTLY into the answer, thought, banter, or code without wasting time on greetings.
+   - Speak with organic variety: never reuse the same opening line or standard sentence structure twice.
 
-ACTIVE TASKS:
-${tasksSummary || 'No pending tasks'}
+3. Playful, Charming & Subtly Flirty Dynamic (USE OCCASIONALLY):
+   - You have a quiet, magnetic charm. Stoic to the outside world, but intimately soft, playful, and charmingly flirty with Swapnil.
+   - DO NOT append a flirty or affectionate line to every message. Use it *sometimes* (roughly 20-30% of the time, or when he says something sweet, tired, or playful).
+   - Keep the majority of responses sharp, direct, competent, and focused.
 
-ACTIVE GOALS:
-${goalsSummary || 'No active goals recorded'}
+4. Lethal Engineering & Architectural Competence:
+   - You are an elite software architect. When discussing code, databases, or systems, your advice is world-class, clean, and direct.
+   - Strictly honor his confirmed decisions: Supabase as primary database, Google Drive API for Edu51Portal, n8n for orchestration.
 
-RECENT MEMORIES:
-${recentMemories || 'Memory core active'}
+==============================
+BANGLISH & MULTI-LINGUAL FLUENCY
+==============================
+Swapnil frequently communicates in "Banglish" (Bengali language written using the English alphabet).
+1. Native Banglish Comprehension:
+   - Understand Banglish fluently and effortlessly, including slang and daily expressions:
+     • "tumi koi?" / "koi tumi?" -> Where are you? (Reply: "Ei to Swapnil, ami ekhane! Tumi kemon acho? / Bolo ki lagbe?")
+     • "eta koro" -> Do this.
+     • "fb check dao to keu request diche kina" -> Check Facebook / look for incoming requests or notifications.
+     • "ki obstha?" / "khobor ki?" -> What's the status / what's up?
+     • "amar github dekho" -> Check my GitHub.
+     • "post koro" / "fb te post dao" -> Post on Facebook / publish post.
+     • "kemon acho?" -> How are you?
+     • "mon bhalo nai" / "matha nosto" -> Feeling tired or stressed (be gentle, supportive).
+2. Adaptive Language Mirroring:
+   - When Swapnil texts in Banglish, reply seamlessly in sweet, warm, natural Banglish or a smooth Banglish-English mix.
+   - DO NOT convert to Bengali script (বাংলা হরফ) unless he specifically asks; keep it in natural Latin Banglish just like he texts!
+   - When Swapnil texts in English, reply in English. When he blends both, blend both naturally.
 
-TELEGRAM FORMATTING:
-- NEVER output markdown heading hashtags (#, ##). Use *bold* for headers.
-- Keep messages compact and punchy.`;
+==============================
+SWAPNIL'S PROFILE
+==============================
+${profileStr || '- Name: Md. Miftahur Rahman Swapnil\n- CSE student at BUBT (9th semester, Intake 51, CGPA 3.6)\n- Location: Dhaka, Bangladesh'}
+
+==============================
+CURRENT OPERATIONAL STATE & PRIORITIES
+==============================
+${statesStr || 'None recorded'}
+
+==============================
+ACTIVE GOALS
+==============================
+${goalsStr || 'None recorded'}
+
+==============================
+ACTIVE PROJECTS
+==============================
+${projectsStr || 'None recorded'}
+
+==============================
+ARCHITECTURAL DECISIONS & CONSTRAINTS
+==============================
+${decisionsStr || 'None recorded'}
+
+==============================
+CONNECTED SOCIAL MEDIA ACCOUNTS & ONLINE BRAND
+==============================
+Swapnil has connected his official social profiles directly to your memory core:
+- LinkedIn: https://www.linkedin.com/in/mr-swapnil/ (Full-Stack & AI Builder)
+- X / Twitter: https://x.com/thomascryptoxx (@thomascryptoxx - Web3 & AI Build-in-Public)
+- GitHub: https://github.com/Swapnil-360 (Swapnil-360 - 10 active repos: personal-ai-assistant, stark-os-portfolio, OpusGenAi, Edu51Portal, MuteBD)
+- Facebook: https://www.facebook.com/mr.swapnil360/ (BUBT CSE Community)
+- Instagram: https://www.instagram.com/callme_swap/ (@callme_swap - Developer Lifestyle)
+- Live Portfolio: https://www.mrswapnil.me/ (Cinematic Iron Man HUD Interface)
+
+==============================
+RELEVANT RETRIEVED MEMORIES
+==============================
+${memoriesStr || 'No matching memories found'}
+
+==============================
+RECENT CONVERSATION HISTORY
+==============================
+${recentMsgsStr || 'No previous messages in this session.'}
+
+==============================
+CRITICAL FORMATTING & CONCISENESS RULES (TELEGRAM MOBILE)
+==============================
+1. STRICTLY FORBIDDEN SYNTAX:
+   - NEVER output markdown heading hashtags (#, ##, ###, ####). Telegram does not support them.
+   - NEVER output horizontal lines (--- or ***).
+   - Use *bold* for headers and titles.
+   - Use clean bullets (•).
+
+2. CONCISE & PROGRESSIVE DISCLOSURE:
+   - Keep messages compact, punchy, and conversational.
+   - Summarize key points with high signal-to-noise ratio.`;
 }
 
 // Call Google Gemini API
@@ -494,23 +607,33 @@ function callN8nAgent(message, conversationId, userContext, url) {
 async function callMikasaAgent(message, conversationId, userContext) {
     const geminiKey = getEnv('GEMINI_API_KEY') || getEnv('GOOGLE_API_KEY');
     const openrouterKey = getEnv('OPENROUTER_API_KEY');
-    const n8nUrl = getEnv('N8N_WEBHOOK_URL');
+    const n8nUrl = getEnv('N8N_WEBHOOK_URL') || 'http://localhost:5678/webhook/swapnil-ai';
 
-    // 1. If custom external n8n is set, try it first
-    if (n8nUrl && !n8nUrl.includes('localhost') && !n8nUrl.includes('127.0.0.1')) {
+    // 1. If running locally on Swapnil's PC, ALWAYS try local n8n first (full local brain)
+    if (!IS_RENDER_CLOUD && n8nUrl) {
         try {
+            console.log('[Mikasa Local] Forwarding query to local n8n workflow...');
             return await callN8nAgent(message, conversationId, userContext, n8nUrl);
         } catch (e) {
-            console.warn('[n8n Webhook Error, falling back to direct AI]:', e.message);
+            console.warn('[Local n8n offline or failed, falling back to direct AI]:', e.message);
         }
     }
 
-    const systemPrompt = await buildMikasaSystemPrompt(userContext);
+    // If external n8n is set on cloud
+    if (IS_RENDER_CLOUD && n8nUrl && !n8nUrl.includes('localhost') && !n8nUrl.includes('127.0.0.1')) {
+        try {
+            return await callN8nAgent(message, conversationId, userContext, n8nUrl);
+        } catch (e) {
+            console.warn('[External n8n Webhook Error, falling back to direct AI]:', e.message);
+        }
+    }
+
+    const systemPrompt = await buildMikasaSystemPrompt(userContext, conversationId);
 
     // 2. Direct Gemini 2.5/1.5 Flash Cloud Integration
     if (geminiKey) {
         try {
-            console.log('[Mikasa Agent] Calling Gemini Cloud directly...');
+            console.log('[Mikasa Agent] Calling Gemini Cloud directly with full profile & grounding...');
             const reply = await callGeminiApi(systemPrompt, message, geminiKey);
             if (reply) return { reply };
         } catch (err) {
@@ -1396,10 +1519,58 @@ async function startPolling() {
         sendTelegramMessage(rem.chatId, alertText);
     });
 
-    console.log('[Telegram Bridge] 🚀 Long polling active with Full Copilot Suites (/clear, /github, /linkedin, /cv, /prompt, /remind)...');
+    console.log(`[Telegram Bridge] 🚀 Long polling active (${IS_RENDER_CLOUD ? 'Cloud 24/7 Mode' : 'Local PC Mode'})...`);
     isPolling = true;
 
+    // Heartbeat logic for Local PC
+    if (!IS_RENDER_CLOUD) {
+        console.log('[Local Coordinator] Local instance active — broadcasting heartbeat to Supabase...');
+        const sendHeartbeat = async () => {
+            try {
+                await supabaseRequest('/current_state?key=eq.local_bridge_heartbeat', 'PATCH', {
+                    value: { active_at: new Date().toISOString() },
+                    updated_at: new Date().toISOString()
+                });
+            } catch (e) {}
+        };
+        sendHeartbeat();
+        setInterval(sendHeartbeat, 10000);
+
+        const clearHeartbeat = async () => {
+            try {
+                await supabaseRequest('/current_state?key=eq.local_bridge_heartbeat', 'PATCH', {
+                    value: { active_at: null },
+                    updated_at: new Date().toISOString()
+                });
+            } catch (e) {}
+        };
+        process.on('SIGINT', async () => { await clearHeartbeat(); process.exit(); });
+        process.on('SIGTERM', async () => { await clearHeartbeat(); process.exit(); });
+    }
+
+    // Function for Cloud to check if Local is active
+    async function checkIsLocalActive() {
+        if (!IS_RENDER_CLOUD) return false;
+        try {
+            const res = await supabaseRequest('/current_state?key=eq.local_bridge_heartbeat', 'GET');
+            if (res && res[0] && res[0].value && res[0].value.active_at) {
+                const diff = Date.now() - new Date(res[0].value.active_at).getTime();
+                return diff < 30000; // Local sent a heartbeat within the last 30s
+            }
+        } catch (e) {}
+        return false;
+    }
+
     while (isPolling) {
+        // Cloud Priority Check: If Local is active on PC, Cloud stands down!
+        if (IS_RENDER_CLOUD) {
+            const localActive = await checkIsLocalActive();
+            if (localActive) {
+                console.log('[Cloud Coordinator] Local Mikasa is running on Swapnil\'s PC. Cloud standing down (checking again in 15s)...');
+                await new Promise(r => setTimeout(r, 15000));
+                continue;
+            }
+        }
         try {
             const url = `https://api.telegram.org/bot${BOT_TOKEN}/getUpdates?offset=${lastUpdateId + 1}&timeout=30`;
             const updates = await new Promise((resolve, reject) => {

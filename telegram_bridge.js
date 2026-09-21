@@ -47,7 +47,10 @@ function getEnv(key) {
     return null;
 }
 
-const BOT_TOKEN = getEnv('TELEGRAM_BOT_TOKEN') || '8896311503:AAFPBIf1-0w72q6fIIg1QbosrmrJzsWkqZk';
+const BOT_TOKEN = getEnv('TELEGRAM_BOT_TOKEN');
+if (!BOT_TOKEN) {
+    console.error('CRITICAL: TELEGRAM_BOT_TOKEN is missing from environment variables!');
+}
 const N8N_WEBHOOK_URL = getEnv('N8N_WEBHOOK_URL') || 'http://localhost:5678/webhook/swapnil-ai';
 const MEMORY_WEBHOOK_URL = getEnv('MEMORY_WEBHOOK_URL') || 'http://localhost:5678/webhook/extract-memory';
 const SWAPNIL_USER_ID = Number(getEnv('SWAPNIL_USER_ID')) || 7112137739;

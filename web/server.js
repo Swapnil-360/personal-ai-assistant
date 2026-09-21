@@ -320,13 +320,56 @@ const server = http.createServer(async (req, res) => {
             });
         }
 
-        // --- STATIC FILE SERVING ---
-        let filePath = path.join(__dirname, pathname === '/' ? 'index.html' : pathname);
+        // Public System Telemetry
+        if (pathname === '/api/system/public-stats' && req.method === 'GET') {
+            try {
+                const [tasks, goals, decisions, memories] = await Promise.all([
+                    getTasks().catch(() => []),
+                    getGoals().catch(() => []),
+                    getDecisions().catch(() => []),
+                    getMemories(5).catch(() => [])
+                ]);
+                return sendJson(res, 200, {
+                    status: 'operational',
+                    commander: 'Md. Miftahur Rahman Swapnil',
+                    stats: {
+                        active_tasks: tasks.filter(t => t.status !== 'done').length,
+                        strategic_goals: goals.length,
+                        architectural_decisions: decisions.length,
+                        knowledge_nodes: memories.length
+                    },
+                    channels: {
+                        telegram: '@mikasa_360_bot (Active)',
+                        web_hud: 'mikasa.mrswapnil.me (Active)',
+                        social_pipeline: 'Active (X, LinkedIn, FB)'
+                    },
+                    uptime_seconds: Math.floor(process.uptime())
+                });
+            } catch (e) {
+                return sendJson(res, 200, { status: 'operational', uptime: process.uptime() });
+            }
+        }
+
+        // --- STATIC FILE & PAGE ROUTING ---
+        let targetFile = '';
+        if (pathname === '/' || pathname === '/index.html') {
+            targetFile = 'public.html';
+        } else if (pathname === '/app' || pathname === '/commander' || pathname === '/hud') {
+            targetFile = 'index.html';
+        } else if (pathname === '/privacy') {
+            targetFile = 'privacy.html';
+        } else if (pathname === '/terms') {
+            targetFile = 'terms.html';
+        } else {
+            targetFile = pathname.startsWith('/') ? pathname.slice(1) : pathname;
+        }
+
+        let filePath = path.join(__dirname, targetFile);
 
         if (!fs.existsSync(filePath)) {
             // SPA fallback or 404
             if (!path.extname(pathname)) {
-                filePath = path.join(__dirname, 'index.html');
+                filePath = path.join(__dirname, 'public.html');
             } else {
                 res.writeHead(404, { 'Content-Type': 'text/plain' });
                 return res.end('404 Not Found');

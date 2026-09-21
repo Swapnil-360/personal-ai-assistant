@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy — Mikasa Autonomous AI Operating System</title>
+    <meta name="description" content="Privacy Policy for Mikasa Autonomous AI Operating System and related applications operated by Md. Miftahur Rahman Swapnil.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-base: #090a0f;
+            --bg-surface: #10121b;
+            --border-color: rgba(255, 255, 255, 0.08);
+            --primary: #e53935;
+            --text-main: #f0f2f8;
+            --text-muted: #9aa1b6;
+            --font-sans: 'Outfit', -apple-system, sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+
+        body {
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            font-family: var(--font-sans);
+            line-height: 1.7;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 860px;
+            margin: 0 auto;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 48px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+        }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--primary);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 24px;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        h1 {
+            font-size: 36px;
+            font-weight: 800;
+            margin-bottom: 8px;
+            color: #ffffff;
+        }
+
+        .meta-date {
+            font-family: var(--font-mono);
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: 36px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 16px;
+        }
+
+        h2 {
+            font-size: 22px;
+            font-weight: 700;
+            margin-top: 32px;
+            margin-bottom: 12px;
+            color: #ffffff;
+        }
+
+        p, ul {
+            margin-bottom: 16px;
+            color: var(--text-muted);
+            font-size: 15.5px;
+        }
+
+        ul {
+            padding-left: 24px;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        code {
+            font-family: var(--font-mono);
+            background: rgba(255, 255, 255, 0.05);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #ff9a98;
+        }
+
+        footer {
+            margin-top: 48px;
+            padding-top: 24px;
+            border-top: 1px solid var(--border-color);
+            text-align: center;
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <a href="/" class="back-link">← Back to Mikasa OS Home</a>
+
+        <h1>Privacy Policy</h1>
+        <div class="meta-date">Last Updated: September 22, 2026 • Domain: mikasa.mrswapnil.me</div>
+
+        <p>
+            This Privacy Policy describes how <strong>Mikasa Autonomous AI Operating System</strong> ("Mikasa", "we", "us", or "our"), 
+            developed and operated by <strong>Md. Miftahur Rahman Swapnil</strong>, handles data, authentication credentials, 
+            and third-party API interactions.
+        </p>
+
+        <h2>1. Nature of the Application</h2>
+        <p>
+            Mikasa is a private, dedicated executive AI assistant designed for personal productivity, project management, and automated engineering workflows. 
+            The system does not offer public user accounts, does not collect public consumer data, and does not sell or commercialize any personal information.
+        </p>
+
+        <h2>2. Information Collected and Processed</h2>
+        <ul>
+            <li><strong>Communication Data:</strong> Messages exchanged with the Telegram Bot (<code>@mikasa_360_bot</code>) and through the web Commander HUD are processed solely to generate contextual assistant responses and distill user tasks, goals, and decisions.</li>
+            <li><strong>Third-Party Platform Data:</strong> When authorized by the owner, Mikasa interacts with third-party APIs (including GitHub, X/Twitter, LinkedIn, and Facebook) using private developer access tokens strictly to read public profiles, fetch repository states, or publish approved content.</li>
+            <li><strong>Authentication Credentials:</strong> All API keys and secrets are stored strictly in protected local environment files (<code>.env</code>) and are never exposed publicly, transmitted to untrusted parties, or logged.</li>
+        </ul>
+
+        <h2>3. Third-Party Integrations & Scope Usage</h2>
+        <p>Mikasa connects to the following external services strictly under user authorization:</p>
+        <ul>
+            <li><strong>X (Twitter) API:</strong> Used to inspect authenticated profile status, follower metrics, and publish owner-approved technical updates. No user tracking or non-owner data analysis is performed.</li>
+            <li><strong>LinkedIn API:</strong> Used strictly to publish owner-approved technical career updates.</li>
+            <li><strong>Meta / Facebook Graph API:</strong> Used to share owner-approved community and project updates.</li>
+            <li><strong>GitHub API:</strong> Used to query repositories belonging to <code>Swapnil-360</code> to track project milestones.</li>
+            <li><strong>Supabase:</strong> Serves as the encrypted cloud database for storing tasks, goals, decisions, and distilled memories.</li>
+        </ul>
+
+        <h2>4. Data Storage and Security</h2>
+        <p>
+            All persistent operational data is hosted securely within dedicated, access-controlled Supabase cloud instances utilizing Row-Level Security (RLS) and SSL/TLS encryption in transit. Local agent execution runs within restricted node environments without public external write access.
+        </p>
+
+        <h2>5. Cookies and Web Analytics</h2>
+        <p>
+            The public web interface at <code>mikasa.mrswapnil.me</code> does not utilize third-party tracking cookies, advertising trackers, or fingerprinting scripts. Standard server access logs are retained strictly for security and operational monitoring.
+        </p>
+
+        <h2>6. User Rights & Data Erasure</h2>
+        <p>
+            Because Mikasa is a dedicated single-owner personal operating system, all stored conversation memories, notes, and task records can be permanently deleted at any time via the <code>/clear</code> command in Telegram or via the web Commander Terminal.
+        </p>
+
+        <h2>7. Contact Information</h2>
+        <p>
+            For any inquiries or privacy-related questions concerning Mikasa OS, please contact the developer directly:
+        </p>
+        <ul>
+            <li><strong>Developer:</strong> Md. Miftahur Rahman Swapnil</li>
+            <li><strong>Website:</strong> <a href="https://www.mrswapnil.me" target="_blank" style="color: var(--primary);">https://www.mrswapnil.me</a></li>
+            <li><strong>GitHub:</strong> <a href="https://github.com/Swapnil-360" target="_blank" style="color: var(--primary);">Swapnil-360</a></li>
+            <li><strong>Telegram:</strong> <a href="https://t.me/Swapnil3600" target="_blank" style="color: var(--primary);">@Swapnil3600</a></li>
+        </ul>
+
+        <footer>
+            &copy; 2026 Md. Miftahur Rahman Swapnil. All rights reserved. Mikasa OS.
+        </footer>
+    </div>
+
+</body>
+</html>

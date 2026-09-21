@@ -179,4 +179,26 @@ The system should eventually provide the AI with only the context relevant to th
 
 ## Important Principle
 
-The assistant shou
+The assistant should always act as a natural, highly contextual executive companion with dynamic memory retrieval, organic conversational flow, and humanized communication.
+
+## Mikasa Web Showcase & Cloudflare Tunnel (`mikasa.mrswapnil.me`)
+
+The web stack includes a public-facing portal and compliance documents:
+
+* **Public Portal (`/`)**: Introduces Mikasa's identity, devotion lore to Swapnil, capabilities matrix, and live telemetry.
+* **Commander HUD (`/app`)**: Executive dashboard for tasks, goals, architectural decisions, and memory nodes.
+* **Privacy Policy (`/privacy`)**: Required for X (Twitter), LinkedIn, and Meta developer app reviews.
+* **Terms of Service (`/terms`)**: Developer API terms and usage policies.
+
+### Running Cloudflare Tunnel
+
+To expose `http://localhost:3000` to the internet with free SSL:
+
+* **Quick Testing**:
+  ```powershell
+  .\setup_tunnel.ps1 -Quick
+  ```
+* **Permanent Domain (`mikasa.mrswapnil.me`)**:
+  ```powershell
+  .\setup_tunnel.ps1 -Domain
+  ```

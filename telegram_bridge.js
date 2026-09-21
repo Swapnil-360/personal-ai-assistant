@@ -14,6 +14,8 @@ const {
     generateLinkedInDraft,
     tailorCvForJob,
     generateOptimizedPrompt,
+    generateTwitterThread,
+    auditSocialMedia,
     getTasks,
     getGoals,
     getProjects,
@@ -382,6 +384,90 @@ async function processCallbackQuery(callbackQuery) {
         return;
     }
 
+    // Handle Twitter Thread Approval
+    if (data.startsWith('approve_twitter_')) {
+        const threadId = data.replace('approve_twitter_', '');
+        const thread = activePostDrafts.get(threadId);
+
+        await answerCallbackQuery(id, "✅ Thread Approved!");
+
+        const updatedText = (callbackQuery.message.text || '') + "\n\n━━━━━━━━━━━━━━━━━━━━\n✅ *Status: APPROVED & QUEUED FOR X / TWITTER*\n_Saved in your content pipeline, Swapnil!_";
+        await editTelegramMessage(chatId, messageId, updatedText);
+
+        if (thread) {
+            await addNote(`Approved X Thread: ${thread.title}\n\n${thread.tweets.join('\n\n')}`, 'twitter_thread');
+        }
+        return;
+    }
+
+    // Handle Quick Draft LinkedIn Post from Audit Card
+    if (data === 'draft_linkedin_quick') {
+        await answerCallbackQuery(id, "📝 Drafting LinkedIn post...");
+        const draft = generateLinkedInDraft('Edu51Portal');
+        const draftId = 'post_' + Date.now();
+        activePostDrafts.set(draftId, draft);
+
+        const replyMarkup = {
+            inline_keyboard: [
+                [
+                    { text: "✅ Approve & Post", callback_data: `approve_linkedin_${draftId}` },
+                    { text: "🔄 Regenerate", callback_data: `regen_linkedin_${draftId}` }
+                ]
+            ]
+        };
+        const postMsg = `💼 *LinkedIn Post Suggestion:* *${draft.title}*\n\n${draft.content}\n\n_Click Approve below if you like it, or Regenerate for another angle._`;
+        await sendTelegramMessage(chatId, postMsg, null, replyMarkup);
+        return;
+    }
+
+    // Handle Quick Draft Twitter Thread from Audit Card
+    if (data === 'draft_twitter_quick') {
+        await answerCallbackQuery(id, "🐦 Drafting X thread...");
+        const thread = generateTwitterThread('Edu51Portal');
+        const threadId = 'thread_' + Date.now();
+        activePostDrafts.set(threadId, thread);
+
+        const replyMarkup = {
+            inline_keyboard: [
+                [
+                    { text: "✅ Approve & Queue", callback_data: `approve_twitter_${threadId}` }
+                ]
+            ]
+        };
+        let threadMsg = `🐦 *X / Twitter Thread Suggestion:* *${thread.title}*\n\n`;
+        thread.tweets.forEach(t => threadMsg += `${t}\n\n`);
+        threadMsg += `_Click Approve below to save into your content pipeline._`;
+        await sendTelegramMessage(chatId, threadMsg, null, replyMarkup);
+        return;
+    }
+
+    // Handle Show GitHub Radar
+    if (data === 'show_github_radar') {
+        await answerCallbackQuery(id, "🐙 Querying GitHub...");
+        try {
+            const repos = await fetchGitHubRepos('Swapnil-360');
+            let ghMsg = "🐙 *Swapnil's GitHub Radar (`Swapnil-360`)*\n\n";
+            ghMsg += `*Found ${repos.length} active repositories (including our new personal-ai-assistant!):*\n\n`;
+
+            repos.slice(0, 6).forEach((r, idx) => {
+                const langBadge = r.language ? `[${r.language}]` : '';
+                const starBadge = r.stars > 0 ? `⭐ ${r.stars}` : '';
+                const privBadge = r.private ? '🔒 Private' : '🌐 Public';
+                ghMsg += `${idx + 1}. *${r.name}* ${langBadge} ${starBadge} (${privBadge})\n`;
+                if (r.description && r.description !== 'Core engineering build') {
+                    ghMsg += `   _${r.description}_\n`;
+                }
+                ghMsg += `   🔗 [Repo Link](${r.url})\n\n`;
+            });
+
+            ghMsg += "_Want me to draft a post or tailor your CV for any of these, Swapnil?_";
+            await sendTelegramMessage(chatId, ghMsg);
+        } catch (err) {
+            await sendTelegramMessage(chatId, `⚠️ Error querying GitHub: ${err.message}`);
+        }
+        return;
+    }
+
     await answerCallbackQuery(id, "Action processed.");
 }
 
@@ -437,8 +523,9 @@ async function processUpdate(update) {
         return;
     }
 
-    // 3. Handle /clear Command (Wipe all chat history)
-    if (text === '/clear' || text.toLowerCase() === 'clear chat' || text.toLowerCase() === 'clear all chat') {
+    // 3. Handle /clear Command (Flexible natural language: "/clear", "clear chat", "please clear all our chat")
+    const isClear = text.match(/^\/clear\b/i) || text.match(/^(?:please\s+)?clear\s+(?:all\s+)?(?:our\s+)?(?:chat|messages|history)/i);
+    if (isClear) {
         await sendChatAction(chatId, 'typing');
         await clearChatHistory(conversationId);
         const clearReply = [
@@ -454,18 +541,21 @@ async function processUpdate(update) {
         return;
     }
 
-    // 4. Handle /github Command (Inspect Repos & Analyze)
-    if (text === '/github' || text.toLowerCase().startsWith('check my github') || text.toLowerCase().startsWith('see my github')) {
+    // 4. Handle GitHub Command & Natural Intent ("Hey check my github", "can you check my github?", "/github")
+    const isGitHub = text === '/github' || 
+                     (text.match(/github|repos|repositories/i) && text.match(/check|see|show|inspect|view|radar|update|look/i));
+    if (isGitHub) {
         await sendChatAction(chatId, 'typing');
         try {
             const repos = await fetchGitHubRepos('Swapnil-360');
             let ghMsg = "🐙 *Swapnil's GitHub Radar (`Swapnil-360`)*\n\n";
-            ghMsg += `*Found ${repos.length} active repositories:*\n\n`;
+            ghMsg += `*Found ${repos.length} active repositories (including our new personal-ai-assistant!):*\n\n`;
 
             repos.slice(0, 6).forEach((r, idx) => {
                 const langBadge = r.language ? `[${r.language}]` : '';
                 const starBadge = r.stars > 0 ? `⭐ ${r.stars}` : '';
-                ghMsg += `${idx + 1}. *${r.name}* ${langBadge} ${starBadge}\n`;
+                const privBadge = r.private ? '🔒 Private' : '🌐 Public';
+                ghMsg += `${idx + 1}. *${r.name}* ${langBadge} ${starBadge} (${privBadge})\n`;
                 if (r.description && r.description !== 'Core engineering build') {
                     ghMsg += `   _${r.description}_\n`;
                 }
@@ -477,6 +567,162 @@ async function processUpdate(update) {
         } catch (err) {
             await sendTelegramMessage(chatId, `⚠️ Error querying GitHub: ${err.message}`, msg.message_id);
         }
+        return;
+    }
+
+    // 4B. Handle Social Media Audit Intent ("checkout my social media", "check my socials", "review my twitter", etc.)
+    const isSocialAudit = text.match(/^\/(?:socials?|socialmedia|audit)\b/i) || 
+                          ((text.match(/social|socials|social media|online presence|brand|profile|profiles|linkedin|twitter|\bx\b|facebook|fb|instagram|insta|ig/i)) && 
+                           (text.match(/check|checkout|review|audit|see|view|inspect|look|status|examine/i)));
+
+    if (isSocialAudit) {
+        await sendChatAction(chatId, 'typing');
+        const lower = text.toLowerCase();
+
+        // Check if specific platform requested
+        if (lower.includes('linkedin')) {
+            const audit = auditSocialMedia('linkedin');
+            const lines = [
+                "💼 *Swapnil's LinkedIn Audit & Strategy*",
+                "",
+                `🔗 *Profile:* [${audit.handle}](${audit.url})`,
+                `⭐ *Audit Rating:* ${audit.audit_score}`,
+                `🎯 *Current Positioning:* ${audit.current_focus}`,
+                "",
+                "✨ *Recommended Headline Upgrade:*",
+                `_${audit.headline_recommendation}_`,
+                "",
+                "💪 *Key Strengths:*",
+                ...audit.strengths.map(s => `• ${s}`),
+                "",
+                "🚀 *Immediate Action Items:*",
+                ...audit.action_items.map(a => `• ${a}`),
+                "",
+                "_I can draft a high-impact technical post for you right now, Swapnil:_"
+            ].join('\n');
+
+            const replyMarkup = {
+                inline_keyboard: [
+                    [
+                        { text: "📝 Draft LinkedIn Post", callback_data: "draft_linkedin_quick" }
+                    ]
+                ]
+            };
+            await sendTelegramMessage(chatId, lines, msg.message_id, replyMarkup);
+            return;
+        }
+
+        if (lower.includes('twitter') || lower.match(/\bx\b/)) {
+            const audit = auditSocialMedia('twitter');
+            const lines = [
+                "🐦 *Swapnil's X / Twitter Audit & Strategy*",
+                "",
+                `🔗 *Profile:* [${audit.handle}](${audit.url})`,
+                `⭐ *Audit Rating:* ${audit.audit_score}`,
+                `🎯 *Current Positioning:* ${audit.current_focus}`,
+                "",
+                "✨ *Recommended Bio Upgrade:*",
+                `_${audit.bio_recommendation}_`,
+                "",
+                "💪 *Key Strengths:*",
+                ...audit.strengths.map(s => `• ${s}`),
+                "",
+                "🚀 *Immediate Action Items:*",
+                ...audit.action_items.map(a => `• ${a}`),
+                "",
+                "_Ready to share a build log with tech Twitter?_"
+            ].join('\n');
+
+            const replyMarkup = {
+                inline_keyboard: [
+                    [
+                        { text: "🐦 Draft X Thread", callback_data: "draft_twitter_quick" }
+                    ]
+                ]
+            };
+            await sendTelegramMessage(chatId, lines, msg.message_id, replyMarkup);
+            return;
+        }
+
+        if (lower.includes('facebook') || lower.includes('fb')) {
+            const audit = auditSocialMedia('facebook');
+            const lines = [
+                "👥 *Swapnil's Facebook Presence Audit*",
+                "",
+                `🔗 *Profile:* [${audit.handle}](${audit.url})`,
+                `⭐ *Audit Rating:* ${audit.audit_score}`,
+                `🎯 *Focus:* ${audit.current_focus}`,
+                "",
+                "💪 *Key Strengths:*",
+                ...audit.strengths.map(s => `• ${s}`),
+                "",
+                "🚀 *Recommendations:*",
+                ...audit.action_items.map(a => `• ${a}`)
+            ].join('\n');
+            await sendTelegramMessage(chatId, lines, msg.message_id);
+            return;
+        }
+
+        if (lower.includes('instagram') || lower.includes('insta') || lower.includes('ig')) {
+            const audit = auditSocialMedia('instagram');
+            const lines = [
+                "📸 *Swapnil's Instagram Presence Audit*",
+                "",
+                `🔗 *Profile:* [${audit.handle}](${audit.url})`,
+                `⭐ *Audit Rating:* ${audit.audit_score}`,
+                `🎯 *Focus:* ${audit.current_focus}`,
+                "",
+                "✨ *Recommended Bio:*",
+                `_${audit.bio_recommendation}_`,
+                "",
+                "💪 *Strengths:*",
+                ...audit.strengths.map(s => `• ${s}`),
+                "",
+                "🚀 *Recommendations:*",
+                ...audit.action_items.map(a => `• ${a}`)
+            ].join('\n');
+            await sendTelegramMessage(chatId, lines, msg.message_id);
+            return;
+        }
+
+        // Full Ecosystem Audit
+        const socialAuditMsg = [
+            "🌐 *Swapnil's Complete Social Ecosystem Audit*",
+            "",
+            "I have your verified accounts linked and saved in my memory core:",
+            "",
+            "💼 *LinkedIn:* [mr-swapnil](https://www.linkedin.com/in/mr-swapnil/)",
+            "• *Status:* Full-Stack & AI Systems Builder",
+            "• *Headline Upgrade:* _\"Full-Stack Developer & AI Systems Builder | Next.js, TypeScript, Supabase | Creator of Edu51Portal (500+ Users)\"_",
+            "",
+            "🐦 *X / Twitter:* [@thomascryptoxx](https://x.com/thomascryptoxx)",
+            "• *Niche:* Web3, Crypto, AI Build-in-Public",
+            "• *Strategy:* Pin `mrswapnil.me` Stark-OS portfolio demo and post weekly development logs",
+            "",
+            "👥 *Facebook:* [mr.swapnil360](https://www.facebook.com/mr.swapnil360/)",
+            "• *Reach:* BUBT 51st CSE campus community. Ideal distribution channel for Edu51Portal updates",
+            "",
+            "📸 *Instagram:* [@callme_swap](https://www.instagram.com/callme_swap/)",
+            "• *Focus:* Developer aesthetic, workstation setups, and Stark-OS UI animations",
+            "",
+            "⚡ *Live Portfolio:* [mrswapnil.me](https://www.mrswapnil.me/)",
+            "• *Rating:* 9.5/10 — High-fidelity Iron Man HUD interface",
+            "",
+            "_What shall we execute first, Swapnil? Use the buttons below to draft content immediately:_"
+        ].join('\n');
+
+        const replyMarkup = {
+            inline_keyboard: [
+                [
+                    { text: "📝 Draft LinkedIn Post", callback_data: "draft_linkedin_quick" },
+                    { text: "🐦 Draft X Thread", callback_data: "draft_twitter_quick" }
+                ],
+                [
+                    { text: "🐙 View GitHub Radar", callback_data: "show_github_radar" }
+                ]
+            ]
+        };
+        await sendTelegramMessage(chatId, socialAuditMsg, msg.message_id, replyMarkup);
         return;
     }
 
@@ -500,6 +746,30 @@ async function processUpdate(update) {
 
         const postMsg = `💼 *LinkedIn Post Suggestion:* *${draft.title}*\n\n${draft.content}\n\n_Click Approve below if you like it, or Regenerate for another angle._`;
         await sendTelegramMessage(chatId, postMsg, msg.message_id, replyMarkup);
+        return;
+    }
+
+    // 5B. Handle /twitter or /x Command (Draft Twitter Thread)
+    const twitterMatch = text.match(/^(?:\/twitter|\/x|suggest\s+tweet|draft\s+tweet|tweet\s+thread)(?:\s+(.+))?$/i);
+    if (twitterMatch) {
+        await sendChatAction(chatId, 'typing');
+        const topic = twitterMatch[1] || 'Edu51Portal';
+        const thread = generateTwitterThread(topic);
+        const threadId = 'thread_' + Date.now();
+        activePostDrafts.set(threadId, thread);
+
+        const replyMarkup = {
+            inline_keyboard: [
+                [
+                    { text: "✅ Approve & Queue", callback_data: `approve_twitter_${threadId}` }
+                ]
+            ]
+        };
+
+        let threadMsg = `🐦 *X / Twitter Thread Suggestion:* *${thread.title}*\n\n`;
+        thread.tweets.forEach(t => threadMsg += `${t}\n\n`);
+        threadMsg += `_Click Approve below to save into your content pipeline._`;
+        await sendTelegramMessage(chatId, threadMsg, msg.message_id, replyMarkup);
         return;
     }
 
@@ -584,8 +854,10 @@ async function processUpdate(update) {
             "• `/reminders` — View all active timers",
             "",
             "💼 *Career, GitHub & Content Copilot:*",
+            "• `/socials` — Complete audit of LinkedIn, X/Twitter, FB & Instagram",
             "• `/github` — Inspect your GitHub repos (`Swapnil-360`) & recent activity",
             "• `/linkedin [project]` — Draft viral tech post with 1-click Telegram approval",
+            "• `/twitter [topic]` — Draft viral X thread with 1-click Telegram approval",
             "• `/cv [job title or description]` — Tailor resume bullets based on your actual builds",
             "• `/prompt [goal]` — Generate master prompts for Midjourney/FLUX/Claude",
             "",

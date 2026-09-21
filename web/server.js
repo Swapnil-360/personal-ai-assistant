@@ -16,6 +16,8 @@ const {
     clearChatHistory,
     fetchGitHubRepos,
     generateLinkedInDraft,
+    generateTwitterThread,
+    auditSocialMedia,
     tailorCvForJob,
     generateOptimizedPrompt,
     addNote,
@@ -137,6 +139,24 @@ const server = http.createServer(async (req, res) => {
             const body = await parseBody(req);
             const created = remindersManager.addReminder(body.text, body.time_str || '15m', 7112137739);
             return sendJson(res, 201, created);
+        }
+
+        // Social Media Audit API
+        if (pathname === '/api/socials' && req.method === 'GET') {
+            const audit = auditSocialMedia();
+            return sendJson(res, 200, audit);
+        }
+        if (pathname === '/api/socials/audit' && req.method === 'POST') {
+            const body = await parseBody(req);
+            const audit = auditSocialMedia(body.platform || null);
+            return sendJson(res, 200, audit);
+        }
+
+        // Twitter Thread API
+        if (pathname === '/api/twitter/thread' && req.method === 'POST') {
+            const body = await parseBody(req);
+            const thread = generateTwitterThread(body.topic || 'Edu51Portal');
+            return sendJson(res, 200, thread);
         }
 
         // LinkedIn Draft API

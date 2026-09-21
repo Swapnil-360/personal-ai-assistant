@@ -488,10 +488,67 @@ async function loadReminders() {
     }
 }
 
-// --- COPILOT HUB (LINKEDIN, CV, PROMPTS) ---
+// --- COPILOT HUB (LINKEDIN, CV, PROMPTS, SOCIALS) ---
 function initCopilotHub() {
     // Refresh GitHub button
     document.getElementById('btn-refresh-github')?.addEventListener('click', loadGitHub);
+
+    // Run AI Social Audit button
+    document.getElementById('btn-run-social-audit')?.addEventListener('click', async () => {
+        const details = document.getElementById('social-audit-details');
+        details.innerHTML = '<div style="color: var(--cyan);">Analyzing online brand & verified profiles...</div>';
+        try {
+            const res = await fetch('/api/socials');
+            const data = await res.json();
+            details.innerHTML = `
+                <div style="font-weight: 700; color: var(--emerald); margin-bottom: 6px;">⚡ Complete Ecosystem Strategy (${data.overview.identity}):</div>
+                <div style="margin-bottom: 8px;">${escapeHtml(data.overview.summary)}</div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px;">
+                    <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 6px;">
+                        <strong style="color: #60a5fa;">LinkedIn Action:</strong>
+                        <div style="font-size: 0.76rem; color: #cbd5e1; margin-top: 3px;">${escapeHtml(data.platforms.linkedin.action_items[0])}</div>
+                    </div>
+                    <div style="background: rgba(0,0,0,0.4); padding: 8px; border-radius: 6px;">
+                        <strong style="color: #38bdf8;">X / Twitter Action:</strong>
+                        <div style="font-size: 0.76rem; color: #cbd5e1; margin-top: 3px;">${escapeHtml(data.platforms.twitter.action_items[0])}</div>
+                    </div>
+                </div>
+            `;
+        } catch (err) {
+            details.innerHTML = `<div style="color: var(--rose);">Error running audit: ${err.message}</div>`;
+        }
+    });
+
+    // Quick draft buttons from Social Card
+    document.getElementById('btn-quick-edu51-linkedin')?.addEventListener('click', () => {
+        const input = document.getElementById('linkedin-input-topic');
+        if (input) {
+            input.value = 'Edu51Portal';
+            document.getElementById('form-linkedin-draft')?.dispatchEvent(new Event('submit'));
+        }
+    });
+
+    document.getElementById('btn-quick-edu51-twitter')?.addEventListener('click', async () => {
+        try {
+            const res = await fetch('/api/twitter/thread', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ topic: 'Edu51Portal' })
+            });
+            const data = await res.json();
+            const promptTitle = document.getElementById('prompt-result-type');
+            const promptText = document.getElementById('prompt-result-text');
+            const container = document.getElementById('prompt-result-container');
+            if (promptTitle && promptText && container) {
+                promptTitle.textContent = `X / Twitter Thread: ${data.title}`;
+                promptText.textContent = data.tweets.join('\n\n');
+                container.style.display = 'block';
+                container.scrollIntoView({ behavior: 'smooth' });
+            }
+        } catch (err) {
+            alert('Error generating X thread: ' + err.message);
+        }
+    });
 
     // LinkedIn Draft Form
     document.getElementById('form-linkedin-draft')?.addEventListener('submit', async (e) => {

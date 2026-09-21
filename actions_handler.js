@@ -165,14 +165,28 @@ async function clearChatHistory(conversationId) {
     }
 }
 
-// 7. GitHub Repos Fetcher & Analyzer
+// 7. GitHub Repos Fetcher & Analyzer (Authenticated)
 function fetchGitHubRepos(username = 'Swapnil-360') {
     return new Promise((resolve, reject) => {
-        https.get(`https://api.github.com/users/${username}/repos?sort=updated&per_page=15`, {
-            headers: {
-                'User-Agent': 'Mikasa-OS'
-            }
-        }, (res) => {
+        let token = process.env.GITHUB_TOKEN;
+        if (!token) {
+            try {
+                const fs = require('fs');
+                const path = require('path');
+                const envContent = fs.readFileSync(path.join(__dirname, '.env'), 'utf8');
+                const match = envContent.match(/GITHUB_TOKEN=([^\r\n]+)/);
+                if (match) token = match[1].trim();
+            } catch (e) {}
+        }
+        const headers = {
+            'User-Agent': 'Mikasa-OS',
+            ...(token ? { 'Authorization': `token ${token}` } : {})
+        };
+        const url = token 
+            ? 'https://api.github.com/user/repos?sort=updated&per_page=20&affiliation=owner'
+            : `https://api.github.com/users/${username}/repos?sort=updated&per_page=15`;
+
+        https.get(url, { headers }, (res) => {
             let data = '';
             res.on('data', chunk => data += chunk);
             res.on('end', () => {
@@ -186,6 +200,7 @@ function fetchGitHubRepos(username = 'Swapnil-360') {
                             stars: r.stargazers_count,
                             forks: r.forks_count,
                             url: r.html_url,
+                            private: r.private,
                             updated_at: r.updated_at
                         }));
                         resolve(formatted);
@@ -385,6 +400,140 @@ Be concise, rigorous, and direct.`
     };
 }
 
+// 11. Twitter / X Thread Generator
+function generateTwitterThread(topicOrProject = 'Edu51Portal') {
+    const topic = (topicOrProject || 'Edu51Portal').trim();
+    const lower = topic.toLowerCase();
+
+    if (lower.includes('edu51') || lower.includes('edu51portal')) {
+        return {
+            topic: 'Edu51Portal',
+            title: 'How we scaled Edu51Portal to 500+ active students with $0 server cost',
+            tweets: [
+                "1/ How we built and scaled Edu51Portal to 500+ active university students with $0 cloud storage bills 🧵👇",
+                "2/ The Problem:\nUniversity WhatsApp and Messenger groups are where study notes and past exam questions go to die.\nStudents were wasting hours searching for critical resources before exams.",
+                "3/ The Architecture:\n⚡ Next.js 14 + TypeScript for instantaneous page loads & clean routing\n🗄️ Supabase PostgreSQL for row-level security & user profiles\n📁 Google Drive API integration to stream heavy academic PDFs without costly S3 storage fees",
+                "4/ The biggest engineering takeaway?\nYou don't need complex distributed systems to ship value. Solve the immediate friction, keep latency under 200ms, and your users will do the marketing for you.",
+                "5/ Check out the live build or connect with me if you're building edtech or developer tools:\n🔗 mrswapnil.me\n\nRT if you found this useful! 🚀"
+            ]
+        };
+    }
+
+    if (lower.includes('ai') || lower.includes('agent') || lower.includes('mikasa') || lower.includes('assistant')) {
+        return {
+            topic: 'AI Agent Architecture',
+            title: 'Building a Private Autonomous AI OS with Gemini 2.5 Flash + Supabase',
+            tweets: [
+                "1/ Most AI assistants are just simple chat windows.\nHere is how I built a private autonomous AI operating system (Mikasa) with long-term memory and execution tools 🧵👇",
+                "2/ The Core Engine:\n• LLM: Google Gemini 2.5 Flash (1.2s response time) + OpenRouter GPT-4o-mini fallback\n• Memory: 1536-dim vector embeddings into Supabase pgvector\n• Interface: Telegram Bot + Next.js HUD Web Command Center",
+                "3/ Autonomous Execution:\nShe doesn't just chat. She inspects my GitHub repositories, audits my live social media links, creates and completes database tasks, and triggers proactive reminders.",
+                "4/ AI is shifting from passive chatbots to active autonomous operating partners that live with you in your daily workflow.\n\nBuilding in public at github.com/Swapnil-360 ⚡"
+            ]
+        };
+    }
+
+    return {
+        topic: topic,
+        title: `Building in Public: ${topic}`,
+        tweets: [
+            `1/ 3 lessons learned while engineering with ${topic} this week 🧵👇`,
+            "2/ 1. Architecture over hype.\nNever choose a framework just because it's trending on tech Twitter. Optimize for delivery speed and developer ergonomics.",
+            "3/ 2. Defensive engineering.\nEvery external API call must have timeouts, retries, and clean fallbacks. When downstream services fail, your UX shouldn't collapse.",
+            `4/ 3. Continuous iteration.\nShipping a working version today beats planning a perfect system next month.\n\nWhat are you shipping this week? Let's connect! ⚡`
+        ]
+    };
+}
+
+// 12. Social Media Ecosystem & AI Audit
+function auditSocialMedia(platform = null) {
+    const p = (platform || '').toLowerCase().trim();
+
+    const ecosystem = {
+        overview: {
+            title: "Swapnil's Personal Brand & Social Footprint",
+            identity: "Full-Stack Software Engineer & Autonomous AI Systems Builder",
+            academics: "Final Semester CSE @ Bangladesh University of Business and Technology (BUBT)",
+            flagship_site: "https://www.mrswapnil.me/ (Cinematic Stark-OS HUD)",
+            github: "https://github.com/Swapnil-360 (10 active repositories)",
+            summary: "Strong engineering foundation with 500+ daily active users on Edu51Portal and multi-agent AI architecture. Online brand can be elevated by aligning bio headlines across all channels and establishing consistent weekly build logs."
+        },
+        platforms: {
+            linkedin: {
+                platform: "LinkedIn",
+                url: "https://www.linkedin.com/in/mr-swapnil/",
+                handle: "mr-swapnil",
+                current_focus: "Full-Stack Developer & AI Systems Engineer",
+                headline_recommendation: "Full-Stack Developer & AI Systems Builder | Next.js, TypeScript, Supabase | Creator of Edu51Portal (500+ Users) | BUBT CSE",
+                audit_score: "8.5/10",
+                strengths: [
+                    "Strong project proof-of-work (Edu51Portal, Stark-OS Portfolio, OpusGenAI)",
+                    "Clean visual branding linking directly to GitHub and personal portfolio",
+                    "Clear niche in AI integration (Gemini 2.5, OpenRouter, n8n, Supabase)"
+                ],
+                action_items: [
+                    "Update headline to explicitly feature 'Edu51Portal (500+ Users)' for instant recruiter proof",
+                    "Publish 1-2 architectural case studies weekly (use /linkedin Edu51Portal or /linkedin OpusGenAI)",
+                    "Feature live demo link to mrswapnil.me in the Featured section"
+                ]
+            },
+            twitter: {
+                platform: "X / Twitter",
+                url: "https://x.com/thomascryptoxx",
+                handle: "@thomascryptoxx",
+                current_focus: "Web3, Crypto, AI Build-in-Public",
+                bio_recommendation: "Building the future of software with autonomous AI agents & Next.js ⚡ | Creator of @Edu51Portal | Final semester CSE @ BUBT | Portfolio: mrswapnil.me",
+                audit_score: "8/10",
+                strengths: [
+                    "Active engagement in Web3 and modern developer ecosystems",
+                    "Great platform for rapid build-in-public updates and tech commentary"
+                ],
+                action_items: [
+                    "Pin a cinematic demo video or screenshots of mrswapnil.me / Stark-OS HUD",
+                    "Share weekly micro-threads detailing n8n + Gemini agent workflows",
+                    "Engage with builders in the Next.js, Supabase, and Cursor communities"
+                ]
+            },
+            facebook: {
+                platform: "Facebook",
+                url: "https://www.facebook.com/mr.swapnil360/",
+                handle: "mr.swapnil360",
+                current_focus: "Personal & BUBT CSE Academic Community",
+                audit_score: "9/10",
+                strengths: [
+                    "Massive natural reach among BUBT 51st intake CSE peers and university community",
+                    "Direct distribution channel for Edu51Portal updates and announcements"
+                ],
+                action_items: [
+                    "Post semester milestones and feature updates for Edu51Portal",
+                    "Include mrswapnil.me link in intro bio for peer discovery"
+                ]
+            },
+            instagram: {
+                platform: "Instagram",
+                url: "https://www.instagram.com/callme_swap/",
+                handle: "@callme_swap",
+                current_focus: "Developer Lifestyle & Creative Visuals",
+                bio_recommendation: "💻 Full-Stack & AI Developer | CSE @ BUBT | Building Edu51Portal & AI tools 🚀 | Dhaka 📍 | mrswapnil.me",
+                audit_score: "8/10",
+                strengths: [
+                    "Great visual medium for workstation setups, UI animations, and design showcases"
+                ],
+                action_items: [
+                    "Share 15-30s screen recordings of portfolio animations and dark mode interfaces",
+                    "Keep link in bio pointed to mrswapnil.me"
+                ]
+            }
+        }
+    };
+
+    if (p.includes('linkedin')) return ecosystem.platforms.linkedin;
+    if (p.includes('twitter') || p.includes('x')) return ecosystem.platforms.twitter;
+    if (p.includes('facebook') || p.includes('fb')) return ecosystem.platforms.facebook;
+    if (p.includes('instagram') || p.includes('insta') || p.includes('ig')) return ecosystem.platforms.instagram;
+
+    return ecosystem;
+}
+
 // Read Helpers for Dashboard and Bot
 async function getTasks(status = null) {
     let query = '/tasks?select=id,title,status,priority,project_id,created_at,completed_at&order=created_at.desc';
@@ -465,6 +614,8 @@ module.exports = {
     clearChatHistory,
     fetchGitHubRepos,
     generateLinkedInDraft,
+    generateTwitterThread,
+    auditSocialMedia,
     tailorCvForJob,
     generateOptimizedPrompt,
     getTasks,

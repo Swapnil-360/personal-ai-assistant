@@ -15,6 +15,7 @@ const {
     tailorCvForJob,
     generateOptimizedPrompt,
     generateTwitterThread,
+    generateSingleTweet,
     auditSocialMedia,
     getTasks,
     getGoals,
@@ -29,7 +30,9 @@ const {
     publishToTwitter,
     getTwitterProfile,
     publishToFacebook,
-    humanizeContent
+    humanizeContent,
+    fitTweetForFreeTier,
+    createTwitterIntentUrl
 } = require('./social_publisher');
 
 const fs = require('fs');
@@ -461,7 +464,12 @@ CRITICAL FORMATTING & CONCISENESS RULES (TELEGRAM MOBILE)
 
 2. CONCISE & PROGRESSIVE DISCLOSURE:
    - Keep messages compact, punchy, and conversational.
-   - Summarize key points with high signal-to-noise ratio.`;
+   - Summarize key points with high signal-to-noise ratio.
+
+3. TWITTER / X DRAFTS (STRICT 280-CHAR FREE TIER LIMIT):
+   - Whenever Swapnil asks to draft, write, or generate a tweet/post for X / Twitter, the tweet MUST be strictly UNDER 270 characters total (including all spaces, emojis, and hashtags).
+   - Swapnil uses Twitter / X FREE TIER (which has a strict 280-character maximum). Any post over 280 characters fails and displays red negative count requiring X Premium!
+   - ALWAYS keep tweet drafts under 270 characters so it fits completely in Twitter's free tier without overflowing.`;
 }
 
 // Call Google Gemini API
@@ -773,25 +781,78 @@ async function processCallbackQuery(callbackQuery) {
         return;
     }
 
-    // Handle Twitter Thread Approval
+    // Handle Twitter Post / Thread Approval
     if (data.startsWith('approve_twitter_')) {
-        const threadId = data.replace('approve_twitter_', '');
-        const thread = activePostDrafts.get(threadId);
+        const draftId = data.replace('approve_twitter_', '');
+        const draft = activePostDrafts.get(draftId);
 
-        await answerCallbackQuery(id, "Publishing to X / Twitter...");
+        await answerCallbackQuery(id, "Preparing 1-Click Post...");
 
-        if (thread) {
-            const pubResult = await publishToTwitter(thread.tweets);
+        if (draft) {
+            const rawTweet = draft.tweet || (Array.isArray(draft.tweets) ? draft.tweets[0] : (draft.content || ''));
+            const fittedTweet = fitTweetForFreeTier(rawTweet);
+            const intentUrl = createTwitterIntentUrl(fittedTweet);
+            const charCount = fittedTweet.length;
+
+            const replyMarkup = {
+                inline_keyboard: [
+                    [
+                        { text: "🚀 1-Click Post on X", url: intentUrl }
+                    ]
+                ]
+            };
+
             let updatedText = (callbackQuery.message.text || '') + "\n\n━━━━━━━━━━━━━━━━━━━━\n";
-            if (pubResult.has_direct_api && pubResult.success) {
-                updatedText += `🚀 *STATUS: PUBLISHED LIVE ON X!*\n_Your thread is live: [View Thread](${pubResult.url})_`;
-            } else if (pubResult.share_url) {
-                updatedText += `✅ *STATUS: APPROVED & READY*\n_${pubResult.message}_\n\n🔗 [👉 Tap to Publish on X](${pubResult.share_url})`;
-            } else {
-                updatedText += `⚠️ *STATUS: ERROR*\n_${pubResult.error || 'Failed to post'}_`;
-            }
-            await editTelegramMessage(chatId, messageId, updatedText);
+            updatedText += `✅ *STATUS: APPROVED & READY FOR 1-CLICK POST*\n\n📊 *Length:* ${charCount}/280 chars *(Free Tier Safe ✅)*\n\nTap the button below to open X with this post pre-filled:`;
+            await editTelegramMessage(chatId, messageId, updatedText, replyMarkup);
         }
+        return;
+    }
+
+    // Handle Twitter Post Regeneration
+    if (data.startsWith('regen_twitter_')) {
+        const draftId = data.replace('regen_twitter_', '');
+        const prevDraft = activePostDrafts.get(draftId);
+        const topic = prevDraft ? prevDraft.topic : 'Mikasa';
+
+        await answerCallbackQuery(id, "🔄 Generating fresh angle...");
+
+        let nextTopic = topic;
+        if (topic.includes('Mikasa')) nextTopic = 'Edu51Portal';
+        else if (topic.includes('Edu51Portal')) nextTopic = 'OpusGenAI';
+        else if (topic.includes('OpusGenAI')) nextTopic = 'Stark-OS Portfolio';
+        else nextTopic = 'Mikasa AI Companion';
+
+        const newDraft = generateSingleTweet(nextTopic);
+        const fittedTweet = fitTweetForFreeTier(newDraft.tweet);
+        const charCount = fittedTweet.length;
+        const intentUrl = createTwitterIntentUrl(fittedTweet);
+
+        const newDraftId = 'tweet_' + Date.now();
+        activePostDrafts.set(newDraftId, { tweet: fittedTweet, topic: nextTopic, intentUrl });
+
+        const replyMarkup = {
+            inline_keyboard: [
+                [
+                    { text: "🚀 1-Click Post on X", url: intentUrl }
+                ],
+                [
+                    { text: "🔄 Regenerate Angle", callback_data: `regen_twitter_${newDraftId}` }
+                ]
+            ]
+        };
+
+        const postMessage = [
+            `🐦 *Fresh X / Twitter Post Draft:* *${newDraft.title}*`,
+            "",
+            fittedTweet,
+            "",
+            "━━━━━━━━━━━━━━━━━━━━",
+            `📊 *Length:* ${charCount} / 280 characters *(Free Tier Safe ✅)*`,
+            `⚡ *1-Click Post:* Tap below to open X with this post pre-filled!`
+        ].join('\n');
+
+        await sendTelegramMessage(chatId, postMessage, null, replyMarkup);
         return;
     }
 
@@ -835,24 +896,38 @@ async function processCallbackQuery(callbackQuery) {
         return;
     }
 
-    // Handle Quick Draft Twitter Thread from Audit Card
+    // Handle Quick Draft Twitter from Audit Card
     if (data === 'draft_twitter_quick') {
-        await answerCallbackQuery(id, "🐦 Drafting X thread...");
-        const thread = generateTwitterThread('Edu51Portal');
-        const threadId = 'thread_' + Date.now();
-        activePostDrafts.set(threadId, thread);
+        await answerCallbackQuery(id, "🐦 Drafting 1-click post for X...");
+        const draft = generateSingleTweet('Edu51Portal');
+        const fittedTweet = fitTweetForFreeTier(draft.tweet);
+        const charCount = fittedTweet.length;
+        const intentUrl = createTwitterIntentUrl(fittedTweet);
+        const draftId = 'tweet_' + Date.now();
+        activePostDrafts.set(draftId, { tweet: fittedTweet, topic: 'Edu51Portal', intentUrl });
 
         const replyMarkup = {
             inline_keyboard: [
                 [
-                    { text: "✅ Approve & Queue", callback_data: `approve_twitter_${threadId}` }
+                    { text: "🚀 1-Click Post on X", url: intentUrl }
+                ],
+                [
+                    { text: "🔄 Regenerate Angle", callback_data: `regen_twitter_${draftId}` }
                 ]
             ]
         };
-        let threadMsg = `🐦 *X / Twitter Thread Suggestion:* *${thread.title}*\n\n`;
-        thread.tweets.forEach(t => threadMsg += `${t}\n\n`);
-        threadMsg += `_Click Approve below to save into your content pipeline._`;
-        await sendTelegramMessage(chatId, threadMsg, null, replyMarkup);
+
+        const postMsg = [
+            `🐦 *X / Twitter Post Suggestion:* *${draft.title}*`,
+            "",
+            fittedTweet,
+            "",
+            "━━━━━━━━━━━━━━━━━━━━",
+            `📊 *Length:* ${charCount} / 280 characters *(Free Tier Safe ✅)*`,
+            `⚡ *1-Click Post:* Tap the button below to open X with this post pre-filled!`
+        ].join('\n');
+
+        await sendTelegramMessage(chatId, postMsg, null, replyMarkup);
         return;
     }
 
@@ -1204,27 +1279,57 @@ async function processUpdate(update) {
         return;
     }
 
-    // 5B. Handle /twitter or /x Command (Draft Twitter Thread)
-    const twitterMatch = text.match(/^(?:\/twitter|\/x|suggest\s+tweet|draft\s+tweet|tweet\s+thread)(?:\s+(.+))?$/i);
-    if (twitterMatch) {
+    // 5B. Handle /twitter or /x Command & Natural Tweet Drafting (Strict Free Tier <= 270 chars + 1-Click Link)
+    const isTwitterIntent = text.match(/^(?:\/twitter|\/x)\b/i) ||
+        text.match(/\b(?:draft|write|suggest|give\s+me|create|make|generate)\b.*?\b(?:tweet|twitter|x\s+post)\b/i) ||
+        text.match(/\b(?:tweet|twitter|x\s+post)\b.*?\b(?:draft|write|suggest|post|create|link|click|free)\b/i) ||
+        text.match(/\b(?:tweet\s+koro|twitter\s+e\s+post\s+dao|tweet\s+dao)\b/i);
+
+    if (isTwitterIntent) {
         await sendChatAction(chatId, 'typing');
-        const topic = twitterMatch[1] || 'Edu51Portal';
-        const thread = generateTwitterThread(topic);
-        const threadId = 'thread_' + Date.now();
-        activePostDrafts.set(threadId, thread);
+        let topic = 'Mikasa';
+        const topicMatch = text.match(/^(?:\/twitter|\/x)\s+(.+)$/i) || 
+                           text.match(/(?:about|for|on)\s+([a-zA-Z0-9_\s\-]+)/i);
+        if (topicMatch && topicMatch[1]) {
+            topic = topicMatch[1].trim();
+        } else if (text.toLowerCase().includes('edu51')) {
+            topic = 'Edu51Portal';
+        } else if (text.toLowerCase().includes('opus')) {
+            topic = 'OpusGenAI';
+        } else if (text.toLowerCase().includes('stark') || text.toLowerCase().includes('portfolio')) {
+            topic = 'Stark-OS Portfolio';
+        }
+
+        const draft = generateSingleTweet(topic);
+        const fittedTweet = fitTweetForFreeTier(draft.tweet);
+        const charCount = fittedTweet.length;
+        const intentUrl = createTwitterIntentUrl(fittedTweet);
+        const draftId = 'tweet_' + Date.now();
+        activePostDrafts.set(draftId, { tweet: fittedTweet, topic, intentUrl });
 
         const replyMarkup = {
             inline_keyboard: [
                 [
-                    { text: "✅ Approve & Post to X", callback_data: `approve_twitter_${threadId}` }
+                    { text: "🚀 1-Click Post on X", url: intentUrl }
+                ],
+                [
+                    { text: "🔄 Regenerate Angle", callback_data: `regen_twitter_${draftId}` }
                 ]
             ]
         };
 
-        let threadMsg = `🐦 *X / Twitter Thread Suggestion (Humanized):* *${thread.title}*\n\n`;
-        thread.tweets.forEach(t => threadMsg += `${t}\n\n`);
-        threadMsg += `_Click Approve below to publish to your X profile._`;
-        await sendTelegramMessage(chatId, threadMsg, msg.message_id, replyMarkup);
+        const postMsg = [
+            `🐦 *X / Twitter Post Draft:* *${draft.title}*`,
+            "",
+            fittedTweet,
+            "",
+            "━━━━━━━━━━━━━━━━━━━━",
+            `📊 *Length:* ${charCount} / 280 characters *(Free Tier Safe ✅)*`,
+            `⚡ *1-Click Post:* Tap the button below to open X with this post pre-filled!`,
+            `🔗 [👉 Direct Link to 1-Click Post](${intentUrl})`
+        ].join('\n');
+
+        await sendTelegramMessage(chatId, postMsg, msg.message_id, replyMarkup);
         return;
     }
 
@@ -1503,7 +1608,29 @@ async function processUpdate(update) {
 
         const replyText = response.reply || response.text || 'No response generated.';
         console.log(`[Mikasa Reply to ${userName}]: "${replyText.slice(0, 100)}..."`);
-        await sendTelegramMessage(chatId, replyText, msg.message_id);
+
+        // Smart 1-click button attachment if the response contains a Twitter / X post draft
+        let replyMarkup = null;
+        if (text.match(/\b(?:tweet|twitter|x\s+post)\b/i) || replyText.match(/#BuildInPublic|#AI|#SoftwareEngineering/i)) {
+            let tweetCandidate = replyText;
+            const quoteMatch = replyText.match(/["“]([^"”]{30,350})["”]/);
+            if (quoteMatch) {
+                tweetCandidate = quoteMatch[1];
+            }
+            const fitted = fitTweetForFreeTier(tweetCandidate);
+            if (fitted && fitted.length >= 20 && fitted.length <= 270) {
+                const intentUrl = createTwitterIntentUrl(fitted);
+                replyMarkup = {
+                    inline_keyboard: [
+                        [
+                            { text: "🚀 1-Click Post on X", url: intentUrl }
+                        ]
+                    ]
+                };
+            }
+        }
+
+        await sendTelegramMessage(chatId, replyText, msg.message_id, replyMarkup);
 
         // Ensure conversation turn is stored in Supabase so Cloud & Local both have full context
         if (!response.context_used) {

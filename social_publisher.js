@@ -196,17 +196,18 @@ async function publishToTwitter(contentOrTweets) {
         };
     } catch (err) {
         if (err.message && (err.message.includes('credits depleted') || err.message.includes('402'))) {
-            await addNote(`[Approved X/Twitter Thread]\n\n${combinedText}`, 'approved_social_post');
-            const firstTweetEncoded = encodeURIComponent(tweets[0]);
-            const webIntent = `https://twitter.com/intent/tweet?text=${firstTweetEncoded}`;
+            await addNote(`[Approved X/Twitter Post]\n\n${combinedText}`, 'approved_social_post');
+            const fitted = fitTweetForFreeTier(tweets[0]);
+            const webIntent = createTwitterIntentUrl(fitted);
             return {
                 platform: 'twitter',
                 success: true,
                 status: 'queued_and_ready',
                 has_direct_api: false,
-                message: "Post approved & humanized! (Note: X requires prepaid credits or free plan activation on developer.x.com to send via API directly). Tap below to publish with 1 click:",
-                content: combinedText,
+                message: "Post approved & optimized for free tier! Tap below to publish with 1 click without paying for X Premium:",
+                content: fitted,
                 share_url: webIntent,
+                char_count: fitted.length,
                 authenticated_user: "@thomascryptoxx"
             };
         }
@@ -423,8 +424,58 @@ async function publishPost(platform, content) {
     };
 }
 
+// Clean & fit tweet strictly for Twitter / X free tier (max 270 characters, never exceeding 280)
+function fitTweetForFreeTier(text) {
+    if (!text) return '';
+    let clean = humanizeContent(text)
+        .replace(/^(?:Here'?s a (?:draft|tweet|post).*?:[\r\n]*)/im, '')
+        .replace(/^(?:Tweet Draft:?[\r\n]*)/im, '')
+        .replace(/^(?:Draft:?[\r\n]*)/im, '')
+        .replace(/\*\*(.*?)\*\*/g, '$1')
+        .replace(/\*(.*?)\*/g, '$1')
+        .replace(/`{1,3}(.*?)`{1,3}/g, '$1')
+        .replace(/^[ \t]*[-*_]{3,}[ \t]*$/gm, '')
+        .trim();
+
+    if (clean.length <= 270) return clean;
+
+    // Separate hashtags at the end if present
+    const hashtagMatch = clean.match(/((?:#[a-zA-Z0-9_]+\s*)+)$/);
+    const hashtags = hashtagMatch ? hashtagMatch[1].trim() : '';
+    let body = hashtagMatch ? clean.slice(0, clean.length - hashtagMatch[0].length).trim() : clean;
+
+    // Condense verbose phrasing to punchy developer equivalents
+    body = body
+        .replace(/Stay tuned for updates as we embark on this journey together!?/gi, 'Building the future together!')
+        .replace(/personal AI companion/gi, 'personal AI companion')
+        .replace(/Continuous learning from daily interactions/gi, 'Continuous learning & memory')
+        .replace(/Assist in software engineering & system design/gi, 'Assist in software engineering & architecture')
+        .replace(/Automate workflows to save time and effort/gi, 'Automate workflows & routines')
+        .replace(/Scale builds like Edu51Portal and OpusGenAI/gi, 'Scale builds (Edu51Portal, OpusGenAI)');
+
+    body = body.trim();
+    let combined = hashtags ? `${body}\n\n${hashtags}` : body;
+    if (combined.length <= 270) return combined.trim();
+
+    // If still over 270, trim body while preserving hashtags
+    const maxBodyLen = 270 - (hashtags ? hashtags.length + 2 : 0) - 3;
+    if (body.length > maxBodyLen) {
+        body = body.slice(0, Math.max(0, maxBodyLen)).replace(/[\s,.;]+[^\s,.;]*$/, '').trim() + '...';
+    }
+
+    const result = hashtags ? `${body}\n\n${hashtags}` : body;
+    return (result.length <= 270 ? result : result.slice(0, 267).trim() + '...').trim();
+}
+
+function createTwitterIntentUrl(tweetText) {
+    const fitted = fitTweetForFreeTier(tweetText);
+    return `https://twitter.com/intent/tweet?text=${encodeURIComponent(fitted)}`;
+}
+
 module.exports = {
     humanizeContent,
+    fitTweetForFreeTier,
+    createTwitterIntentUrl,
     publishToLinkedIn,
     publishToTwitter,
     getTwitterProfile,
@@ -432,3 +483,4 @@ module.exports = {
     publishPost,
     getEnv
 };
+

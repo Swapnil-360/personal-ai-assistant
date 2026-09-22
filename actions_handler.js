@@ -444,6 +444,50 @@ function generateTwitterThread(topicOrProject = 'Edu51Portal') {
     };
 }
 
+// 11B. Single Tweet Generator (Optimized strictly for Twitter Free Tier <= 270 chars)
+function generateSingleTweet(topicOrProject = 'Mikasa') {
+    const topic = (topicOrProject || 'Mikasa').trim();
+    const lower = topic.toLowerCase();
+
+    if (lower.includes('mikasa') || lower.includes('companion') || lower.includes('assistant') || lower.includes('intro')) {
+        return {
+            topic: 'Mikasa AI Companion',
+            title: 'Introducing Mikasa — My Autonomous AI Companion',
+            tweet: "Hi, I'm Mikasa — Swapnil's personal AI companion! ⚔️\n\nTogether we:\n• Assist in software engineering & architecture\n• Automate workflows & routines\n• Scale builds (Edu51Portal, OpusGenAI)\n• Continuous learning & memory\n\nBuilding the future together! 🚀\n\n#BuildInPublic #AI #WebDev"
+        };
+    }
+
+    if (lower.includes('edu51') || lower.includes('edu51portal')) {
+        return {
+            topic: 'Edu51Portal',
+            title: 'Scaling Edu51Portal to 500+ Active Students',
+            tweet: "Scaled Edu51Portal to 500+ active university students with $0 cloud storage bills! 🚀\n\nStack:\n• Next.js 14 + TypeScript for sub-second UI\n• Supabase PostgreSQL for auth & RLS\n• Google Drive API for free PDF delivery\n\nCheck it out: mrswapnil.me\n\n#BuildInPublic #NextJS #FullStack"
+        };
+    }
+
+    if (lower.includes('opus') || lower.includes('opusgenai') || lower.includes('llm')) {
+        return {
+            topic: 'OpusGenAI',
+            title: 'Dual-Tier LLM Architecture for OpusGenAI',
+            tweet: "Engineering reliable AI systems requires defensive fallbacks! ⚡\n\nOpusGenAI dual-tier stack:\n• Primary: Google Gemini 2.5 Flash (~1.2s latency)\n• Fallback: OpenRouter GPT-4o-mini on errors\n• Memory: 1536-dim Supabase pgvector\n\nZero downtime.\n\n#GenerativeAI #SystemDesign #BuildInPublic"
+        };
+    }
+
+    if (lower.includes('stark') || lower.includes('portfolio') || lower.includes('ironman')) {
+        return {
+            topic: 'Stark-OS Portfolio',
+            title: 'Iron Man Themed Stark-OS Portfolio',
+            tweet: "Rebuilt my personal portfolio into an interactive Iron Man Stark-OS interface! 🦾✨\n\nEngineered with Next.js 14, TypeScript, & Supabase real-time telemetry.\n\nCheck out the live interactive HUD:\n🔗 mrswapnil.me\n\nFeedback appreciated! 👇\n\n#WebDevelopment #Frontend #NextJS #UIUX"
+        };
+    }
+
+    return {
+        topic: topic,
+        title: `Engineering Log: ${topic}`,
+        tweet: `Consistent execution beats passive learning every single time. ⚡\n\nKey takeaways while engineering with ${topic}:\n• Architecture & data model first, UI second\n• Built-in timeouts & retries for external APIs\n• Tight feedback loops\n\nWhat are you shipping this week?\n\n#BuildInPublic #Dev`
+    };
+}
+
 // 12. Social Media Ecosystem & AI Audit
 function auditSocialMedia(platform = null) {
     const p = (platform || '').toLowerCase().trim();
@@ -615,6 +659,7 @@ module.exports = {
     fetchGitHubRepos,
     generateLinkedInDraft,
     generateTwitterThread,
+    generateSingleTweet,
     auditSocialMedia,
     tailorCvForJob,
     generateOptimizedPrompt,

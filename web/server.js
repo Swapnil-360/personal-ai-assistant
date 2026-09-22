@@ -17,6 +17,7 @@ const {
     fetchGitHubRepos,
     generateLinkedInDraft,
     generateTwitterThread,
+    generateSingleTweet,
     auditSocialMedia,
     tailorCvForJob,
     generateOptimizedPrompt,
@@ -28,7 +29,9 @@ const {
     publishToLinkedIn,
     publishToTwitter,
     publishToFacebook,
-    humanizeContent
+    humanizeContent,
+    fitTweetForFreeTier,
+    createTwitterIntentUrl
 } = require('../social_publisher');
 
 function getSessionUuid(id = 'web_commander') {
@@ -167,6 +170,24 @@ const server = http.createServer(async (req, res) => {
             const body = await parseBody(req);
             const thread = generateTwitterThread(body.topic || 'Edu51Portal');
             return sendJson(res, 200, thread);
+        }
+
+        // Twitter Single Draft API (Strict Free Tier <= 270 chars + 1-Click Link)
+        if (pathname === '/api/twitter/draft' && req.method === 'POST') {
+            const body = await parseBody(req);
+            const draft = generateSingleTweet(body.topic || 'Mikasa');
+            const fitted = fitTweetForFreeTier(draft.tweet);
+            const intentUrl = createTwitterIntentUrl(fitted);
+            return sendJson(res, 200, {
+                topic: draft.topic,
+                title: draft.title,
+                raw_tweet: draft.tweet,
+                tweet: fitted,
+                char_count: fitted.length,
+                max_chars: 280,
+                free_tier_safe: fitted.length <= 270,
+                intent_url: intentUrl
+            });
         }
 
         // LinkedIn Draft API

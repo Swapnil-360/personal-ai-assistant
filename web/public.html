@@ -276,7 +276,7 @@
 
         .lore-grid-layout {
             display: grid;
-            grid-template-columns: 280px 1fr;
+            grid-template-columns: min(280px, 40%) 1fr;
             gap: 36px;
             align-items: center;
         }
@@ -405,7 +405,7 @@
 
         .cards-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
             gap: 24px;
         }
 
@@ -555,12 +555,205 @@
             padding-top: 24px;
         }
 
-        @media (max-width: 768px) {
-            .hero h1 { font-size: 38px; }
-            .hero p.lead { font-size: 16px; }
-            .lore-card { padding: 24px; }
-            .footer-content { flex-direction: column; text-align: center; }
+        /* =====================================================
+           RESPONSIVE DESIGN — public.html
+           Breakpoints: 992px, 768px, 576px, 480px, 360px
+           ===================================================== */
+
+        /* ── 992px: Collapse navbar, tighten hero ── */
+        @media (max-width: 992px) {
             .nav-links { display: none; }
+
+            nav.navbar {
+                gap: 12px;
+                flex-wrap: nowrap;
+                overflow: hidden;
+            }
+
+            nav.navbar > div:last-child {
+                display: flex;
+                gap: 8px;
+                flex-shrink: 0;
+            }
+
+            nav.navbar > div:last-child .btn {
+                padding: 8px 14px;
+                font-size: 13px;
+            }
+
+            .lore-grid-layout {
+                grid-template-columns: 1fr;
+                gap: 28px;
+            }
+
+            .lore-portrait {
+                height: 260px;
+            }
+
+            .hero h1 { font-size: 44px; }
+        }
+
+        /* ── 768px: Mobile landscape & tablets ── */
+        @media (max-width: 768px) {
+            .container { padding: 0 16px; }
+
+            nav.navbar {
+                padding: 16px 0;
+                gap: 10px;
+            }
+
+            nav.navbar > div:last-child .btn {
+                padding: 7px 12px;
+                font-size: 12px;
+                gap: 5px;
+            }
+
+            header.hero {
+                padding: 60px 0 40px;
+            }
+
+            .hero h1 {
+                font-size: 34px;
+                letter-spacing: -0.5px;
+                word-break: break-word;
+            }
+
+            .hero p.lead {
+                font-size: 15px;
+                margin-bottom: 28px;
+            }
+
+            .hero-actions {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 12px;
+            }
+
+            .hero-actions .btn {
+                width: 100%;
+                justify-content: center;
+                padding: 13px 20px !important;
+                font-size: 14px !important;
+            }
+
+            .lore-card { padding: 20px; }
+
+            .lore-card h2 { font-size: 22px; }
+
+            .lore-content { font-size: 14.5px; }
+
+            .quote-banner { font-size: 14px; padding: 12px 16px; }
+
+            .cards-grid {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+
+            .cap-card { padding: 22px; }
+
+            .section-title h2 { font-size: 28px; }
+            .section-title p { font-size: 14.5px; }
+
+            .telemetry { padding: 20px; }
+
+            .telemetry-stats {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 12px;
+            }
+
+            .footer-content { flex-direction: column; text-align: center; }
+
+            .footer-links {
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 14px;
+            }
+        }
+
+        /* ── 576px: Small phones landscape ── */
+        @media (max-width: 576px) {
+            .hero h1 {
+                font-size: 28px;
+                line-height: 1.2;
+            }
+
+            .hero p.lead {
+                font-size: 14px;
+            }
+
+            .status-pill {
+                font-size: 11px;
+                padding: 5px 12px;
+            }
+
+            .brand-title { font-size: 17px; }
+
+            .telemetry-stats {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* ── 480px: Standard mobile portrait ── */
+        @media (max-width: 480px) {
+            .container { padding: 0 14px; }
+
+            nav.navbar {
+                padding: 14px 0;
+            }
+
+            .scarf-badge {
+                width: 34px;
+                height: 34px;
+                font-size: 16px;
+            }
+
+            .brand-logo-img {
+                width: 28px;
+                height: 28px;
+            }
+
+            .brand-title { font-size: 15px; letter-spacing: 0.5px; }
+
+            nav.navbar > div:last-child .btn span {
+                display: none;
+            }
+
+            nav.navbar > div:last-child .btn {
+                padding: 8px 12px;
+                font-size: 12px;
+            }
+
+            header.hero {
+                padding: 48px 0 36px;
+            }
+
+            .hero h1 {
+                font-size: 26px;
+                letter-spacing: -0.3px;
+            }
+
+            .hero p.lead { font-size: 13.5px; }
+
+            .section-title h2 { font-size: 24px; }
+
+            .lore-portrait { height: 220px; }
+
+            .lore-card { padding: 16px; }
+
+            .cap-card { padding: 18px; }
+
+            .cap-card h3 { font-size: 17px; }
+
+            .stat-value { font-size: 16px; }
+
+            footer.footer { padding: 36px 0 20px; margin-top: 48px; }
+        }
+
+        /* ── 360px: Very small phones ── */
+        @media (max-width: 360px) {
+            .hero h1 { font-size: 22px; }
+            .hero p.lead { font-size: 13px; }
+            .brand-title { font-size: 14px; }
         }
     </style>
 </head>

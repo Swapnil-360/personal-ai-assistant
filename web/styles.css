@@ -1181,141 +1181,113 @@ body.observer-mode .btn-send:disabled {
 }
 
 /* ==========================================================================
-   RESPONSIVE DESIGN & ADAPTIVE LAYOUTS
-   Supports: Large Desktop, Laptops (<=1200px), Tablets (<=992px),
-             Mobile Landscape (<=768px), and Mobile Phones (<=480px)
+   RESPONSIVE DESIGN — index.html (Mikasa OS Dashboard)
+   Breakpoints: 1200px  992px  768px  576px  480px  360px
    ========================================================================== */
 
-/* 1. Large Tablets & Narrow Desktop Screens (<= 1200px) */
+/* ── 1. Laptops & Narrow Desktops (≤ 1200px) ── */
 @media (max-width: 1200px) {
     .dashboard-container {
-        grid-template-columns: 1fr 380px;
+        grid-template-columns: 1fr 360px;
         gap: 20px;
         padding: 20px 24px;
     }
 
+    header.command-header { padding: 0 20px; gap: 12px; }
+
+    .status-pills { gap: 8px; }
+    .status-pill { padding: 5px 10px; font-size: 0.7rem; }
+
+    .header-actions { gap: 8px; }
+    .btn { padding: 7px 12px; font-size: 0.79rem; }
+}
+
+/* ── 2. Tablets (≤ 992px) ── */
+@media (max-width: 992px) {
+    /* Header becomes 3 rows: brand | auth | actions */
     header.command-header {
-        padding: 0 20px;
-        gap: 16px;
+        height: auto;
+        min-height: unset;
+        padding: 10px 16px;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
     }
 
-    .header-actions {
+    .brand-section { flex: 1 1 auto; min-width: 0; }
+
+    /* Hide status-pills (Telegram, Gemini, GitHub) on tablet — too crowded */
+    .status-pills { display: none; }
+
+    .auth-pill-wrapper {
+        flex: 0 0 auto;
         gap: 8px;
     }
 
-    .btn {
-        padding: 7px 12px;
-        font-size: 0.8rem;
-    }
-}
-
-/* 2. Medium Tablets & Laptops (<= 992px) */
-@media (max-width: 992px) {
-    header.command-header {
-        height: auto;
-        min-height: 64px;
-        padding: 12px 20px;
-        flex-wrap: wrap;
-        gap: 12px;
-        justify-content: space-between;
-    }
-
-    .brand-section {
-        flex: 1 1 auto;
-    }
-
-    .auth-pill-wrapper {
-        order: 2;
-        margin-left: auto;
-    }
-
     .header-actions {
-        order: 3;
         width: 100%;
         display: flex;
         flex-wrap: wrap;
         gap: 8px;
-        justify-content: flex-start;
-        padding-top: 10px;
+        padding-top: 8px;
         border-top: 1px solid rgba(255, 255, 255, 0.06);
     }
 
+    .header-actions .btn {
+        flex: 1 1 calc(50% - 4px);
+        justify-content: center;
+        min-width: 0;
+    }
+
+    .header-actions .btn-primary {
+        flex: 1 1 100%;
+    }
+
+    /* Dashboard stacks */
     .dashboard-container {
         grid-template-columns: 1fr;
-        gap: 24px;
-        padding: 18px 20px;
+        gap: 20px;
+        padding: 16px;
     }
 
     .companion-panel {
-        height: 560px;
-        max-height: 80vh;
+        height: 520px;
         position: static;
+        max-height: 80vh;
         width: 100%;
     }
 
     .goals-grid,
     .projects-grid,
     .quotas-grid {
-        grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
     }
 }
 
-/* 3. Small Tablets & Phablets (<= 768px) */
+/* ── 3. Phablets & Large Phones (≤ 768px) ── */
 @media (max-width: 768px) {
-    header.command-header {
-        padding: 10px 16px;
-    }
+    header.command-header { padding: 10px 14px; gap: 6px; }
 
-    .brand-subtitle {
-        display: none;
-    }
+    .brand-subtitle { display: none; }
 
-    .brand-text h1 {
-        font-size: 1.12rem;
-    }
+    .brand-text h1 { font-size: 1.08rem; gap: 6px; }
+    .brand-badge { font-size: 0.6rem; padding: 2px 6px; }
 
-    .header-actions {
-        gap: 6px;
-    }
+    .observer-pill { padding: 4px 10px; font-size: 0.7rem; }
+    .btn-commander-login { padding: 6px 10px; font-size: 0.72rem; }
+    .commander-pill { padding: 4px 10px; font-size: 0.7rem; }
 
-    .header-actions .btn {
-        padding: 6px 10px;
-        font-size: 0.76rem;
-        flex: 1 1 auto;
-        justify-content: center;
-    }
+    .observer-mode-banner { padding: 10px 14px; }
+    .banner-inner { flex-direction: column; align-items: flex-start; gap: 8px; }
+    .btn-banner-login { align-self: flex-start; }
 
-    .observer-mode-banner {
-        padding: 10px 16px;
-    }
+    .dashboard-container { padding: 12px; gap: 16px; }
 
-    .banner-inner {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 8px;
-    }
+    .glass-card { padding: 16px 14px; }
+    .card-header { flex-wrap: wrap; gap: 8px; }
+    .card-title { font-size: 1.05rem; }
 
-    .btn-banner-login {
-        align-self: flex-start;
-    }
-
-    .dashboard-container {
-        padding: 14px 14px;
-        gap: 18px;
-    }
-
-    .glass-card {
-        padding: 18px 16px;
-    }
-
-    .card-header {
-        flex-wrap: wrap;
-        gap: 10px;
-    }
-
-    .companion-panel {
-        height: 500px;
-    }
+    .companion-panel { height: 460px; }
 
     .modal-content {
         width: 94%;
@@ -1324,139 +1296,105 @@ body.observer-mode .btn-send:disabled {
         overflow-y: auto;
     }
 
-    .toast-container {
-        left: 16px;
-        right: 16px;
-        bottom: 16px;
-    }
-
-    .toast-msg {
-        width: 100%;
-        box-sizing: border-box;
-    }
+    .toast-container { left: 12px; right: 12px; bottom: 12px; }
+    .toast-msg { width: 100%; box-sizing: border-box; font-size: 0.8rem; }
 }
 
-/* 4. Mobile Phones (<= 480px) */
-@media (max-width: 480px) {
-    header.command-header {
-        padding: 8px 12px;
-    }
+/* ── 4. Standard Mobile Portrait (≤ 576px) ── */
+@media (max-width: 576px) {
+    header.command-header { padding: 8px 12px; }
 
-    .avatar-wrapper {
-        width: 36px;
-        height: 36px;
-        border-radius: 8px;
-    }
+    /* On very small screens collapse auth and brand side by side tightly */
+    .brand-section { gap: 10px; }
 
-    .brand-avatar-img {
-        width: 32px;
-        height: 32px;
-    }
+    .avatar-wrapper { width: 36px; height: 36px; border-radius: 8px; }
+    .brand-avatar-img { width: 32px; height: 32px; border-radius: 8px; }
+    .brand-text h1 { font-size: 0.95rem; }
 
-    .brand-text h1 {
-        font-size: 1rem;
-        gap: 6px;
-    }
+    .auth-pill-wrapper { gap: 6px; }
 
-    .brand-badge {
-        font-size: 0.58rem;
-        padding: 2px 6px;
-    }
-
-    .auth-pill-wrapper {
-        gap: 6px;
-    }
-
-    .observer-pill {
-        padding: 4px 8px;
-        font-size: 0.68rem;
-    }
-
-    .btn-commander-login {
-        padding: 5px 10px;
-        font-size: 0.72rem;
-    }
-
-    .commander-pill {
-        padding: 4px 10px;
-        font-size: 0.72rem;
-    }
+    /* Hide "Observer Mode" text label, keep pulse dot + "Login" button only */
+    .observer-pill > span:last-child { display: none; }
+    .observer-pill { padding: 4px 8px; }
 
     .header-actions {
         display: grid;
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(4, 1fr);
         gap: 6px;
+        padding-top: 6px;
     }
 
+    /* Task button takes full width */
     .header-actions .btn-primary {
-        grid-column: span 2;
+        grid-column: 1 / -1;
     }
 
     .header-actions .btn {
-        padding: 7px 8px;
-        font-size: 0.74rem;
-        justify-content: center;
-    }
-
-    .nav-tabs {
-        padding: 4px;
+        flex: unset;
+        padding: 7px 4px;
+        font-size: 0.7rem;
         gap: 4px;
     }
 
-    .tab-btn {
-        padding: 6px 12px;
-        font-size: 0.78rem;
-        gap: 6px;
-    }
+    /* Hide text labels in action buttons, keep emoji only on 576px */
+    .header-actions .btn > span + * { display: none; }
 
-    .dashboard-container {
-        padding: 10px 8px;
-        gap: 14px;
-    }
+    .nav-tabs { padding: 4px; gap: 4px; }
 
-    .glass-card {
-        padding: 14px 12px;
-        border-radius: var(--radius-md);
-    }
+    .tab-btn { padding: 6px 10px; font-size: 0.76rem; gap: 5px; }
 
-    .card-title {
-        font-size: 1.02rem;
-    }
+    .dashboard-container { padding: 8px 10px; gap: 12px; }
 
-    .companion-panel {
-        height: 480px;
-    }
+    .glass-card { padding: 14px 12px; border-radius: var(--radius-md); }
 
-    .chat-bubble {
-        max-width: 94%;
-        font-size: 0.82rem;
-        padding: 10px 12px;
-    }
+    .companion-panel { height: 440px; }
 
-    .chat-input-area {
-        padding: 10px;
-        gap: 8px;
-    }
+    .chat-messages { padding: 14px; gap: 12px; }
 
-    .chat-input {
-        padding: 8px 10px;
-        font-size: 0.82rem;
-    }
+    .chat-bubble { max-width: 95%; font-size: 0.82rem; padding: 10px 12px; }
 
-    .btn-send {
-        width: 38px;
-        height: 38px;
-        flex-shrink: 0;
-    }
+    .chat-input-area { padding: 8px 10px; gap: 8px; }
 
-    .modal-content {
-        width: 95%;
-        padding: 16px 12px;
-        border-radius: var(--radius-md);
-    }
+    .chat-input { padding: 8px 10px; font-size: 0.82rem; }
 
-    .modal-header h3 {
-        font-size: 1.05rem;
-    }
+    .btn-send { width: 38px; height: 38px; flex-shrink: 0; }
+
+    .modal-content { width: 96%; padding: 16px 14px; border-radius: var(--radius-md); }
+    .modal-header h3 { font-size: 1rem; }
+
+    .goals-grid,
+    .projects-grid,
+    .quotas-grid { grid-template-columns: 1fr; }
 }
+
+/* ── 5. Very Small Phones (≤ 400px) ── */
+@media (max-width: 400px) {
+    header.command-header { padding: 8px 10px; }
+
+    .brand-text h1 { font-size: 0.85rem; }
+
+    .btn-commander-login { padding: 4px 8px; font-size: 0.66rem; }
+
+    .header-actions { grid-template-columns: repeat(2, 1fr); }
+
+    .header-actions .btn-primary { grid-column: 1 / -1; }
+
+    .header-actions .btn {
+        padding: 6px 4px;
+        font-size: 0.66rem;
+    }
+
+    .tab-btn { padding: 5px 8px; font-size: 0.72rem; }
+
+    .dashboard-container { padding: 6px 8px; }
+
+    .companion-panel { height: 400px; }
+
+    .modal-content { width: 98%; padding: 14px 10px; }
+}
+
+
+
+
+
 

@@ -40,6 +40,12 @@ function checkUrlToken() {
             localStorage.setItem('mikasa_commander_token', token);
             window.history.replaceState({}, document.title, window.location.pathname);
             showToast("⚔️ Verified Commander token loaded from link.", "success");
+        } else if (!localStorage.getItem('mikasa_commander_token')) {
+            // Auto-grant commander passkey on local PC (localhost / 127.0.0.1)
+            const host = window.location.hostname;
+            if (host === 'localhost' || host === '127.0.0.1') {
+                localStorage.setItem('mikasa_commander_token', 'MikasaCommander360!');
+            }
         }
     } catch (e) {}
 }
@@ -1216,6 +1222,7 @@ function initPCHub() {
 
 function initJarvisVoice() {
     const btnVoice = document.getElementById('btn-jarvis-voice');
+    const btnChatMic = document.getElementById('btn-chat-mic');
     const voiceLabel = document.getElementById('voice-label');
     const voiceFeedback = document.getElementById('voice-feedback');
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -1233,6 +1240,7 @@ function initJarvisVoice() {
     speechRecognitionInstance.onstart = () => {
         isVoiceListening = true;
         if (btnVoice) btnVoice.classList.add('listening');
+        if (btnChatMic) btnChatMic.classList.add('listening');
         if (voiceLabel) voiceLabel.textContent = "Listening... Speak now";
         if (voiceFeedback) voiceFeedback.textContent = "Mikasa is listening to your microphone...";
     };
@@ -1253,6 +1261,7 @@ function initJarvisVoice() {
         console.warn('Speech recognition error:', event.error);
         isVoiceListening = false;
         if (btnVoice) btnVoice.classList.remove('listening');
+        if (btnChatMic) btnChatMic.classList.remove('listening');
         if (voiceLabel) voiceLabel.textContent = 'Speak Command ("Hey Mikasa...")';
         if (voiceFeedback) voiceFeedback.textContent = `Voice recognition error: ${event.error}`;
     };
@@ -1260,22 +1269,25 @@ function initJarvisVoice() {
     speechRecognitionInstance.onend = () => {
         isVoiceListening = false;
         if (btnVoice) btnVoice.classList.remove('listening');
+        if (btnChatMic) btnChatMic.classList.remove('listening');
         if (voiceLabel) voiceLabel.textContent = 'Speak Command ("Hey Mikasa...")';
     };
 
-    if (btnVoice) {
-        btnVoice.addEventListener('click', () => {
-            if (isVoiceListening) {
-                speechRecognitionInstance.stop();
-            } else {
-                try {
-                    speechRecognitionInstance.start();
-                } catch (e) {
-                    console.warn(e);
-                }
+    function toggleVoice() {
+        if (isVoiceListening) {
+            speechRecognitionInstance.stop();
+        } else {
+            try {
+                speechRecognitionInstance.start();
+                showToast("🎙️ Listening... Speak your command to Mikasa", "info");
+            } catch (e) {
+                console.warn(e);
             }
-        });
+        }
     }
+
+    if (btnVoice) btnVoice.addEventListener('click', toggleVoice);
+    if (btnChatMic) btnChatMic.addEventListener('click', toggleVoice);
 }
 
 async function handleVoiceCommand(spokenText) {

@@ -1482,6 +1482,30 @@ body.observer-mode .btn-send:disabled {
     50% { opacity: 0.4; transform: scale(1.2); }
 }
 
+.btn-mic {
+    background: rgba(14, 165, 233, 0.15);
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    border-radius: var(--radius-sm);
+    color: #38bdf8;
+    width: 40px;
+    height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 1.15rem;
+    transition: var(--transition-smooth);
+    flex-shrink: 0;
+}
+
+.btn-mic:hover {
+    background: rgba(14, 165, 233, 0.3);
+    border-color: #38bdf8;
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.4);
+    transform: scale(1.05);
+}
+
+.btn-mic.listening,
 #btn-jarvis-voice.listening {
     background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
     border-color: #f87171 !important;

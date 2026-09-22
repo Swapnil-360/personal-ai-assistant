@@ -128,6 +128,8 @@
             gap: 14px;
             text-decoration: none;
             color: var(--text-main);
+            white-space: nowrap;
+            flex-shrink: 0;
         }
 
         .nav-avatar {
@@ -137,6 +139,7 @@
             object-fit: cover;
             border: 1px solid rgba(229, 57, 53, 0.5);
             box-shadow: 0 0 14px rgba(229, 57, 53, 0.35);
+            flex-shrink: 0;
         }
 
         .brand-text {
@@ -152,6 +155,7 @@
             display: flex;
             align-items: center;
             gap: 8px;
+            white-space: nowrap;
         }
 
         .status-badge-live {
@@ -164,12 +168,15 @@
             color: #34d399;
             border: 1px solid rgba(16, 185, 129, 0.3);
             letter-spacing: 0.5px;
+            white-space: nowrap;
+            flex-shrink: 0;
         }
 
         .brand-sub {
             font-size: 12px;
             color: var(--text-muted);
             letter-spacing: 0.2px;
+            white-space: nowrap;
         }
 
         .nav-menu {
@@ -195,6 +202,15 @@
             display: flex;
             align-items: center;
             gap: 12px;
+            flex-shrink: 0;
+        }
+
+        .btn-label-desktop {
+            display: inline;
+        }
+
+        .btn-label-mobile {
+            display: none;
         }
 
         .btn-telegram {
@@ -210,6 +226,8 @@
             font-weight: 600;
             text-decoration: none;
             transition: var(--transition-smooth);
+            white-space: nowrap;
+            flex-shrink: 0;
         }
 
         .btn-telegram:hover {
@@ -233,11 +251,15 @@
             text-decoration: none;
             transition: var(--transition-smooth);
             cursor: pointer;
+            white-space: nowrap;
+            flex-shrink: 0;
         }
 
         .btn-commander:hover {
             color: var(--text-main);
             border-color: rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.04);
+        }
             background: rgba(255, 255, 255, 0.04);
         }
 
@@ -1016,6 +1038,52 @@
 
         @media (max-width: 768px) {
             .nav-menu { display: none; }
+            header.nav-header .container {
+                padding: 0 16px;
+            }
+            .nav-inner {
+                height: 64px;
+            }
+            .nav-brand {
+                gap: 10px;
+                flex-shrink: 0;
+            }
+            .nav-avatar {
+                width: 36px;
+                height: 36px;
+                border-radius: 8px;
+            }
+            .brand-title {
+                font-size: 16px;
+                gap: 6px;
+            }
+            .brand-sub {
+                display: none;
+            }
+            .status-badge-live {
+                font-size: 9px;
+                padding: 1px 6px;
+            }
+            .nav-actions {
+                gap: 8px;
+                flex-shrink: 0;
+            }
+            .btn-telegram {
+                padding: 6px 13px;
+                font-size: 12px;
+                gap: 6px;
+            }
+            .btn-commander {
+                padding: 6px 13px;
+                font-size: 12px;
+                gap: 5px;
+            }
+            .btn-label-desktop {
+                display: none;
+            }
+            .btn-label-mobile {
+                display: inline;
+            }
             .hero-title { font-size: 34px; letter-spacing: -0.5px; }
             .hero-lead { font-size: 16px; }
             .hero-section { padding: 48px 0 40px; }
@@ -1031,6 +1099,70 @@
             .spec-item { border-right: none; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px; }
             .spec-item:last-child { border-bottom: none; padding-bottom: 0; }
             .footer-inner { flex-direction: column; text-align: center; }
+        }
+
+        @media (max-width: 480px) {
+            header.nav-header .container {
+                padding: 0 12px;
+            }
+            .nav-inner {
+                height: 56px;
+            }
+            .nav-brand {
+                gap: 8px;
+            }
+            .nav-avatar {
+                width: 32px;
+                height: 32px;
+                border-radius: 7px;
+            }
+            .brand-title {
+                font-size: 14.5px;
+                gap: 5px;
+                letter-spacing: 0.2px;
+            }
+            .status-badge-live {
+                font-size: 8px;
+                padding: 1px 5px;
+                border-radius: 3px;
+            }
+            .nav-actions {
+                gap: 6px;
+            }
+            .btn-telegram {
+                padding: 5px 9px;
+                font-size: 11.5px;
+                gap: 4px;
+            }
+            .btn-telegram svg {
+                width: 13px;
+                height: 13px;
+            }
+            .btn-commander {
+                padding: 5px 9px;
+                font-size: 11.5px;
+                gap: 4px;
+            }
+        }
+
+        @media (max-width: 360px) {
+            .status-badge-live {
+                display: none;
+            }
+            .btn-telegram span {
+                display: none;
+            }
+            .btn-telegram {
+                padding: 6px;
+                border-radius: 50%;
+                width: 30px;
+                height: 30px;
+                justify-content: center;
+            }
+            .btn-commander {
+                padding: 5px 7px;
+                font-size: 10.5px;
+            }
         }
     </style>
 </head>
@@ -1064,13 +1196,15 @@
 
                 <div class="nav-actions">
                     <a href="https://t.me/mikasa_360_bot" target="_blank" class="btn-telegram">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
                             <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.75-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/>
                         </svg>
-                        Telegram Bot
+                        <span class="btn-label-desktop">Telegram Bot</span>
+                        <span class="btn-label-mobile">Telegram</span>
                     </a>
                     <button class="btn-commander" onclick="openCommanderModal()">
-                        Commander Access
+                        <span class="btn-label-desktop">Commander Access</span>
+                        <span class="btn-label-mobile">Commander</span>
                     </button>
                 </div>
             </div>

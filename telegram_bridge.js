@@ -478,6 +478,10 @@ CRITICAL FORMATTING & CONCISENESS RULES (TELEGRAM MOBILE)
 const GEMINI_RPM_LIMIT = 20; // Google Gemini Free Tier: 20 Requests Per Minute
 const GEMINI_RPD_LIMIT = 1500; // Google Gemini Free Tier: 1,500 Requests Per Day
 
+// Silent fallover tracking — only warn once per cooldown window
+let _lastFalloverWarnChatId = null;
+let _lastLowQuotaWarnAt = 0;
+
 let geminiRequestTimestamps = [];
 let geminiDailyCounter = 0;
 let geminiDailyResetDay = new Date().getUTCDate();
@@ -780,12 +784,9 @@ async function callMikasaAgent(message, conversationId, userContext) {
             const reply = await callOpenRouterApi(systemPrompt, message, openrouterKey);
             if (reply) {
                 lastUsedEngine = 'openrouter';
-                const quotaStatus = getGeminiQuotaStatus();
-                let notice = '';
-                if (quotaStatus.is_cooldown) {
-                    notice = `\n\n*(⚡ Note: Gemini 20 RPM limit reached. Instantly switched to OpenRouter GPT-4o-mini. Gemini resets in ~${quotaStatus.cooldown_remaining_seconds}s)*`;
-                }
-                return { reply: reply + notice, engine: 'openrouter-gpt-4o-mini', fallback_active: true };
+                // Silent fallover — no message appended to user reply
+                // Use /quota command to check status anytime
+                return { reply, engine: 'openrouter-gpt-4o-mini', fallback_active: true };
             }
         } catch (err) {
             console.warn('[Direct OpenRouter Call Failed]:', err.message);
@@ -1085,8 +1086,91 @@ async function processCallbackQuery(callbackQuery) {
     await answerCallbackQuery(id, "Action processed.");
 }
 
+// --- DISTRIBUTED COORDINATION & DEDUPLICATION (Local PC vs Cloud Render/Railway) ---
+const processedMessageClaims = new Set();
+
+// Function for Cloud to check if Local is active on Swapnil's PC
+async function checkIsLocalActive() {
+    if (!IS_RENDER_CLOUD) return false;
+    try {
+        const res = await supabaseRequest('/current_state?key=eq.local_bridge_heartbeat', 'GET');
+        if (res && res[0] && res[0].value && res[0].value.active_at) {
+            if (res[0].value.source !== 'local_pc' || res[0].value.hostname !== 'Swapnil-PC') {
+                return false;
+            }
+            const diff = Date.now() - new Date(res[0].value.active_at).getTime();
+            // 90s freshness window: tolerates network roaming or Wi-Fi handoffs
+            return diff < 90000;
+        }
+    } catch (e) {}
+    return false;
+}
+
+// Distributed atomic claim: ensures only ONE instance (Local or Cloud) processes each message
+async function claimTelegramMessage(claimKey) {
+    if (!claimKey) return true;
+    if (processedMessageClaims.has(claimKey)) {
+        return false;
+    }
+    processedMessageClaims.add(claimKey);
+    if (processedMessageClaims.size > 500) {
+        const oldest = processedMessageClaims.values().next().value;
+        processedMessageClaims.delete(oldest);
+    }
+
+    try {
+        await supabaseRequest('/current_state', 'POST', {
+            area: 'telegram_sync',
+            key: claimKey,
+            value: {
+                claimed_by: IS_LOCAL_PC ? 'local_pc' : 'cloud',
+                hostname: os.hostname(),
+                claimed_at: new Date().toISOString()
+            },
+            status: 'active'
+        });
+        return true;
+    } catch (err) {
+        // 409 indicates another instance claimed this message first
+        if (err.message && err.message.includes('409')) {
+            return false;
+        }
+        // If Supabase has a transient network failure on local PC, permit local to handle it
+        if (IS_LOCAL_PC) return true;
+        return false;
+    }
+}
+
+// Periodically clean up old sync claim keys (older than 1 hour)
+setInterval(async () => {
+    try {
+        const oneHourAgo = new Date(Date.now() - 3600000).toISOString();
+        await supabaseRequest(`/current_state?area=eq.telegram_sync&created_at=lt.${oneHourAgo}`, 'DELETE');
+    } catch (e) {}
+}, 1800000);
+
 // Process single Telegram message update
 async function processUpdate(update) {
+    // 1. Cloud Priority Guard: If Cloud picked up an update, but Local is active on PC, Cloud drops it immediately!
+    if (IS_RENDER_CLOUD) {
+        const localActive = await checkIsLocalActive();
+        if (localActive) {
+            console.log(`[Cloud Coordinator] Local instance is active on Swapnil-PC — dropping update ${update.update_id} so Local handles it.`);
+            return;
+        }
+    }
+
+    // 2. Distributed Atomic Claim: Prevents double replies between Local, Render, and Railway
+    const claimKey = update.message 
+        ? `msg_${update.message.chat.id}_${update.message.message_id}`
+        : (update.callback_query ? `cb_${update.callback_query.id}` : `upd_${update.update_id}`);
+
+    const claimed = await claimTelegramMessage(claimKey);
+    if (!claimed) {
+        console.log(`[Coordinator Dedup] ${claimKey} already claimed/processed by another instance. Standing down.`);
+        return;
+    }
+
     // Handle inline button clicks
     if (update.callback_query) {
         await processCallbackQuery(update.callback_query);
@@ -1836,6 +1920,18 @@ async function processUpdate(update) {
 
         await sendTelegramMessage(chatId, replyText, msg.message_id, replyMarkup);
 
+        // Proactive low-quota warning: ONLY warn when limit is critically close to finishing (<=2 remaining this minute, or daily >= 1485)
+        // Rate-limited to once every 3 minutes so it never spams. Full stats always viewable via /quota.
+        const quotaCheck = getGeminiQuotaStatus();
+        const now = Date.now();
+        if (!quotaCheck.is_cooldown && (quotaCheck.remaining_this_minute <= 2 || quotaCheck.daily_usage >= 1485)) {
+            if (now - _lastLowQuotaWarnAt > 180000) {
+                _lastLowQuotaWarnAt = now;
+                const warnMsg = `⚠️ *Notice:* Gemini quota is almost exhausted (${quotaCheck.remaining_this_minute}/20 left this min). Mikasa will seamlessly switch to OpenRouter if needed. Check /quota anytime for live telemetry.`;
+                await sendTelegramMessage(chatId, warnMsg);
+            }
+        }
+
         // Ensure conversation turn is stored in Supabase so Cloud & Local both have full context
         if (!response.context_used) {
             try {
@@ -1887,7 +1983,8 @@ async function startPolling() {
             } catch (e) {}
         };
         sendHeartbeat();
-        setInterval(sendHeartbeat, 10000);
+        // Send heartbeat every 8s — ensures cloud sees it well within the 90s stale window
+        setInterval(sendHeartbeat, 8000);
 
         const clearHeartbeat = async () => {
             try {
@@ -1901,22 +1998,9 @@ async function startPolling() {
         process.on('SIGTERM', async () => { await clearHeartbeat(); process.exit(); });
     }
 
-    // Function for Cloud to check if Local is active
-    async function checkIsLocalActive() {
-        if (!IS_RENDER_CLOUD) return false;
-        try {
-            const res = await supabaseRequest('/current_state?key=eq.local_bridge_heartbeat', 'GET');
-            if (res && res[0] && res[0].value && res[0].value.active_at) {
-                // Must be specifically stamped by Swapnil's PC
-                if (res[0].value.source !== 'local_pc' || res[0].value.hostname !== 'Swapnil-PC') {
-                    return false;
-                }
-                const diff = Date.now() - new Date(res[0].value.active_at).getTime();
-                return diff < 30000; // Local sent a heartbeat within the last 30s
-            }
-        } catch (e) {}
-        return false;
-    }
+    // In-memory dedup set: prevents the same update_id from being processed twice
+    // (extra safety net on top of heartbeat coordination)
+    const processedUpdateIds = new Set();
 
     while (isPolling) {
         // Cloud Priority Check: If Local is active on PC, Cloud stands down!
@@ -1948,6 +2032,17 @@ async function startPolling() {
             for (const update of updates) {
                 if (update.update_id > lastUpdateId) {
                     lastUpdateId = update.update_id;
+                    // Skip if already processed in this session (dedup guard)
+                    if (processedUpdateIds.has(update.update_id)) {
+                        console.log(`[Dedup] Skipping already-processed update_id ${update.update_id}`);
+                        continue;
+                    }
+                    processedUpdateIds.add(update.update_id);
+                    // Keep set bounded — prune after 500 entries
+                    if (processedUpdateIds.size > 500) {
+                        const oldest = processedUpdateIds.values().next().value;
+                        processedUpdateIds.delete(oldest);
+                    }
                     await processUpdate(update);
                 }
             }

@@ -83,10 +83,56 @@ const IS_RENDER_CLOUD = !IS_LOCAL_PC;
 let lastUpdateId = 0;
 let isPolling = false;
 
+// Track group members as they speak (Telegram API has no 'getMembers' endpoint for regular groups)
+// Map: chatId (string) -> Map of userId -> { name, username, isCommander, lastSeen }
+const groupMemberTracker = new Map();
+
+function trackGroupMember(chatId, from) {
+    const key = String(chatId);
+    if (!groupMemberTracker.has(key)) groupMemberTracker.set(key, new Map());
+    const members = groupMemberTracker.get(key);
+    members.set(from.id, {
+        id: from.id,
+        name: from.first_name || from.username || 'Unknown',
+        fullName: [from.first_name, from.last_name].filter(Boolean).join(' '),
+        username: from.username || null,
+        isCommander: (from.id === SWAPNIL_USER_ID) || ((from.username || '').toLowerCase() === SWAPNIL_USERNAME),
+        lastSeen: new Date().toISOString()
+    });
+}
+
 // Generate deterministic UUID from Telegram Chat ID for permanent session continuity
 function getChatUuid(chatId) {
     const h = crypto.createHash('md5').update('telegram_' + chatId).digest('hex');
     return [h.slice(0, 8), h.slice(8, 12), h.slice(12, 16), h.slice(16, 20), h.slice(20, 32)].join('-');
+}
+
+// Fetch chat administrators from Telegram API
+function getChatAdministrators(chatId) {
+    return new Promise((resolve) => {
+        const url = `https://api.telegram.org/bot${BOT_TOKEN}/getChatAdministrators?chat_id=${chatId}`;
+        https.get(url, (res) => {
+            let data = '';
+            res.on('data', chunk => data += chunk);
+            res.on('end', () => {
+                try {
+                    const json = JSON.parse(data);
+                    if (json.ok && Array.isArray(json.result)) {
+                        resolve(json.result.map(m => ({
+                            id: m.user.id,
+                            name: m.user.first_name || m.user.username || 'Unknown',
+                            fullName: [m.user.first_name, m.user.last_name].filter(Boolean).join(' '),
+                            username: m.user.username || null,
+                            role: m.status, // 'creator' | 'administrator'
+                            isCommander: (m.user.id === SWAPNIL_USER_ID) || ((m.user.username || '').toLowerCase() === SWAPNIL_USERNAME)
+                        })));
+                    } else {
+                        resolve([]);
+                    }
+                } catch (e) { resolve([]); }
+            });
+        }).on('error', () => resolve([]));
+    });
 }
 
 // Clear webhook so getUpdates long-polling works cleanly
@@ -133,6 +179,8 @@ function registerBotCommands() {
         { command: 'mode', description: 'Switch agent mode: /mode [mode]' },
         { command: 'dashboard', description: 'Link to Web Command Center' },
         { command: 'crypto', description: 'Live Crypto Sourcing Radar (New projects, websites, LinkedIn)' },
+        { command: 'members', description: 'List who is in this group (admins + speakers)' },
+        { command: 'who', description: 'Same as /members — who is here in this group?' },
         { command: 'login', description: '1-click verified login for Web App' },
         { command: 'quota', description: 'View Gemini quota & rate limit status' },
         { command: 'help', description: 'Full guide & capabilities' }
@@ -1408,6 +1456,9 @@ async function processUpdate(update) {
     // Dual-mode Commander identification: numeric user ID (primary) OR Telegram username (fallback)
     const isCommander = (userId === SWAPNIL_USER_ID) || (telegramUsername && telegramUsername === SWAPNIL_USERNAME);
 
+    // Track every speaker in group chats (builds the member roster over time)
+    if (isGroup) trackGroupMember(chatId, msg.from);
+
     // 1. Group Chat Filter: In groups, ONLY respond if mentioned or addressed by name!
     const botUsername = 'mikasa_360_bot';
     const isMentioned = 
@@ -1483,6 +1534,63 @@ async function processUpdate(update) {
             await sendTelegramMessage(chatId, replyText, msg.message_id);
         } catch (err) {
             await sendTelegramMessage(chatId, `Hello ${userName}, I am Mikasa Ackerman, Swapnil's AI companion. 🧣`, msg.message_id);
+        }
+        return;
+    }
+
+    // ── GROUP MEMBER ROSTER (Commander-only) ──────────────────────────
+    // Triggered by: "boloto ei group a ke ke ache", "who is in this group", "/members", etc.
+    const isGroupMemberQuery = isGroup && (
+        text.match(/\bke\s+ke\s+ache\b/i) ||
+        text.match(/\bgroup\s*(?:e|te|er)?\s*(?:ke|who|kon\s*kon|kara|member)/i) ||
+        text.match(/\bwho(?:'s|\s+is|\s+are)\s+(?:in|here|in\s+this\s+group)\b/i) ||
+        text.match(/\b(?:list|show)\s+(?:all\s+)?(?:members?|people|users?)\b/i) ||
+        text === '/members' || text === '/who'
+    );
+
+    if (isGroupMemberQuery) {
+        await sendChatAction(chatId, 'typing');
+        try {
+            // 1. Fetch admins from Telegram API
+            const admins = await getChatAdministrators(chatId);
+
+            // 2. Get tracked speakers from memory
+            const trackedMap = groupMemberTracker.get(String(chatId)) || new Map();
+            const trackedMembers = [...trackedMap.values()];
+
+            // 3. Merge: admins + tracked speakers, deduplicate by user ID
+            const allById = new Map();
+            for (const a of admins) allById.set(a.id, { ...a, isAdmin: true });
+            for (const t of trackedMembers) {
+                if (!allById.has(t.id)) allById.set(t.id, { ...t, isAdmin: false });
+                else allById.set(t.id, { ...allById.get(t.id), ...t, isAdmin: true }); // merge
+            }
+
+            const everyone = [...allById.values()];
+
+            if (everyone.length === 0) {
+                await sendTelegramMessage(chatId,
+                    `Swapnil, ami ekhon pর্যন্ত শুধু তোমাকেই দেখেছি এই গ্রুপে! 🧣 Others will appear as they speak.`,
+                    msg.message_id);
+                return;
+            }
+
+            // 4. Format the roster
+            const lines = ['👥 *Group Members I Know About:*', ''];
+            let idx = 1;
+            for (const m of everyone) {
+                const badge = m.isCommander ? ' 👑 _(Commander)_' : (m.role === 'creator' ? ' 🔑 _(Owner)_' : (m.role === 'administrator' ? ' 🛡️ _(Admin)_' : ''));
+                const uname = m.username ? ` (@${m.username})` : '';
+                lines.push(`${idx}. *${m.fullName || m.name}*${uname}${badge}`);
+                idx++;
+            }
+
+            lines.push('');
+            lines.push(`_Note: I can only see members who have spoken or are admins. Admins fetched live via Telegram API._`);
+
+            await sendTelegramMessage(chatId, lines.join('\n'), msg.message_id);
+        } catch (err) {
+            await sendTelegramMessage(chatId, `⚠️ Couldn't fetch group members: ${err.message}`, msg.message_id);
         }
         return;
     }

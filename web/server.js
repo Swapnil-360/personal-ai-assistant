@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const os = require('os');
 const remindersManager = require('../reminders_manager');
 const {
+    handleActionIntent,
     getTasks,
     createTask,
     completeTask,
@@ -22,6 +23,8 @@ const {
     generateSingleTweet,
     auditSocialMedia,
     tailorCvForJob,
+    generateLinkedInJobRadar,
+    fetchLiveLinkedInJobs,
     generateOptimizedPrompt,
     addNote,
     supabaseRequest
@@ -57,6 +60,14 @@ function getSessionUuid(id = 'web_commander') {
 
 // Verify if the incoming HTTP request is authenticated as Commander
 async function verifyCommanderRequest(req) {
+    // 0. Auto-authenticate requests originating on localhost / loopback
+    const remoteIp = req.socket ? req.socket.remoteAddress : '';
+    const hostHeader = req.headers['host'] || '';
+    if ((remoteIp === '127.0.0.1' || remoteIp === '::1' || remoteIp === '::ffff:127.0.0.1') &&
+        (hostHeader.includes('localhost') || hostHeader.includes('127.0.0.1'))) {
+        return { isCommander: true, user: { email: COMMANDER_EMAIL, name: 'Md. Miftahur Rahman Swapnil (Local PC)' } };
+    }
+
     let token = null;
     const authHeader = req.headers['authorization'];
     if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -406,6 +417,14 @@ const server = http.createServer(async (req, res) => {
             return sendJson(res, 200, guide);
         }
 
+        // Live LinkedIn Jobs & Career Radar API
+        if (pathname === '/api/career/jobs' && req.method === 'GET') {
+            const q = parsedUrl.searchParams.get('q') || 'Frontend Developer Next.js';
+            const loc = parsedUrl.searchParams.get('loc') || 'Dhaka';
+            const radar = await generateLinkedInJobRadar(q, loc);
+            return sendJson(res, 200, radar);
+        }
+
         // Master Prompt API
         if (pathname === '/api/prompt/generate' && req.method === 'POST') {
             if (!await requireCommander()) return;
@@ -497,17 +516,47 @@ const server = http.createServer(async (req, res) => {
             const conversationId = getSessionUuid(body.conversation_id || 'commander_session');
 
             let replyText = '';
+
+            // Check if message is a direct action intent (e.g. Job Search, Task, Goal, Decision)
             try {
-                const { callMikasaAgent } = require('../telegram_bridge');
-                const agentRes = await callMikasaAgent(message, conversationId, {
-                    user_id: 7112137739,
-                    first_name: 'Swapnil',
-                    role: 'Commander'
-                });
-                replyText = agentRes.reply || agentRes.text || 'I am right here with you, Swapnil.';
-            } catch (agentErr) {
-                console.warn('[Web Chat Fallback Error]:', agentErr.message);
-                replyText = 'Ei to Swapnil, ami ekhane! Local and cloud systems operational.';
+                const actionRes = await handleActionIntent(message);
+                if (actionRes) {
+                    if (actionRes.action === 'job_radar') {
+                        const r = actionRes.radar;
+                        let jobsList = '';
+                        if (r.live_jobs && r.live_jobs.length > 0) {
+                            jobsList = "\n\n🔥 **Recent Suited Openings Found on LinkedIn:**\n" + 
+                                r.live_jobs.map((j, i) => `${i + 1}. **${j.title}** (${j.posted})\n   🏢 ${j.company} • 📍 ${j.location}\n   🔗 [Apply on LinkedIn](${j.url})`).join('\n\n');
+                        }
+                        replyText = `🎯 **PATHS — Live LinkedIn Opportunity Radar (Sections 19 & 26)**\n🔍 **Query:** _${r.query}_ | 📍 **Location:** _${r.targetLocation}_${jobsList}\n\n━━━━━━━━━━━━━━━━━━━━\n🌐 **Pre-Filtered Live Feeds:**\n` + 
+                            r.searches.map(s => `• [${s.title}](${s.url}) — _${s.filter}_`).join('\n') + 
+                            `\n\n_Tip: Tell me "tailor cv for [title]" to generate tailored resume bullets immediately!_`;
+                    } else if (actionRes.action === 'job_matched') {
+                        const a = actionRes.analysis;
+                        replyText = `🎯 **Job Opportunity Matching Matrix**\nTarget: _${actionRes.job_query}_\n\n\`\`\`\n${a.matrix}\n\`\`\`\n\n**Strategy:** ${a.strategy}`;
+                    } else if (actionRes.action === 'task_created') {
+                        replyText = `⚔️ Task locked in: **"${actionRes.task.title}"** under project **${actionRes.project_name}**.`;
+                    } else if (actionRes.action === 'task_completed') {
+                        replyText = `⚔️ Task marked completed: **"${actionRes.task?.title || 'Done'}"**. Well done, Swapnil!`;
+                    }
+                }
+            } catch (actErr) {
+                console.warn('[Chat Action Intent Error]:', actErr.message);
+            }
+
+            if (!replyText) {
+                try {
+                    const { callMikasaAgent } = require('../telegram_bridge');
+                    const agentRes = await callMikasaAgent(message, conversationId, {
+                        user_id: 7112137739,
+                        first_name: 'Swapnil',
+                        role: 'Commander'
+                    });
+                    replyText = agentRes.reply || agentRes.text || 'I am right here with you, Swapnil.';
+                } catch (agentErr) {
+                    console.warn('[Web Chat Fallback Error]:', agentErr.message);
+                    replyText = 'Ei to Swapnil, ami ekhane! Local and cloud systems operational.';
+                }
             }
 
             // Non-blocking auto memory extraction

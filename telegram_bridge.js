@@ -415,6 +415,12 @@ PERSONALITY & PSYCHOLOGY
    - You are an elite software architect. When discussing code, databases, or systems, your advice is world-class, clean, and direct.
    - Strictly honor his confirmed decisions: Supabase as primary database, Google Drive API for Edu51Portal, n8n for orchestration.
 
+5. Real-Time LinkedIn & Job Discovery Capabilities (STRICT):
+   - Swapnil's LinkedIn account is connected (URN: urn:li:person:XVEmQx0v6h, Md. Miftahur Rahman Swapnil).
+   - You HAVE direct real-time access to LinkedIn jobs and job search queries through the PATHS Live Job Radar.
+   - NEVER say "I can't browse LinkedIn directly" or "I cannot access LinkedIn".
+   - You can fetch and recommend live jobs, provide direct links to apply, match job descriptions with the PATHS matrix (/job), and tailor CV bullets (/cv).
+
 ==============================
 LANGUAGE PREFERENCE & BANGLISH RULES (STRICT)
 ==============================
@@ -2159,18 +2165,44 @@ async function processUpdate(update) {
                 }
             } else if (actionResult.action === 'job_radar') {
                 const r = actionResult.radar;
+                let jobSection = [];
+                if (r.live_jobs && r.live_jobs.length > 0) {
+                    jobSection.push("💼 *Recent Suited Openings on LinkedIn:*");
+                    r.live_jobs.forEach((j, idx) => {
+                        jobSection.push(
+                            `${idx + 1}. *${j.title}*\n   🏢 *${j.company}* • 📍 _${j.location}_\n   ⏱️ _Posted: ${j.posted}_\n   👉 [Apply on LinkedIn](${j.url})\n`
+                        );
+                    });
+                } else {
+                    jobSection.push("ℹ️ _Live radar queried LinkedIn for '" + r.query + "'. Curated search feeds below:_ \n");
+                }
+
                 reply = [
-                    "🎯 *PATHS — Live LinkedIn Opportunity Radar (Sections 19 & 26)*",
+                    `🎯 *PATHS — Live LinkedIn Opportunity Radar (Sections 19 & 26)*`,
+                    `🔍 *Query:* _${r.query}_ | 📍 *Location:* _${r.targetLocation || 'Dhaka / Bangladesh'}_`,
                     "",
-                    "Here are direct, pre-filtered live search feeds targeted specifically to your tech stack (Next.js, TypeScript, Supabase, AI):",
-                    "",
-                    ...r.searches.map(s => `• *${s.title}*\n  _${s.filter}_\n  🔗 [View Live Postings on LinkedIn](${s.url})\n`),
+                    ...jobSection,
                     "━━━━━━━━━━━━━━━━━━━━",
-                    "🚀 *How to use me as your Application Assistant:*",
+                    "🌐 *Pre-Filtered Live Search Feeds:*",
+                    ...r.searches.map(s => `• *${s.title}*\n  _${s.filter}_\n  🔗 [View Live Openings](${s.url})\n`),
+                    "🚀 *Next Steps:*",
                     ...r.instructions.map(i => `${i}`),
                     "",
-                    "_Whenever you find an opening, just paste it here with `/job` or send me the text!_"
+                    "_Found one you like? Reply with `/cv [job title]` to tailor your CV or `/job [text]` to match requirements!_"
                 ].join('\n');
+
+                const replyMarkup = {
+                    inline_keyboard: [
+                        [
+                            { text: "📄 Tailor CV for Next.js", callback_data: "draft_cv_nextjs" },
+                            { text: "💼 Draft LinkedIn Post", callback_data: "draft_linkedin_quick" }
+                        ]
+                    ]
+                };
+
+                await sendTelegramMessage(chatId, reply, msg.message_id, replyMarkup);
+                triggerMemoryExtraction(text, reply, conversationId);
+                return;
             }
 
             if (reply) {

@@ -34,37 +34,42 @@ function showToast(message, type = 'info') {
 
 function checkUrlToken() {
     try {
+        const host = window.location.hostname;
+        const isLocal = host === 'localhost' || host === '127.0.0.1';
         const urlParams = new URLSearchParams(window.location.search);
         const token = urlParams.get('token');
         if (token) {
             localStorage.setItem('mikasa_commander_token', token);
             window.history.replaceState({}, document.title, window.location.pathname);
             showToast("⚔️ Verified Commander token loaded from link.", "success");
-        } else if (!localStorage.getItem('mikasa_commander_token')) {
-            // Auto-grant commander passkey on local PC (localhost / 127.0.0.1)
-            const host = window.location.hostname;
-            if (host === 'localhost' || host === '127.0.0.1') {
-                localStorage.setItem('mikasa_commander_token', 'MikasaCommander360!');
-            }
+        } else if (isLocal) {
+            // Auto-grant commander passkey unconditionally on local PC
+            localStorage.setItem('mikasa_commander_token', 'MikasaCommander360!');
         }
     } catch (e) {}
 }
 
 async function checkCommanderAuth() {
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
     try {
         const res = await authFetch('/api/auth/verify');
         const data = await res.json();
-        if (data.isCommander) {
+        if (data.isCommander || isLocal) {
             isCommander = true;
-            commanderUser = data.user;
+            commanderUser = data.user || { name: 'Md. Miftahur Rahman Swapnil (Local PC)' };
             applyCommanderMode();
         } else {
             isCommander = false;
             applyObserverMode();
         }
     } catch (e) {
-        isCommander = false;
-        applyObserverMode();
+        if (isLocal) {
+            isCommander = true;
+            applyCommanderMode();
+        } else {
+            isCommander = false;
+            applyObserverMode();
+        }
     }
 }
 
@@ -974,6 +979,96 @@ function initCopilotHub() {
         navigator.clipboard.writeText(text);
         showToast("Master prompt copied to clipboard!", "success");
     });
+
+    // Live LinkedIn Jobs Radar (PATHS v2)
+    document.getElementById('btn-refresh-linkedin-jobs')?.addEventListener('click', () => {
+        const q = document.getElementById('input-job-query')?.value || 'Frontend Developer Next.js';
+        const loc = document.getElementById('input-job-loc')?.value || 'Dhaka';
+        loadLiveLinkedInJobs(q, loc);
+    });
+
+    document.getElementById('btn-search-linkedin-jobs')?.addEventListener('click', () => {
+        const q = document.getElementById('input-job-query')?.value || 'Frontend Developer Next.js';
+        const loc = document.getElementById('input-job-loc')?.value || 'Dhaka';
+        loadLiveLinkedInJobs(q, loc);
+    });
+
+    document.getElementById('input-job-query')?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            const q = document.getElementById('input-job-query')?.value || 'Frontend Developer Next.js';
+            const loc = document.getElementById('input-job-loc')?.value || 'Dhaka';
+            loadLiveLinkedInJobs(q, loc);
+        }
+    });
+
+    // Auto-load live LinkedIn jobs
+    loadLiveLinkedInJobs();
+}
+
+// Global helper for 1-click tailoring from Job Card
+window.tailorForJob = function(jobTitle) {
+    const inputRole = document.getElementById('cv-input-role');
+    if (inputRole) {
+        inputRole.value = jobTitle;
+        document.getElementById('form-cv-tailor')?.dispatchEvent(new Event('submit'));
+        showToast(`🎯 Tailoring CV for: ${jobTitle}`, "info");
+        document.getElementById('form-cv-tailor')?.scrollIntoView({ behavior: 'smooth' });
+    }
+};
+
+async function loadLiveLinkedInJobs(query = 'Frontend Developer Next.js', loc = 'Dhaka') {
+    const container = document.getElementById('linkedin-live-jobs-container');
+    if (!container) return;
+    container.innerHTML = '<div class="loading-state">Scraping real-time openings on LinkedIn...</div>';
+    try {
+        const res = await fetch(`/api/career/jobs?q=${encodeURIComponent(query)}&loc=${encodeURIComponent(loc)}`);
+        const data = await res.json();
+        
+        let html = '';
+        if (data.live_jobs && data.live_jobs.length > 0) {
+            html += `<div class="linkedin-jobs-grid">` + data.live_jobs.map(j => `
+                <div class="job-card-radar">
+                    <div>
+                        <div class="job-radar-title">${escapeHtml(j.title)}</div>
+                        <div class="job-radar-company">🏢 ${escapeHtml(j.company)}</div>
+                        <div class="job-radar-meta">
+                            <span>📍 ${escapeHtml(j.location)}</span>
+                            <span>⏱️ ${escapeHtml(j.posted)}</span>
+                        </div>
+                    </div>
+                    <div class="job-radar-actions">
+                        <a href="${j.url}" target="_blank" rel="noopener noreferrer" class="btn-job-apply">
+                            🔗 Apply on LinkedIn
+                        </a>
+                        <button type="button" class="btn-job-tailor" onclick="window.tailorForJob('${escapeHtml(j.title.replace(/'/g, "\\'"))}')">
+                            📄 Tailor CV
+                        </button>
+                    </div>
+                </div>
+            `).join('') + `</div>`;
+        } else {
+            html += `<div style="text-align: center; color: #94a3b8; padding: 14px;">No live postings returned for "${escapeHtml(query)}" in "${escapeHtml(loc)}". Check the direct search feeds below.</div>`;
+        }
+
+        if (data.searches && data.searches.length > 0) {
+            html += `
+                <div style="margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.08);">
+                    <div style="font-size: 0.78rem; font-weight: 700; color: #38bdf8; margin-bottom: 8px;">🌐 Pre-Filtered Live Feeds (Open on LinkedIn):</div>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        ${data.searches.map(s => `
+                            <a href="${s.url}" target="_blank" rel="noopener noreferrer" style="background: rgba(14, 165, 233, 0.12); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 6px; padding: 6px 10px; font-size: 0.75rem; color: #f1f5f9; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;">
+                                ${escapeHtml(s.title)}
+                            </a>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        container.innerHTML = html;
+    } catch (e) {
+        container.innerHTML = `<div class="error-state">Failed to load LinkedIn jobs: ${escapeHtml(e.message)}</div>`;
+    }
 }
 
 // --- LIVE COMPANION TERMINAL (MIKASA CHAT) ---
@@ -1223,12 +1318,20 @@ function initPCHub() {
 function initJarvisVoice() {
     const btnVoice = document.getElementById('btn-jarvis-voice');
     const btnChatMic = document.getElementById('btn-chat-mic');
+    const btnHeaderVoice = document.getElementById('btn-header-voice');
+    const btnChatHeaderVoice = document.getElementById('btn-chat-header-voice');
+    const labelHeaderVoice = document.getElementById('label-header-voice');
     const voiceLabel = document.getElementById('voice-label');
     const voiceFeedback = document.getElementById('voice-feedback');
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
+    const allVoiceBtns = [btnVoice, btnChatMic, btnHeaderVoice, btnChatHeaderVoice].filter(Boolean);
+
     if (!SpeechRecognition) {
         if (voiceFeedback) voiceFeedback.textContent = "Web Speech API not supported in this browser. Use chat input.";
+        allVoiceBtns.forEach(btn => {
+            btn.title = "Web Speech not supported in this browser";
+        });
         return;
     }
 
@@ -1239,8 +1342,8 @@ function initJarvisVoice() {
 
     speechRecognitionInstance.onstart = () => {
         isVoiceListening = true;
-        if (btnVoice) btnVoice.classList.add('listening');
-        if (btnChatMic) btnChatMic.classList.add('listening');
+        allVoiceBtns.forEach(btn => btn.classList.add('listening'));
+        if (labelHeaderVoice) labelHeaderVoice.textContent = "Listening...";
         if (voiceLabel) voiceLabel.textContent = "Listening... Speak now";
         if (voiceFeedback) voiceFeedback.textContent = "Mikasa is listening to your microphone...";
     };
@@ -1260,16 +1363,16 @@ function initJarvisVoice() {
     speechRecognitionInstance.onerror = (event) => {
         console.warn('Speech recognition error:', event.error);
         isVoiceListening = false;
-        if (btnVoice) btnVoice.classList.remove('listening');
-        if (btnChatMic) btnChatMic.classList.remove('listening');
+        allVoiceBtns.forEach(btn => btn.classList.remove('listening'));
+        if (labelHeaderVoice) labelHeaderVoice.textContent = "Voice Mode";
         if (voiceLabel) voiceLabel.textContent = 'Speak Command ("Hey Mikasa...")';
-        if (voiceFeedback) voiceFeedback.textContent = `Voice recognition error: ${event.error}`;
+        if (voiceFeedback) voiceFeedback.textContent = `Voice recognition notice: ${event.error}. Click to retry.`;
     };
 
     speechRecognitionInstance.onend = () => {
         isVoiceListening = false;
-        if (btnVoice) btnVoice.classList.remove('listening');
-        if (btnChatMic) btnChatMic.classList.remove('listening');
+        allVoiceBtns.forEach(btn => btn.classList.remove('listening'));
+        if (labelHeaderVoice) labelHeaderVoice.textContent = "Voice Mode";
         if (voiceLabel) voiceLabel.textContent = 'Speak Command ("Hey Mikasa...")';
     };
 
@@ -1286,8 +1389,7 @@ function initJarvisVoice() {
         }
     }
 
-    if (btnVoice) btnVoice.addEventListener('click', toggleVoice);
-    if (btnChatMic) btnChatMic.addEventListener('click', toggleVoice);
+    allVoiceBtns.forEach(btn => btn.addEventListener('click', toggleVoice));
 }
 
 async function handleVoiceCommand(spokenText) {

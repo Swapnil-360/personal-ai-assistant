@@ -73,6 +73,10 @@
         </div>
 
         <div class="header-actions">
+            <button class="btn btn-voice-header" id="btn-header-voice" title="Push-to-talk voice interface with Mikasa">
+                <span class="mic-icon">🎙️</span>
+                <span id="label-header-voice">Voice Mode</span>
+            </button>
             <button class="btn btn-secondary action-restricted" id="btn-clear-chat" title="Clear chat history in database">
                 <span>🧹</span> Clear Chat
             </button>
@@ -520,6 +524,28 @@
 
                 </div>
 
+                <!-- LIVE LINKEDIN JOBS & CAREER RADAR (PATHS v2) -->
+                <div class="glass-card" style="border: 1px solid rgba(14, 118, 168, 0.4); background: linear-gradient(135deg, rgba(14, 118, 168, 0.08) 0%, rgba(15, 23, 42, 0.9) 100%);">
+                    <div class="card-header">
+                        <div class="card-title" style="color: #60a5fa;">
+                            <span>💼</span> Live LinkedIn Job Radar & Direct Application Hub
+                        </div>
+                        <button class="btn btn-secondary" id="btn-refresh-linkedin-jobs" style="font-size: 0.75rem; padding: 4px 10px;">
+                            🔄 Fetch Live Jobs
+                        </button>
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap;">
+                        <input type="text" id="input-job-query" class="chat-input" placeholder="Search role (e.g. Frontend Developer, Next.js, AI Engineer)..." value="Frontend Developer Next.js" style="flex: 2; min-width: 200px;">
+                        <input type="text" id="input-job-loc" class="chat-input" placeholder="Location (Dhaka, Bangladesh, Remote)" value="Dhaka" style="flex: 1; min-width: 130px;">
+                        <button class="btn btn-primary" id="btn-search-linkedin-jobs" style="white-space: nowrap;">Find Openings</button>
+                    </div>
+
+                    <div id="linkedin-live-jobs-container">
+                        <div class="loading-state">Connecting to LinkedIn Job Radar...</div>
+                    </div>
+                </div>
+
                 <!-- MASTER PROMPT GENERATOR -->
                 <div class="glass-card">
                     <div class="card-header">
@@ -640,8 +666,13 @@
                         <div class="companion-tag">Loyal Devoted Companion</div>
                     </div>
                 </div>
-                <div style="font-size: 0.72rem; color: var(--emerald); font-weight: 600;">
-                    • CONNECTED
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <button class="btn-voice-chat-pill" id="btn-chat-header-voice" title="Push-to-talk voice interface">
+                        🎙️ Voice
+                    </button>
+                    <div style="font-size: 0.72rem; color: var(--emerald); font-weight: 600;">
+                        • CONNECTED
+                    </div>
                 </div>
             </div>
 

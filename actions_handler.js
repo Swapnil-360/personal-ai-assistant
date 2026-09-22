@@ -660,10 +660,81 @@ function matchJobOpportunity(jobDescription) {
     };
 }
 
-// 9C. PATHS LinkedIn Job Radar & Targeted Searches (Sections 19 & 26)
-function generateLinkedInJobRadar(roleOrQuery = null) {
-    const query = roleOrQuery ? roleOrQuery.trim() : 'Frontend Next.js Developer';
+// 9C. Real-time LinkedIn Job Scraping & Opportunity Discovery (Sections 19 & 26)
+function fetchLiveLinkedInJobs(keywords = 'Software Engineer', location = 'Dhaka') {
+    return new Promise((resolve) => {
+        const query = encodeURIComponent(keywords);
+        const loc = encodeURIComponent(location);
+        const url = `https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?keywords=${query}&location=${loc}&sortBy=DD&start=0`;
+
+        const req = https.get(url, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
+            },
+            timeout: 8000
+        }, (res) => {
+            let html = '';
+            res.on('data', chunk => html += chunk);
+            res.on('end', () => {
+                const jobs = [];
+                const items = html.split('</li>');
+                for (const item of items) {
+                    if (!item.includes('job-search-card')) continue;
+
+                    const titleMatch = item.match(/<h3 class="base-search-card__title"[^>]*>([\s\S]*?)<\/h3>/i);
+                    const companyMatch = item.match(/<h4 class="base-search-card__subtitle"[^>]*>([\s\S]*?)<\/h4>/i);
+                    const locMatch = item.match(/<span class="job-search-card__location"[^>]*>([\s\S]*?)<\/span>/i);
+                    const linkMatch = item.match(/href="([^"]+)"/i);
+                    const dateMatch = item.match(/<time class="job-search-card__listdate[^"]*"[^>]*datetime="([^"]+)"[^>]*>([\s\S]*?)<\/time>/i);
+
+                    const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, '').trim() : null;
+                    const company = companyMatch ? companyMatch[1].replace(/<[^>]+>/g, '').trim() : 'Company';
+                    const jobLoc = locMatch ? locMatch[1].replace(/<[^>]+>/g, '').trim() : location;
+                    let cleanUrl = linkMatch ? linkMatch[1].split('?')[0] : null;
+
+                    if (title && cleanUrl) {
+                        jobs.push({
+                            title,
+                            company,
+                            location: jobLoc,
+                            url: cleanUrl,
+                            posted: dateMatch ? dateMatch[2].replace(/<[^>]+>/g, '').trim() : 'Recent'
+                        });
+                    }
+                    if (jobs.length >= 6) break;
+                }
+                resolve(jobs);
+            });
+        });
+
+        req.on('timeout', () => {
+            req.destroy();
+            resolve([]);
+        });
+
+        req.on('error', (err) => {
+            console.warn('[LinkedIn Live Jobs Error]:', err.message);
+            resolve([]);
+        });
+    });
+}
+
+// 9D. PATHS LinkedIn Job Radar & Targeted Searches (Sections 19 & 26)
+async function generateLinkedInJobRadar(roleOrQuery = null, targetLocation = 'Dhaka') {
+    const query = roleOrQuery ? roleOrQuery.trim() : 'Frontend Developer Next.js';
     
+    // Fetch live job postings from LinkedIn
+    let liveJobs = [];
+    try {
+        liveJobs = await fetchLiveLinkedInJobs(query, targetLocation);
+        if (liveJobs.length === 0 && targetLocation !== 'Bangladesh') {
+            liveJobs = await fetchLiveLinkedInJobs(query, 'Bangladesh');
+        }
+    } catch (e) {
+        console.warn('[Job Radar Live Fetch Warning]:', e.message);
+    }
+
     const searches = [
         {
             title: "🇧🇩 Next.js & React Jobs (Bangladesh / Dhaka)",
@@ -689,12 +760,13 @@ function generateLinkedInJobRadar(roleOrQuery = null) {
 
     return {
         query,
+        targetLocation,
+        live_jobs: liveJobs,
         searches,
         instructions: [
-            "1. Tap any of the curated search links above to see live openings on LinkedIn.",
-            "2. When you spot an interesting role, copy the job description text or link.",
-            "3. Send it to me here with `/job [paste job text]`.",
-            "4. I will instantly run the PATHS Matching Matrix (✓ △ ✗) and draft a personalized recruiter pitch or tailored CV bullets for you!"
+            "1. Click any job link directly to view and apply on LinkedIn.",
+            "2. When you spot an interesting role, paste the job text here with `/job [text]`.",
+            "3. I will instantly run the PATHS Matching Matrix (✓ △ ✗) and draft custom CV bullets or recruiter pitch!"
         ]
     };
 }
@@ -1004,12 +1076,33 @@ async function handleActionIntent(message) {
     }
 
     // 6B. Job Search & Opportunity Radar Pattern (PATHS Section 19 & 26)
-    const isJobSearch = text.match(/^(?:\/jobs|search\s+(?:for\s+)?(?:some\s+)?jobs?|find\s+(?:for\s+)?(?:some\s+)?jobs?|linkedin\s+jobs?|job\s+radar|opportunities|give\s+me\s+link\s+to\s+apply|where\s+can\s+i\s+apply)(?:\s+(?:from|on|in|for)?\s*(.+))?$/i) ||
-                        ((text.match(/\bjobs?\b/i) || text.match(/linkedin/i) || text.match(/apply/i)) && (text.match(/search|find|looking\s+for|hunt|give\s+me\s+link/i)));
+    const isJobSearch = text.match(/^(?:\/jobs?|jobs?\s+search|linkedin\s+jobs?|find\s+jobs?|check\s+jobs?)/i) ||
+                        ((text.match(/\b(?:job|jobs|hiring|opening|openings|recruitment|vacancy)\b/i)) && 
+                         (text.match(/\b(?:search|find|check|look|suited|suitable|give|link|apply|recent|latest|radar|browse|opportunity|opportunities)\b/i))) ||
+                        (text.match(/\blinkedin\b/i) && text.match(/\b(?:job|jobs|hiring|opening|apply|suited|suitable|work|roles?)\b/i)) ||
+                        text.match(/\b(?:give\s+me\s+link\s+to\s+apply|where\s+can\s+i\s+apply|find\s+some\s+job)\b/i);
+
     if (isJobSearch) {
-        const queryMatch = text.match(/(?:for|about|on|in)\s+([a-zA-Z0-9_\s\-]+)/i);
-        const query = queryMatch ? queryMatch[1].trim() : 'Next.js & Frontend Developer';
-        const radar = generateLinkedInJobRadar(query);
+        let query = 'Frontend Developer Next.js';
+        let targetLocation = 'Dhaka';
+        
+        const locMatch = text.match(/(?:in|at|for)\s+(dhaka|bangladesh|remote|usa|uk|canada)/i);
+        if (locMatch) targetLocation = locMatch[1];
+        
+        const roleMatch = text.match(/(?:for|as|role\s+as|about)\s+([a-zA-Z0-9_\s\+\-\.]+?)(?:\s+(?:in|at|on|with|from)\s+|$)/i);
+        if (roleMatch && roleMatch[1] && !roleMatch[1].toLowerCase().includes('me') && !roleMatch[1].toLowerCase().includes('linkedin')) {
+            query = roleMatch[1].trim();
+        } else if (text.toLowerCase().includes('frontend')) {
+            query = 'Frontend Developer';
+        } else if (text.toLowerCase().includes('backend')) {
+            query = 'Node.js Backend Developer';
+        } else if (text.toLowerCase().includes('ai') || text.toLowerCase().includes('machine learning')) {
+            query = 'AI Engineer Python';
+        } else if (text.toLowerCase().includes('full') || text.toLowerCase().includes('fullstack')) {
+            query = 'Fullstack Developer Next.js';
+        }
+
+        const radar = await generateLinkedInJobRadar(query, targetLocation);
         return {
             action: 'job_radar',
             success: true,
@@ -1046,6 +1139,7 @@ module.exports = {
     auditSocialMedia,
     tailorCvForJob,
     matchJobOpportunity,
+    fetchLiveLinkedInJobs,
     generateLinkedInJobRadar,
     generateOptimizedPrompt,
     getTasks,

@@ -1506,11 +1506,147 @@ body.observer-mode .btn-send:disabled {
 }
 
 .btn-mic.listening,
+.btn-voice-header.listening,
+.btn-voice-chat-pill.listening,
 #btn-jarvis-voice.listening {
     background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
     border-color: #f87171 !important;
-    box-shadow: 0 0 25px rgba(239, 68, 68, 0.6) !important;
-    animation: pulseGlow 1s infinite alternate;
+    box-shadow: 0 0 25px rgba(239, 68, 68, 0.7) !important;
+    animation: pulseGlow 0.8s infinite alternate !important;
+}
+
+/* HEADER VOICE BUTTON */
+.btn-voice-header {
+    background: linear-gradient(135deg, rgba(14, 165, 233, 0.25) 0%, rgba(2, 132, 199, 0.35) 100%);
+    border: 1px solid rgba(56, 189, 248, 0.5);
+    border-radius: var(--radius-sm);
+    color: #38bdf8;
+    padding: 6px 14px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.25);
+    transition: all 0.2s ease;
+}
+
+.btn-voice-header:hover {
+    background: linear-gradient(135deg, rgba(14, 165, 233, 0.4) 0%, rgba(2, 132, 199, 0.55) 100%);
+    border-color: #38bdf8;
+    box-shadow: 0 0 18px rgba(56, 189, 248, 0.45);
+    transform: translateY(-1px);
+    color: #fff;
+}
+
+/* CHAT HEADER VOICE PILL */
+.btn-voice-chat-pill {
+    background: rgba(14, 165, 233, 0.15);
+    border: 1px solid rgba(56, 189, 248, 0.4);
+    border-radius: 20px;
+    color: #38bdf8;
+    padding: 3px 10px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.btn-voice-chat-pill:hover {
+    background: rgba(14, 165, 233, 0.3);
+    border-color: #38bdf8;
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+}
+
+/* LINKEDIN JOB CARDS (PATHS v2) */
+.linkedin-jobs-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+    gap: 12px;
+}
+
+.job-card-radar {
+    background: rgba(15, 23, 42, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: all 0.25s ease;
+}
+
+.job-card-radar:hover {
+    border-color: rgba(56, 189, 248, 0.4);
+    background: rgba(15, 23, 42, 0.75);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
+}
+
+.job-radar-title {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: #f1f5f9;
+    margin-bottom: 4px;
+}
+
+.job-radar-company {
+    font-size: 0.82rem;
+    color: #38bdf8;
+    font-weight: 600;
+}
+
+.job-radar-meta {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    margin: 6px 0 12px 0;
+    display: flex;
+    justify-content: space-between;
+}
+
+.job-radar-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.btn-job-apply {
+    background: #0077b5;
+    color: #fff;
+    padding: 6px 12px;
+    border-radius: 5px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+}
+
+.btn-job-apply:hover {
+    background: #0093e0;
+    box-shadow: 0 0 12px rgba(0, 119, 181, 0.5);
+}
+
+.btn-job-tailor {
+    background: rgba(255, 255, 255, 0.08);
+    color: #cbd5e1;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-job-tailor:hover {
+    background: rgba(255, 255, 255, 0.16);
+    color: #fff;
 }
 
 

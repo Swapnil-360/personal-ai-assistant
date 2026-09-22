@@ -30,8 +30,13 @@ if (isLocalPC) {
 
 // 1. Start Telegram Bridge in background
 try {
-    require('./telegram_bridge.js');
-    console.log('✅ Telegram Bridge initialized');
+    const bridge = require('./telegram_bridge.js');
+    if (bridge && typeof bridge.startPolling === 'function') {
+        bridge.startPolling();
+        console.log('✅ Telegram Bridge initialized & long polling started');
+    } else {
+        console.log('✅ Telegram Bridge initialized');
+    }
 } catch (err) {
     console.error('❌ Failed to start Telegram Bridge:', err);
 }

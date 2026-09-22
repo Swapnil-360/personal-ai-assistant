@@ -2115,6 +2115,12 @@ async function processUpdate(update) {
 
 // Main Long Polling Loop
 async function startPolling() {
+    if (isPolling) {
+        console.log('[Telegram Bridge] Polling already active.');
+        return;
+    }
+    isPolling = true;
+
     await deleteWebhook();
     registerBotCommands();
 
@@ -2126,7 +2132,6 @@ async function startPolling() {
     });
 
     console.log(`[Telegram Bridge] 🚀 Long polling active (${IS_RENDER_CLOUD ? 'Cloud 24/7 Mode' : 'Local PC Mode'})...`);
-    isPolling = true;
 
     // Heartbeat logic for Local PC
     if (!IS_RENDER_CLOUD) {

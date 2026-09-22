@@ -541,13 +541,13 @@ const server = http.createServer(async (req, res) => {
 
         // --- STATIC FILE & PAGE ROUTING ---
         let targetFile = '';
-        if (pathname === '/' || pathname === '/index.html' || pathname === '/app' || pathname === '/commander' || pathname === '/hud') {
+        if (pathname === '/' || pathname === '/index.html' || pathname === '/landing') {
             targetFile = 'index.html';
-        } else if (pathname === '/landing') {
-            targetFile = 'public.html';
-        } else if (pathname === '/privacy') {
+        } else if (pathname === '/app' || pathname === '/commander' || pathname === '/hud' || pathname === '/dashboard') {
+            targetFile = 'app.html';
+        } else if (pathname === '/privacy' || pathname === '/privacy-policy') {
             targetFile = 'privacy.html';
-        } else if (pathname === '/terms') {
+        } else if (pathname === '/terms' || pathname === '/terms-of-service') {
             targetFile = 'terms.html';
         } else {
             targetFile = pathname.startsWith('/') ? pathname.slice(1) : pathname;

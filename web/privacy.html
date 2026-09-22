@@ -4,20 +4,35 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Privacy Policy — Mikasa Autonomous AI Operating System</title>
-    <meta name="description" content="Privacy Policy for Mikasa Autonomous AI Operating System and related applications operated by Md. Miftahur Rahman Swapnil.">
+    <meta name="description" content="Privacy Policy for Mikasa Autonomous AI Operating System and associated platforms operated by Md. Miftahur Rahman Swapnil.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-base: #090a0f;
-            --bg-surface: #10121b;
-            --border-color: rgba(255, 255, 255, 0.08);
+            --bg-base: #090b11;
+            --bg-surface: #111420;
+            --bg-surface-elevated: #181d2e;
+            --border-subtle: rgba(255, 255, 255, 0.08);
+            --border-glow: rgba(229, 57, 53, 0.35);
             --primary: #e53935;
+            --primary-hover: #ff5252;
             --text-main: #f0f2f8;
             --text-muted: #9aa1b6;
-            --font-sans: 'Outfit', -apple-system, sans-serif;
+            --text-dim: #636b83;
+            --accent-cyan: #00e5ff;
+            --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             --font-mono: 'JetBrains Mono', monospace;
+            --radius-sm: 8px;
+            --radius-md: 14px;
+            --radius-lg: 20px;
+            --transition-smooth: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
 
         body {
@@ -25,156 +40,417 @@
             color: var(--text-main);
             font-family: var(--font-sans);
             line-height: 1.7;
-            padding: 40px 20px;
+            padding: 40px 20px 80px;
+            -webkit-font-smoothing: antialiased;
         }
 
         .container {
-            max-width: 860px;
+            max-width: 880px;
             margin: 0 auto;
-            background: var(--bg-surface);
-            border: 1px solid var(--border-color);
-            border-radius: 16px;
-            padding: 48px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+        }
+
+        .back-nav {
+            margin-bottom: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
         }
 
         .back-link {
             display: inline-flex;
             align-items: center;
-            gap: 6px;
-            color: var(--primary);
+            gap: 8px;
+            color: #ff7675;
             text-decoration: none;
             font-size: 14px;
             font-weight: 600;
-            margin-bottom: 24px;
+            font-family: var(--font-mono);
+            transition: var(--transition-smooth);
+            padding: 8px 14px;
+            background: rgba(229, 57, 53, 0.08);
+            border: 1px solid rgba(229, 57, 53, 0.25);
+            border-radius: var(--radius-sm);
         }
 
         .back-link:hover {
-            text-decoration: underline;
+            background: rgba(229, 57, 53, 0.16);
+            border-color: var(--primary);
+            color: #ffffff;
+            transform: translateX(-2px);
+        }
+
+        .policy-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            padding: 50px 48px;
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .policy-card::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary) 0%, rgba(229, 57, 53, 0.1) 100%);
+        }
+
+        .policy-header {
+            border-bottom: 1px solid var(--border-subtle);
+            padding-bottom: 28px;
+            margin-bottom: 36px;
+        }
+
+        .policy-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--primary);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 12px;
         }
 
         h1 {
-            font-size: 36px;
+            font-size: 38px;
             font-weight: 800;
-            margin-bottom: 8px;
+            letter-spacing: -0.8px;
             color: #ffffff;
+            margin-bottom: 12px;
+            line-height: 1.2;
         }
 
-        .meta-date {
+        .meta-info {
             font-family: var(--font-mono);
             font-size: 13px;
+            color: var(--text-dim);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .meta-info span {
             color: var(--text-muted);
-            margin-bottom: 36px;
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 16px;
         }
 
         h2 {
             font-size: 22px;
             font-weight: 700;
-            margin-top: 32px;
-            margin-bottom: 12px;
+            margin-top: 36px;
+            margin-bottom: 14px;
+            color: #ffffff;
+            letter-spacing: -0.3px;
+        }
+
+        p {
+            margin-bottom: 18px;
+            color: #b0b7cc;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+
+        p strong {
             color: #ffffff;
         }
 
-        p, ul {
-            margin-bottom: 16px;
-            color: var(--text-muted);
-            font-size: 15.5px;
-        }
-
         ul {
-            padding-left: 24px;
+            padding-left: 20px;
+            margin-bottom: 22px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
         }
 
         li {
-            margin-bottom: 8px;
+            color: #b0b7cc;
+            font-size: 15px;
+            line-height: 1.65;
+        }
+
+        li strong {
+            color: #ffffff;
         }
 
         code {
             font-family: var(--font-mono);
-            background: rgba(255, 255, 255, 0.05);
-            padding: 2px 6px;
+            background: rgba(255, 255, 255, 0.06);
+            padding: 3px 7px;
             border-radius: 4px;
             color: #ff9a98;
+            font-size: 13.5px;
         }
 
-        footer {
+        /* Connect with Swapnil Grid in Privacy */
+        .connect-section {
+            margin-top: 24px;
+            padding-top: 24px;
+            border-top: 1px solid var(--border-subtle);
+        }
+
+        .connect-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            margin-top: 18px;
+        }
+
+        .connect-card {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            background: var(--bg-surface-elevated);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 16px 20px;
+            text-decoration: none;
+            color: var(--text-main);
+            transition: var(--transition-smooth);
+        }
+
+        .connect-card:hover {
+            border-color: rgba(229, 57, 53, 0.4);
+            background: rgba(229, 57, 53, 0.05);
+            transform: translateY(-2px);
+        }
+
+        .connect-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-main);
+            flex-shrink: 0;
+            transition: var(--transition-smooth);
+        }
+
+        .connect-card:hover .connect-icon {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .connect-platform {
+            font-size: 14px;
+            font-weight: 700;
+            color: #ffffff;
+            display: block;
+        }
+
+        .connect-handle {
+            font-size: 12.5px;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+            display: block;
+        }
+
+        footer.policy-footer {
             margin-top: 48px;
             padding-top: 24px;
-            border-top: 1px solid var(--border-color);
-            text-align: center;
+            border-top: 1px solid var(--border-subtle);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
             font-size: 13px;
+            color: var(--text-dim);
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 20px;
+        }
+
+        .footer-links a {
             color: var(--text-muted);
+            text-decoration: none;
+            transition: var(--transition-smooth);
+        }
+
+        .footer-links a:hover {
+            color: #ffffff;
+            text-decoration: underline;
+        }
+
+        @media (max-width: 768px) {
+            .policy-card { padding: 32px 24px; }
+            h1 { font-size: 28px; }
+            .connect-grid { grid-template-columns: 1fr; }
+            footer.policy-footer { flex-direction: column; text-align: center; }
         }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <a href="/" class="back-link">← Back to Mikasa OS Home</a>
+        <div class="back-nav">
+            <a href="/" class="back-link">← Back to Mikasa OS Home</a>
+            <a href="/terms" class="back-link" style="color: var(--text-muted); border-color: var(--border-subtle); background: transparent;">Terms of Service →</a>
+        </div>
 
-        <h1>Privacy Policy</h1>
-        <div class="meta-date">Last Updated: September 22, 2026 • Domain: mikasa.mrswapnil.me</div>
+        <div class="policy-card">
+            <div class="policy-header">
+                <div class="policy-badge">LEGAL COMPLIANCE // PRIVACY SPECIFICATION</div>
+                <h1>Privacy Policy</h1>
+                <div class="meta-info">
+                    <div>Effective Date: <span>September 22, 2026</span></div>
+                    <div>Domain: <span>mikasa.mrswapnil.me</span></div>
+                    <div>Operator: <span>Md. Miftahur Rahman Swapnil</span></div>
+                </div>
+            </div>
 
-        <p>
-            This Privacy Policy describes how <strong>Mikasa Autonomous AI Operating System</strong> ("Mikasa", "we", "us", or "our"), 
-            developed and operated by <strong>Md. Miftahur Rahman Swapnil</strong>, handles data, authentication credentials, 
-            and third-party API interactions.
-        </p>
+            <p>
+                This Privacy Policy describes how <strong>Mikasa Autonomous AI Operating System</strong> ("Mikasa", "we", "us", or "our"), 
+                engineered and operated by <strong>Md. Miftahur Rahman Swapnil</strong>, handles data, authentication credentials, 
+                and third-party API interactions.
+            </p>
 
-        <h2>1. Nature of the Application</h2>
-        <p>
-            Mikasa is a private, dedicated executive AI assistant designed for personal productivity, project management, and automated engineering workflows. 
-            The system does not offer public user accounts, does not collect public consumer data, and does not sell or commercialize any personal information.
-        </p>
+            <h2>1. Nature of the Application</h2>
+            <p>
+                Mikasa is a private, dedicated executive AI assistant designed for personal engineering productivity, project management, and automated development workflows. 
+                The system does not offer open public user accounts, does not collect public consumer behavioral data, and never sells or commercializes any personal information.
+            </p>
 
-        <h2>2. Information Collected and Processed</h2>
-        <ul>
-            <li><strong>Communication Data:</strong> Messages exchanged with the Telegram Bot (<code>@mikasa_360_bot</code>) and through the web Commander HUD are processed solely to generate contextual assistant responses and distill user tasks, goals, and decisions.</li>
-            <li><strong>Third-Party Platform Data:</strong> When authorized by the owner, Mikasa interacts with third-party APIs (including GitHub, X/Twitter, LinkedIn, and Facebook) using private developer access tokens strictly to read public profiles, fetch repository states, or publish approved content.</li>
-            <li><strong>Authentication Credentials:</strong> All API keys and secrets are stored strictly in protected local environment files (<code>.env</code>) and are never exposed publicly, transmitted to untrusted parties, or logged.</li>
-        </ul>
+            <h2>2. Information Collected and Processed</h2>
+            <ul>
+                <li><strong>Communication Data:</strong> Messages exchanged with the Telegram Bot (<code>@mikasa_360_bot</code>) and through the web Commander HUD are processed solely to generate contextual assistant responses and distill user tasks, goals, and architectural decisions.</li>
+                <li><strong>Third-Party Platform Data:</strong> When authorized by the owner, Mikasa interacts with third-party APIs (including GitHub, X/Twitter, LinkedIn, and Facebook) using private developer access tokens strictly to inspect authenticated profile status, query repository milestones, or publish approved technical build updates.</li>
+                <li><strong>Authentication Credentials:</strong> All API keys, secrets, and bearer tokens are stored strictly in protected local environment files (<code>.env</code>) and encrypted cloud storage. They are never exposed publicly, transmitted to untrusted parties, or logged.</li>
+            </ul>
 
-        <h2>3. Third-Party Integrations & Scope Usage</h2>
-        <p>Mikasa connects to the following external services strictly under user authorization:</p>
-        <ul>
-            <li><strong>X (Twitter) API:</strong> Used to inspect authenticated profile status, follower metrics, and publish owner-approved technical updates. No user tracking or non-owner data analysis is performed.</li>
-            <li><strong>LinkedIn API:</strong> Used strictly to publish owner-approved technical career updates.</li>
-            <li><strong>Meta / Facebook Graph API:</strong> Used to share owner-approved community and project updates.</li>
-            <li><strong>GitHub API:</strong> Used to query repositories belonging to <code>Swapnil-360</code> to track project milestones.</li>
-            <li><strong>Supabase:</strong> Serves as the encrypted cloud database for storing tasks, goals, decisions, and distilled memories.</li>
-        </ul>
+            <h2>3. Third-Party Integrations & Scope Usage</h2>
+            <p>Mikasa connects to the following external services strictly under user authorization:</p>
+            <ul>
+                <li><strong>X (Twitter) API:</strong> Used to inspect authenticated profile status, follower metrics, and publish owner-approved technical updates. Posts comply strictly with platform rate limits and 280-character boundary constraints.</li>
+                <li><strong>LinkedIn API:</strong> Used strictly to publish owner-approved technical career updates and project milestone announcements.</li>
+                <li><strong>Meta / Facebook Graph API:</strong> Used to share owner-approved community and project updates.</li>
+                <li><strong>GitHub API:</strong> Used to query repositories belonging to <code>Swapnil-360</code> to track project commits and milestone statuses.</li>
+                <li><strong>Supabase:</strong> Serves as the encrypted cloud database for storing tasks, goals, decisions, and distilled memories with PostgreSQL Row-Level Security.</li>
+            </ul>
 
-        <h2>4. Data Storage and Security</h2>
-        <p>
-            All persistent operational data is hosted securely within dedicated, access-controlled Supabase cloud instances utilizing Row-Level Security (RLS) and SSL/TLS encryption in transit. Local agent execution runs within restricted node environments without public external write access.
-        </p>
+            <h2>4. Data Storage and Security</h2>
+            <p>
+                All persistent operational data is hosted securely within dedicated, access-controlled Supabase cloud instances utilizing Row-Level Security (RLS) and SSL/TLS encryption in transit. Local agent execution runs within restricted Node.js workstation environments without public external write access.
+            </p>
 
-        <h2>5. Cookies and Web Analytics</h2>
-        <p>
-            The public web interface at <code>mikasa.mrswapnil.me</code> does not utilize third-party tracking cookies, advertising trackers, or fingerprinting scripts. Standard server access logs are retained strictly for security and operational monitoring.
-        </p>
+            <h2>5. Cookies and Web Analytics</h2>
+            <p>
+                The public web interface at <code>mikasa.mrswapnil.me</code> does not utilize third-party tracking cookies, advertising trackers, or fingerprinting scripts. Standard server access logs are retained strictly for security, health checks, and operational monitoring.
+            </p>
 
-        <h2>6. User Rights & Data Erasure</h2>
-        <p>
-            Because Mikasa is a dedicated single-owner personal operating system, all stored conversation memories, notes, and task records can be permanently deleted at any time via the <code>/clear</code> command in Telegram or via the web Commander Terminal.
-        </p>
+            <h2>6. User Rights & Data Erasure</h2>
+            <p>
+                Because Mikasa is a dedicated single-owner personal operating system, all stored conversation memories, notes, and task records can be permanently deleted at any time via the <code>/clear</code> command in Telegram or via the web Commander Terminal.
+            </p>
 
-        <h2>7. Contact Information</h2>
-        <p>
-            For any inquiries or privacy-related questions concerning Mikasa OS, please contact the developer directly:
-        </p>
-        <ul>
-            <li><strong>Developer:</strong> Md. Miftahur Rahman Swapnil</li>
-            <li><strong>Website:</strong> <a href="https://www.mrswapnil.me" target="_blank" style="color: var(--primary);">https://www.mrswapnil.me</a></li>
-            <li><strong>GitHub:</strong> <a href="https://github.com/Swapnil-360" target="_blank" style="color: var(--primary);">Swapnil-360</a></li>
-            <li><strong>Telegram:</strong> <a href="https://t.me/Swapnil3600" target="_blank" style="color: var(--primary);">@Swapnil3600</a></li>
-        </ul>
+            <div class="connect-section">
+                <h2>7. Connect with the Developer</h2>
+                <p>
+                    For any inquiries, collaborations, or questions regarding this Privacy Policy and Mikasa OS, connect directly with <strong>Md. Miftahur Rahman Swapnil</strong> through any of his verified social profiles:
+                </p>
 
-        <footer>
-            &copy; 2026 Md. Miftahur Rahman Swapnil. All rights reserved. Mikasa OS.
-        </footer>
+                <div class="connect-grid">
+                    <!-- LinkedIn -->
+                    <a href="https://www.linkedin.com/in/mr-swapnil/" target="_blank" class="connect-card">
+                        <div class="connect-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 8.76a1.64 1.64 0 1 0 0-3.28 1.64 1.64 0 0 0 0 3.28m1.4 9.74v-8.37H5.06v8.37h2.8z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <span class="connect-platform">LinkedIn</span>
+                            <span class="connect-handle">in/mr-swapnil</span>
+                        </div>
+                    </a>
+
+                    <!-- X / Twitter -->
+                    <a href="https://x.com/thomascryptoxx" target="_blank" class="connect-card">
+                        <div class="connect-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <span class="connect-platform">X / Twitter</span>
+                            <span class="connect-handle">@thomascryptoxx</span>
+                        </div>
+                    </a>
+
+                    <!-- GitHub -->
+                    <a href="https://github.com/Swapnil-360" target="_blank" class="connect-card">
+                        <div class="connect-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33.85 0 1.71.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <span class="connect-platform">GitHub</span>
+                            <span class="connect-handle">Swapnil-360</span>
+                        </div>
+                    </a>
+
+                    <!-- Flagship Portfolio -->
+                    <a href="https://www.mrswapnil.me/" target="_blank" class="connect-card">
+                        <div class="connect-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"/>
+                                <line x1="2" y1="12" x2="22" y2="12"/>
+                                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <span class="connect-platform">Stark-OS Portfolio</span>
+                            <span class="connect-handle">mrswapnil.me</span>
+                        </div>
+                    </a>
+
+                    <!-- Facebook -->
+                    <a href="https://www.facebook.com/mr.swapnil360/" target="_blank" class="connect-card">
+                        <div class="connect-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12c0 4.84 3.44 8.87 8 9.8V15H8v-3h2V9.5C10 7.57 11.57 6 13.5 6H16v3h-2c-.55 0-1 .45-1 1v2h3v3h-3v6.95c5.05-.5 9-4.76 9-9.95z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <span class="connect-platform">Facebook</span>
+                            <span class="connect-handle">mr.swapnil360</span>
+                        </div>
+                    </a>
+
+                    <!-- Telegram Contact -->
+                    <a href="https://t.me/Swapnil3600" target="_blank" class="connect-card">
+                        <div class="connect-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.75-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <span class="connect-platform">Telegram (Direct)</span>
+                            <span class="connect-handle">@Swapnil3600</span>
+                        </div>
+                    </a>
+                </div>
+            </div>
+
+            <footer class="policy-footer">
+                <div>&copy; 2026 Md. Miftahur Rahman Swapnil. All rights reserved. Mikasa OS.</div>
+                <div class="footer-links">
+                    <a href="/">Home</a>
+                    <a href="/terms">Terms</a>
+                    <a href="https://www.mrswapnil.me/" target="_blank">Portfolio</a>
+                </div>
+            </footer>
+        </div>
     </div>
 
 </body>

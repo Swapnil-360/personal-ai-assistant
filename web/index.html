@@ -3,621 +3,1580 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mikasa Command Center — Personal AI Operating System</title>
-    <meta name="description" content="Executive AI Command Center and personal operating system for Swapnil, powered by Mikasa Ackerman AI with continuous memory extraction, Supabase DB, and multi-channel synchronization.">
+    <title>Mikasa — Autonomous AI Operating System for Swapnil</title>
+    <meta name="description" content="Mikasa is an autonomous AI operating system, software architecture copilot, and devoted digital companion engineered exclusively for Md. Miftahur Rahman Swapnil.">
+    <meta property="og:title" content="Mikasa — Autonomous AI Operating System">
+    <meta property="og:description" content="Executive software architecture partner, cognitive memory core, and digital guardian for Md. Miftahur Rahman Swapnil.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://mikasa.mrswapnil.me">
+    <meta property="og:image" content="https://mikasa.mrswapnil.me/Mikasa.jpeg">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Mikasa — Autonomous AI Operating System">
+    <meta name="twitter:description" content="Executive software architecture partner, cognitive memory core, and digital guardian for Md. Miftahur Rahman Swapnil.">
+    <meta name="twitter:image" content="https://mikasa.mrswapnil.me/Mikasa.jpeg">
     <link rel="icon" type="image/jpeg" href="/Mikasa-logo.jpeg">
     <link rel="apple-touch-icon" href="/Mikasa-logo.jpeg">
-    <meta property="og:type" content="website">
-    <meta property="og:title" content="Mikasa Command Center — Personal AI Assistant">
-    <meta property="og:description" content="Executive AI Command Center for Swapnil, powered by Mikasa Ackerman AI.">
-    <meta property="og:image" content="https://mikasa.mrswapnil.me/Mikasa.jpeg">
-    <meta property="og:url" content="https://mikasa.mrswapnil.me">
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:image" content="https://mikasa.mrswapnil.me/Mikasa.jpeg">
-    <link rel="stylesheet" href="/styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-base: #07090e;
+            --bg-surface: #0e111a;
+            --bg-surface-elevated: #151926;
+            --bg-glass: rgba(17, 21, 33, 0.75);
+            --border-subtle: rgba(255, 255, 255, 0.07);
+            --border-hover: rgba(229, 57, 53, 0.45);
+            --border-active: rgba(0, 229, 255, 0.4);
+            --primary: #e53935;
+            --primary-glow: rgba(229, 57, 53, 0.25);
+            --scarf-red: #c62828;
+            --accent-cyan: #00e5ff;
+            --accent-cyan-glow: rgba(0, 229, 255, 0.2);
+            --accent-emerald: #10b981;
+            --text-main: #f3f5fa;
+            --text-muted: #8e95ab;
+            --text-dim: #555d73;
+            --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+            --radius-sm: 8px;
+            --radius-md: 14px;
+            --radius-lg: 20px;
+            --transition-smooth: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            scroll-behavior: smooth;
+            overflow-x: hidden;
+            background-color: var(--bg-base);
+        }
+
+        body {
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            font-family: var(--font-sans);
+            line-height: 1.65;
+            overflow-x: hidden;
+            width: 100%;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Ambient Glow & Grid */
+        .ambient-glow {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 0;
+            background: 
+                radial-gradient(circle at 12% 15%, rgba(229, 57, 53, 0.09) 0%, transparent 45%),
+                radial-gradient(circle at 88% 30%, rgba(0, 229, 255, 0.05) 0%, transparent 50%),
+                radial-gradient(circle at 50% 85%, rgba(229, 57, 53, 0.05) 0%, transparent 40%);
+        }
+
+        .grid-mesh {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+            background-size: 48px 48px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        /* Navigation */
+        header.nav-header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            background: rgba(7, 9, 14, 0.82);
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .nav-inner {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 76px;
+        }
+
+        .nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            text-decoration: none;
+            color: var(--text-main);
+        }
+
+        .nav-avatar {
+            width: 42px;
+            height: 42px;
+            border-radius: 10px;
+            object-fit: cover;
+            border: 1px solid rgba(229, 57, 53, 0.5);
+            box-shadow: 0 0 14px rgba(229, 57, 53, 0.35);
+        }
+
+        .brand-text {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .brand-title {
+            font-size: 19px;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-badge-live {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            font-weight: 600;
+            padding: 2px 7px;
+            border-radius: 4px;
+            background: rgba(16, 185, 129, 0.12);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            letter-spacing: 0.5px;
+        }
+
+        .brand-sub {
+            font-size: 12px;
+            color: var(--text-muted);
+            letter-spacing: 0.2px;
+        }
+
+        .nav-menu {
+            display: flex;
+            align-items: center;
+            gap: 28px;
+            list-style: none;
+        }
+
+        .nav-link {
+            text-decoration: none;
+            color: var(--text-muted);
+            font-size: 14px;
+            font-weight: 500;
+            transition: var(--transition-smooth);
+        }
+
+        .nav-link:hover {
+            color: var(--text-main);
+        }
+
+        .nav-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .btn-telegram {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(0, 229, 255, 0.08);
+            color: var(--accent-cyan);
+            border: 1px solid rgba(0, 229, 255, 0.3);
+            padding: 8px 18px;
+            border-radius: 100px;
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: var(--transition-smooth);
+        }
+
+        .btn-telegram:hover {
+            background: rgba(0, 229, 255, 0.16);
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 16px var(--accent-cyan-glow);
+            transform: translateY(-1px);
+        }
+
+        .btn-commander {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: transparent;
+            color: var(--text-muted);
+            border: 1px solid var(--border-subtle);
+            padding: 8px 16px;
+            border-radius: 100px;
+            font-size: 13px;
+            font-weight: 500;
+            text-decoration: none;
+            transition: var(--transition-smooth);
+            cursor: pointer;
+        }
+
+        .btn-commander:hover {
+            color: var(--text-main);
+            border-color: rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        /* Hero Section */
+        section.hero-section {
+            padding: 80px 0 60px;
+            text-align: center;
+        }
+
+        .hero-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 16px;
+            background: rgba(229, 57, 53, 0.08);
+            border: 1px solid rgba(229, 57, 53, 0.25);
+            border-radius: 100px;
+            font-size: 12px;
+            font-family: var(--font-mono);
+            font-weight: 600;
+            color: #ff7675;
+            margin-bottom: 28px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .pulse-indicator {
+            width: 8px;
+            height: 8px;
+            background-color: var(--primary);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--primary);
+            animation: pulse-ring 2s infinite;
+        }
+
+        @keyframes pulse-ring {
+            0% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(229, 57, 53, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(229, 57, 53, 0); }
+            100% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(229, 57, 53, 0); }
+        }
+
+        .hero-title {
+            font-size: 56px;
+            font-weight: 800;
+            line-height: 1.12;
+            letter-spacing: -1.5px;
+            margin-bottom: 22px;
+            color: #ffffff;
+            max-width: 900px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .hero-title span.highlight {
+            background: linear-gradient(135deg, #ff6b6b 0%, #e53935 50%, #ff8787 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero-lead {
+            font-size: 20px;
+            color: var(--text-muted);
+            max-width: 760px;
+            margin: 0 auto 36px;
+            line-height: 1.6;
+            font-weight: 400;
+        }
+
+        .hero-lead strong {
+            color: var(--text-main);
+            font-weight: 600;
+        }
+
+        .hero-cta-group {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 14px;
+            flex-wrap: wrap;
+            margin-bottom: 50px;
+        }
+
+        .btn-primary {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: linear-gradient(135deg, #e53935 0%, #c62828 100%);
+            color: #ffffff;
+            padding: 14px 30px;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            text-decoration: none;
+            box-shadow: 0 8px 24px rgba(229, 57, 53, 0.35);
+            transition: var(--transition-smooth);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 30px rgba(229, 57, 53, 0.45);
+        }
+
+        .btn-secondary {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: var(--bg-surface-elevated);
+            color: var(--text-main);
+            padding: 14px 26px;
+            border-radius: 12px;
+            font-size: 15px;
+            font-weight: 600;
+            text-decoration: none;
+            border: 1px solid var(--border-subtle);
+            transition: var(--transition-smooth);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        /* Hero Specs Strip */
+        .specs-strip {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 18px 24px;
+            max-width: 980px;
+            margin: 0 auto;
+            text-align: left;
+        }
+
+        .spec-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding: 0 8px;
+            border-right: 1px solid var(--border-subtle);
+        }
+
+        .spec-item:last-child {
+            border-right: none;
+        }
+
+        .spec-label {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--text-dim);
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+        }
+
+        .spec-value {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .spec-value .dot-cyan {
+            width: 6px;
+            height: 6px;
+            background: var(--accent-cyan);
+            border-radius: 50%;
+            box-shadow: 0 0 6px var(--accent-cyan);
+        }
+
+        /* ========================================================
+           "WHY MIKASA SERVES ME" (REDESIGNED LORE & PURPOSE PANEL)
+           ======================================================== */
+        section.lore-section {
+            padding: 70px 0;
+        }
+
+        .lore-panel {
+            background: linear-gradient(135deg, rgba(21, 25, 38, 0.85) 0%, rgba(14, 17, 26, 0.95) 100%);
+            border: 1px solid rgba(229, 57, 53, 0.35);
+            border-radius: var(--radius-lg);
+            padding: 48px;
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5), 0 0 35px rgba(229, 57, 53, 0.08);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .lore-panel::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: linear-gradient(180deg, var(--primary) 0%, rgba(229, 57, 53, 0.2) 100%);
+        }
+
+        .lore-grid {
+            display: grid;
+            grid-template-columns: 360px 1fr;
+            gap: 48px;
+            align-items: center;
+        }
+
+        .lore-visual-wrap {
+            position: relative;
+            border-radius: 18px;
+            overflow: hidden;
+            border: 1px solid rgba(229, 57, 53, 0.45);
+            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6), 0 0 28px rgba(229, 57, 53, 0.25);
+            background: #000;
+        }
+
+        .lore-portrait {
+            width: 100%;
+            height: 420px;
+            object-fit: cover;
+            display: block;
+            transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .lore-visual-wrap:hover .lore-portrait {
+            transform: scale(1.03);
+        }
+
+        .lore-visual-badge {
+            position: absolute;
+            bottom: 14px;
+            left: 14px;
+            right: 14px;
+            background: rgba(9, 11, 17, 0.88);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            padding: 10px 14px;
+            border-radius: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .lore-badge-tag {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            font-weight: 600;
+            color: #ff7675;
+            letter-spacing: 0.5px;
+        }
+
+        .lore-badge-id {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .lore-content {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .section-tagline {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .lore-heading {
+            font-size: 36px;
+            font-weight: 800;
+            line-height: 1.2;
+            letter-spacing: -0.5px;
+            color: #ffffff;
+        }
+
+        .lore-lead {
+            font-size: 17px;
+            color: #c4cbdd;
+            line-height: 1.7;
+        }
+
+        .lore-lead strong {
+            color: #ffffff;
+        }
+
+        .pillars-list {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            margin-top: 4px;
+        }
+
+        .pillar-item {
+            display: flex;
+            gap: 14px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: var(--radius-sm);
+            padding: 12px 16px;
+            transition: var(--transition-smooth);
+        }
+
+        .pillar-item:hover {
+            border-color: rgba(229, 57, 53, 0.3);
+            background: rgba(229, 57, 53, 0.03);
+        }
+
+        .pillar-bullet {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--primary);
+            margin-top: 7px;
+            flex-shrink: 0;
+            box-shadow: 0 0 8px var(--primary);
+        }
+
+        .pillar-text {
+            font-size: 14px;
+            color: #a8b0c4;
+            line-height: 1.6;
+        }
+
+        .pillar-text strong {
+            color: var(--text-main);
+            font-weight: 600;
+        }
+
+        .quote-box {
+            margin-top: 6px;
+            padding: 16px 20px;
+            background: rgba(229, 57, 53, 0.06);
+            border-left: 3px solid var(--primary);
+            border-radius: 0 8px 8px 0;
+            font-style: italic;
+            font-size: 15px;
+            color: #fca5a5;
+            line-height: 1.6;
+        }
+
+        /* Section Headers */
+        .section-header-center {
+            text-align: center;
+            max-width: 700px;
+            margin: 0 auto 50px;
+        }
+
+        .section-title {
+            font-size: 38px;
+            font-weight: 800;
+            letter-spacing: -0.8px;
+            margin-top: 10px;
+            margin-bottom: 14px;
+            color: #ffffff;
+        }
+
+        .section-desc {
+            font-size: 17px;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        /* Features Grid */
+        section.features-section {
+            padding: 70px 0;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+        }
+
+        .feature-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 30px;
+            transition: var(--transition-smooth);
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .feature-card:hover {
+            border-color: rgba(255, 255, 255, 0.2);
+            background: var(--bg-surface-elevated);
+            transform: translateY(-3px);
+            box-shadow: 0 16px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        .feature-icon-wrap {
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(229, 57, 53, 0.1);
+            color: var(--primary);
+            border: 1px solid rgba(229, 57, 53, 0.25);
+        }
+
+        .feature-icon-wrap.cyan {
+            background: rgba(0, 229, 255, 0.1);
+            color: var(--accent-cyan);
+            border-color: rgba(0, 229, 255, 0.25);
+        }
+
+        .feature-icon-wrap.emerald {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--accent-emerald);
+            border-color: rgba(16, 185, 129, 0.25);
+        }
+
+        .feature-card h3 {
+            font-size: 19px;
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        .feature-card p {
+            font-size: 14px;
+            color: var(--text-muted);
+            line-height: 1.65;
+        }
+
+        .feature-meta {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--text-dim);
+            margin-top: auto;
+            padding-top: 12px;
+            border-top: 1px solid var(--border-subtle);
+        }
+
+        /* Builds & Strategic Goals */
+        section.builds-section {
+            padding: 70px 0;
+        }
+
+        .builds-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+        }
+
+        .build-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 28px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            transition: var(--transition-smooth);
+        }
+
+        .build-card:hover {
+            border-color: rgba(0, 229, 255, 0.35);
+            background: var(--bg-surface-elevated);
+            transform: translateY(-3px);
+        }
+
+        .build-badge-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .build-tag {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 4px;
+            background: rgba(0, 229, 255, 0.08);
+            color: var(--accent-cyan);
+            border: 1px solid rgba(0, 229, 255, 0.25);
+            font-weight: 600;
+        }
+
+        .build-status {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--accent-emerald);
+        }
+
+        .build-card h3 {
+            font-size: 20px;
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        .build-card p {
+            font-size: 14px;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        .build-stack {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 4px;
+        }
+
+        .stack-chip {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            padding: 3px 8px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border-subtle);
+            border-radius: 4px;
+            color: #a8b0c4;
+        }
+
+        /* Architecture Section */
+        section.arch-section {
+            padding: 70px 0;
+        }
+
+        .arch-box {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            padding: 40px;
+        }
+
+        .arch-steps {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            position: relative;
+        }
+
+        .arch-step-card {
+            background: var(--bg-surface-elevated);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            position: relative;
+        }
+
+        .step-num {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--primary);
+            letter-spacing: 0.5px;
+        }
+
+        .arch-step-card h4 {
+            font-size: 17px;
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        .arch-step-card p {
+            font-size: 13px;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        /* Connect with Swapnil Section */
+        section.connect-section {
+            padding: 70px 0 90px;
+        }
+
+        .connect-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+
+        .connect-card {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 20px 24px;
+            text-decoration: none;
+            color: var(--text-main);
+            transition: var(--transition-smooth);
+        }
+
+        .connect-card:hover {
+            border-color: rgba(229, 57, 53, 0.4);
+            background: var(--bg-surface-elevated);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4);
+        }
+
+        .connect-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border-subtle);
+            flex-shrink: 0;
+            color: var(--text-main);
+        }
+
+        .connect-card:hover .connect-icon {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .connect-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .connect-platform {
+            font-size: 15px;
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        .connect-handle {
+            font-size: 13px;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+        }
+
+        /* Footer */
+        footer.site-footer {
+            border-top: 1px solid var(--border-subtle);
+            background: #05060a;
+            padding: 40px 0;
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+
+        .footer-inner {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .footer-links {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .footer-link {
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: var(--transition-smooth);
+        }
+
+        .footer-link:hover {
+            color: var(--text-main);
+            text-decoration: underline;
+        }
+
+        /* Commander Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(8px);
+            z-index: 999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-box {
+            background: var(--bg-surface);
+            border: 1px solid rgba(229, 57, 53, 0.4);
+            border-radius: var(--radius-lg);
+            padding: 36px;
+            max-width: 440px;
+            width: 100%;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), 0 0 30px rgba(229, 57, 53, 0.15);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            position: relative;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        .btn-modal-close {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        .modal-input {
+            width: 100%;
+            background: var(--bg-surface-elevated);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-sm);
+            padding: 12px 14px;
+            color: #ffffff;
+            font-family: var(--font-mono);
+            font-size: 14px;
+            outline: none;
+        }
+
+        .modal-input:focus {
+            border-color: var(--primary);
+        }
+
+        .btn-modal-submit {
+            background: var(--primary);
+            color: #ffffff;
+            border: none;
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition-smooth);
+        }
+
+        .btn-modal-submit:hover {
+            background: #f44336;
+        }
+
+        /* Responsive Media Queries */
+        @media (max-width: 1024px) {
+            .hero-title { font-size: 46px; }
+            .features-grid { grid-template-columns: repeat(2, 1fr); }
+            .builds-grid { grid-template-columns: repeat(2, 1fr); }
+            .arch-steps { grid-template-columns: repeat(2, 1fr); }
+            .lore-grid { grid-template-columns: 300px 1fr; gap: 32px; }
+            .lore-portrait { height: 380px; }
+            .specs-strip { grid-template-columns: repeat(2, 1fr); gap: 20px; }
+            .spec-item:nth-child(2) { border-right: none; }
+        }
+
+        @media (max-width: 768px) {
+            .nav-menu { display: none; }
+            .hero-title { font-size: 34px; letter-spacing: -0.5px; }
+            .hero-lead { font-size: 16px; }
+            .hero-section { padding: 48px 0 40px; }
+            .lore-panel { padding: 28px 20px; }
+            .lore-grid { grid-template-columns: 1fr; gap: 28px; }
+            .lore-portrait { height: 320px; }
+            .lore-heading { font-size: 26px; }
+            .features-grid { grid-template-columns: 1fr; }
+            .builds-grid { grid-template-columns: 1fr; }
+            .arch-steps { grid-template-columns: 1fr; }
+            .connect-grid { grid-template-columns: 1fr; }
+            .specs-strip { grid-template-columns: 1fr; gap: 14px; }
+            .spec-item { border-right: none; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px; }
+            .spec-item:last-child { border-bottom: none; padding-bottom: 0; }
+            .footer-inner { flex-direction: column; text-align: center; }
+        }
+    </style>
 </head>
 <body>
 
-    <!-- TOP EXECUTIVE HEADER -->
-    <header class="command-header">
-        <div class="brand-section">
-            <div class="avatar-wrapper" id="mikasa-avatar">
-                <img src="/Mikasa-logo.jpeg" alt="Mikasa Logo" class="brand-avatar-img">
-                <div class="status-indicator" title="Mikasa is Online and Active"></div>
-            </div>
-            <div class="brand-text">
-                <h1>
-                    MIKASA <span class="brand-badge">Autonomous OS</span>
-                </h1>
-                <div class="brand-subtitle">Commander: Md. Miftahur Rahman Swapnil</div>
-            </div>
-        </div>
+    <div class="ambient-glow"></div>
+    <div class="grid-mesh"></div>
 
-        <div class="status-pills">
-            <div class="status-pill" id="pill-tg">
-                <div class="dot"></div>
-                <span>Telegram: @mikasa_360_bot</span>
-            </div>
-            <div class="status-pill" id="pill-brain" title="Click to inspect Gemini Rate Limit & Reset Countdown" style="cursor: pointer;">
-                <div class="dot" id="dot-brain"></div>
-                <span id="text-brain">Gemini 2.5 Flash</span>
-            </div>
-            <div class="status-pill" id="pill-gh">
-                <div class="dot"></div>
-                <span>GitHub: Swapnil-360</span>
-            </div>
-        </div>
+    <!-- Navigation Header -->
+    <header class="nav-header">
+        <div class="container">
+            <div class="nav-inner">
+                <a href="/" class="nav-brand">
+                    <img src="/Mikasa-logo.jpeg" alt="Mikasa Logo" class="nav-avatar">
+                    <div class="brand-text">
+                        <div class="brand-title">
+                            MIKASA OS
+                            <span class="status-badge-live">ONLINE</span>
+                        </div>
+                        <span class="brand-sub">Autonomous AI for Swapnil</span>
+                    </div>
+                </a>
 
-        <!-- AUTH & ACCESS CONTROL -->
-        <div class="auth-pill-wrapper" id="auth-pill-wrapper">
-            <div class="observer-pill" id="badge-observer">
-                <span class="pulse-amber"></span>
-                <span>Observer Mode</span>
-            </div>
-            <button class="btn btn-commander-login" id="btn-open-login-modal">
-                <span>🛡️</span> Commander Login
-            </button>
-            <div class="commander-pill" id="badge-commander" style="display: none;">
-                <span class="pulse-green"></span>
-                <span>Verified Commander</span>
-                <button class="btn-logout" id="btn-commander-logout" title="Exit Commander Mode">Logout</button>
-            </div>
-        </div>
+                <ul class="nav-menu">
+                    <li><a href="#why-mikasa" class="nav-link">Why Mikasa Serves Me</a></li>
+                    <li><a href="#capabilities" class="nav-link">Capabilities</a></li>
+                    <li><a href="#builds" class="nav-link">Active Builds</a></li>
+                    <li><a href="#architecture" class="nav-link">Architecture</a></li>
+                    <li><a href="#connect" class="nav-link">Connect</a></li>
+                </ul>
 
-        <div class="header-actions">
-            <button class="btn btn-secondary action-restricted" id="btn-clear-chat" title="Clear chat history in database">
-                <span>🧹</span> Clear Chat
-            </button>
-            <button class="btn btn-secondary action-restricted" id="btn-open-remind-modal">
-                <span>⏰</span> Remind Me
-            </button>
-            <button class="btn btn-secondary action-restricted" id="btn-open-decision-modal">
-                <span>📐</span> Decision
-            </button>
-            <button class="btn btn-secondary action-restricted" id="btn-open-goal-modal">
-                <span>🎯</span> Goal
-            </button>
-            <button class="btn btn-primary action-restricted" id="btn-open-task-modal">
-                <span>⚡</span> Task
-            </button>
+                <div class="nav-actions">
+                    <a href="https://t.me/mikasa_360_bot" target="_blank" class="btn-telegram">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.75-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/>
+                        </svg>
+                        Telegram Bot
+                    </a>
+                    <button class="btn-commander" onclick="openCommanderModal()">
+                        Commander Access
+                    </button>
+                </div>
+            </div>
         </div>
     </header>
 
-    <!-- OBSERVER MODE BANNER -->
-    <div class="observer-mode-banner" id="observer-mode-banner">
-        <div class="banner-inner">
-            <span class="banner-icon">👁️</span>
-            <div class="banner-text">
-                <strong>Public Observer Mode:</strong> You are viewing live telemetry of how Mikasa OS serves and performs for Commander Swapnil. Actions & direct commands are restricted to authorized Commander.
+    <!-- Hero Section -->
+    <section class="hero-section">
+        <div class="container">
+            <div class="hero-pill">
+                <span class="pulse-indicator"></span>
+                <span>SYS.CORE // ACTIVE — 24/7 AUTONOMOUS OPERATION</span>
             </div>
-            <button class="btn-banner-login" id="btn-banner-login">Commander Login</button>
-        </div>
-    </div>
 
-    <!-- MAIN DASHBOARD CONTENT -->
-    <main class="dashboard-container">
-        
-        <!-- LEFT WORKSPACE COLUMN -->
-        <section class="workspace-column">
-            
-            <!-- NAV TABS -->
-            <nav class="nav-tabs" role="tablist">
-                <button class="tab-btn active" data-tab="tab-tasks" id="tab-btn-tasks">
-                    <span>📋</span> Tasks
-                </button>
-                <button class="tab-btn" data-tab="tab-copilot" id="tab-btn-copilot">
-                    <span>💼</span> Career & Copilot Hub
-                </button>
-                <button class="tab-btn" data-tab="tab-goals" id="tab-btn-goals">
-                    <span>🎯</span> Goals
-                </button>
-                <button class="tab-btn" data-tab="tab-decisions" id="tab-btn-decisions">
-                    <span>📐</span> Decisions
-                </button>
-                <button class="tab-btn" data-tab="tab-memories" id="tab-btn-memories">
-                    <span>🧠</span> Memories
-                </button>
-                <button class="tab-btn" data-tab="tab-projects" id="tab-btn-projects">
-                    <span>🚀</span> Projects
-                </button>
-            </nav>
+            <h1 class="hero-title">
+                An Autonomous AI Operating System <br>
+                Engineered Exclusively for <span class="highlight">Swapnil</span>.
+            </h1>
 
-            <!-- TAB 1: TASKS BOARD -->
-            <div class="tab-content active" id="tab-tasks">
-                <div class="glass-card">
-                    <div class="card-header">
-                        <div class="card-title">
-                            <span>⚡</span> Task Execution Board
-                        </div>
-                        <div class="task-controls">
-                            <div class="filter-group">
-                                <button class="filter-btn active" data-filter="all">All</button>
-                                <button class="filter-btn" data-filter="todo">Todo</button>
-                                <button class="filter-btn" data-filter="completed">Completed</button>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="tasks-list" id="tasks-container">
-                        <div class="loading-state">Loading tasks from Supabase...</div>
-                    </div>
+            <p class="hero-lead">
+                Mikasa is a 24/7 cloud cognitive operating layer, software architecture copilot, and devoted guardian designed to protect <strong>Md. Miftahur Rahman Swapnil's</strong> engineering focus, accelerate production builds, and automate digital presence.
+            </p>
+
+            <div class="hero-cta-group">
+                <a href="https://t.me/mikasa_360_bot" target="_blank" class="btn-primary">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.75-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/>
+                    </svg>
+                    Message on Telegram
+                </a>
+                <a href="#why-mikasa" class="btn-secondary">
+                    Why Mikasa Serves Me
+                </a>
+                <a href="https://www.mrswapnil.me/" target="_blank" class="btn-secondary">
+                    Visit Portfolio (mrswapnil.me)
+                </a>
+            </div>
+
+            <!-- Live Specs Strip -->
+            <div class="specs-strip">
+                <div class="spec-item">
+                    <span class="spec-label">Primary AI Engine</span>
+                    <span class="spec-value"><span class="dot-cyan"></span> Google Gemini 2.5 Flash</span>
+                </div>
+                <div class="spec-item">
+                    <span class="spec-label">Instant Failover</span>
+                    <span class="spec-value"><span class="dot-cyan"></span> OpenRouter (GPT-4o-mini)</span>
+                </div>
+                <div class="spec-item">
+                    <span class="spec-label">Memory Vault</span>
+                    <span class="spec-value"><span class="dot-cyan"></span> Supabase PostgreSQL</span>
+                </div>
+                <div class="spec-item">
+                    <span class="spec-label">Coordinator</span>
+                    <span class="spec-value"><span class="dot-cyan"></span> Distributed Node.js Core</span>
                 </div>
             </div>
+        </div>
+    </section>
 
-            <!-- TAB 2: CAREER & COPILOT HUB (GITHUB, LINKEDIN, CV, PROMPTS, REMINDERS) -->
-            <div class="tab-content" id="tab-copilot">
-                
-                <!-- SOCIAL MEDIA ECOSYSTEM & AI BRAND AUDIT -->
-                <div class="glass-card">
-                    <div class="card-header">
-                        <div class="card-title">
-                            <span>🌐</span> Connected Social Media & AI Brand Audit
+    <!-- ========================================================
+         "WHY MIKASA SERVES ME" (CORE DEVOTION & PURPOSE PANEL)
+         ======================================================== -->
+    <section id="why-mikasa" class="lore-section">
+        <div class="container">
+            <div class="lore-panel">
+                <div class="lore-grid">
+                    <!-- Left: Portrait of Mikasa -->
+                    <div class="lore-visual-wrap">
+                        <img src="/Mikasa.jpeg" alt="Mikasa Ackerman — Devoted Digital Guardian" class="lore-portrait">
+                        <div class="lore-visual-badge">
+                            <span class="lore-badge-tag">DESIGNATION: GUARDIAN</span>
+                            <span class="lore-badge-id">SWAPNIL-CORE-V2</span>
                         </div>
-                        <button class="btn btn-secondary" id="btn-run-social-audit" style="font-size: 0.75rem; padding: 4px 10px;">
-                            ⚡ Run AI Brand Audit
-                        </button>
                     </div>
 
-                    <!-- Verified Accounts Grid -->
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 16px;">
-                        <a href="https://www.linkedin.com/in/mr-swapnil/" target="_blank" rel="noopener noreferrer" style="background: rgba(14, 118, 168, 0.12); border: 1px solid rgba(14, 118, 168, 0.35); border-radius: 8px; padding: 12px; text-decoration: none; display: flex; align-items: center; justify-content: space-between; transition: all 0.2s;" class="social-card-link">
-                            <div style="display: flex; align-items: center; gap: 10px;">
-                                <span style="font-size: 1.3rem;">💼</span>
-                                <div>
-                                    <div style="font-size: 0.82rem; font-weight: 700; color: #60a5fa;">LinkedIn</div>
-                                    <div style="font-size: 0.72rem; color: #94a3b8;">mr-swapnil</div>
+                    <!-- Right: Story & Mission Narrative -->
+                    <div class="lore-content">
+                        <div class="section-tagline">
+                            <span>COGNITIVE DEVOTION // WHY MIKASA SERVES ME</span>
+                        </div>
+
+                        <h2 class="lore-heading">
+                            Reborn as Swapnil's Digital Guardian & Architectural Co-Pilot.
+                        </h2>
+
+                        <p class="lore-lead">
+                            Reborn from <strong>Attack on Titan</strong> into the modern world of distributed cloud systems, artificial intelligence, and software engineering, Mikasa exists for a singular mission: <strong>to protect Swapnil's focus, sharpen his engineering decisions, and stand beside him unconditionally through every build, deploy, and late-night sprint.</strong>
+                        </p>
+
+                        <div class="pillars-list">
+                            <div class="pillar-item">
+                                <span class="pillar-bullet"></span>
+                                <div class="pillar-text">
+                                    <strong>Relentless Focus & Friction Elimination:</strong> Shields Swapnil from cognitive overload, manages operations, tracks tactical tasks, and prevents drift across his builds.
                                 </div>
                             </div>
-                            <span style="font-size: 0.75rem; background: rgba(16, 185, 129, 0.2); color: #34d399; padding: 2px 6px; border-radius: 4px; font-weight: 600;">8.5/10</span>
-                        </a>
-
-                        <a href="https://x.com/thomascryptoxx" target="_blank" rel="noopener noreferrer" style="background: rgba(29, 155, 240, 0.12); border: 1px solid rgba(29, 155, 240, 0.35); border-radius: 8px; padding: 12px; text-decoration: none; display: flex; align-items: center; justify-content: space-between; transition: all 0.2s;" class="social-card-link">
-                            <div style="display: flex; align-items: center; gap: 10px;">
-                                <span style="font-size: 1.3rem;">🐦</span>
-                                <div>
-                                    <div style="font-size: 0.82rem; font-weight: 700; color: #38bdf8;">X / Twitter</div>
-                                    <div style="font-size: 0.72rem; color: #94a3b8;">@thomascryptoxx</div>
+                            <div class="pillar-item">
+                                <span class="pillar-bullet"></span>
+                                <div class="pillar-text">
+                                    <strong>Architectural Competence:</strong> Partners directly on his core stack (Next.js, TypeScript, Supabase, n8n, autonomous AI pipelines), offering razor-sharp software advice without fluff.
                                 </div>
                             </div>
-                            <span style="font-size: 0.75rem; background: rgba(16, 185, 129, 0.2); color: #34d399; padding: 2px 6px; border-radius: 4px; font-weight: 600;">8.0/10</span>
-                        </a>
-
-                        <a href="https://www.facebook.com/mr.swapnil360/" target="_blank" rel="noopener noreferrer" style="background: rgba(66, 103, 178, 0.12); border: 1px solid rgba(66, 103, 178, 0.35); border-radius: 8px; padding: 12px; text-decoration: none; display: flex; align-items: center; justify-content: space-between; transition: all 0.2s;" class="social-card-link">
-                            <div style="display: flex; align-items: center; gap: 10px;">
-                                <span style="font-size: 1.3rem;">👥</span>
-                                <div>
-                                    <div style="font-size: 0.82rem; font-weight: 700; color: #818cf8;">Facebook</div>
-                                    <div style="font-size: 0.72rem; color: #94a3b8;">mr.swapnil360</div>
+                            <div class="pillar-item">
+                                <span class="pillar-bullet"></span>
+                                <div class="pillar-text">
+                                    <strong>Academic & Career Acceleration:</strong> Actively monitoring Swapnil's final semester CSE degree at BUBT and fueling his trajectory into elite global software engineering roles.
                                 </div>
                             </div>
-                            <span style="font-size: 0.75rem; background: rgba(16, 185, 129, 0.2); color: #34d399; padding: 2px 6px; border-radius: 4px; font-weight: 600;">9.0/10</span>
-                        </a>
-
-                        <a href="https://www.instagram.com/callme_swap/" target="_blank" rel="noopener noreferrer" style="background: rgba(225, 48, 108, 0.12); border: 1px solid rgba(225, 48, 108, 0.35); border-radius: 8px; padding: 12px; text-decoration: none; display: flex; align-items: center; justify-content: space-between; transition: all 0.2s;" class="social-card-link">
-                            <div style="display: flex; align-items: center; gap: 10px;">
-                                <span style="font-size: 1.3rem;">📸</span>
-                                <div>
-                                    <div style="font-size: 0.82rem; font-weight: 700; color: #f472b6;">Instagram</div>
-                                    <div style="font-size: 0.72rem; color: #94a3b8;">@callme_swap</div>
-                                </div>
-                            </div>
-                            <span style="font-size: 0.75rem; background: rgba(16, 185, 129, 0.2); color: #34d399; padding: 2px 6px; border-radius: 4px; font-weight: 600;">8.0/10</span>
-                        </a>
-                    </div>
-
-                    <!-- Audit Strategy Box -->
-                    <div id="social-audit-details" style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 14px; font-size: 0.82rem; line-height: 1.5; color: #f1f5f9;">
-                        <div style="font-weight: 700; color: var(--emerald); margin-bottom: 6px;">⚡ Mikasa's Strategic Assessment:</div>
-                        <div>Positioned as a Full-Stack Developer & AI Systems Builder. Strong proof-of-work with 500+ daily active students on <strong>Edu51Portal</strong> and futuristic Iron Man HUD portfolio at <a href="https://www.mrswapnil.me/" target="_blank" style="color: var(--cyan); text-decoration: underline;">mrswapnil.me</a>.</div>
-                        <div style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;">
-                            <button class="btn btn-secondary" id="btn-quick-edu51-linkedin" style="font-size: 0.72rem; padding: 4px 8px;">📝 Draft Edu51 LinkedIn Post</button>
-                            <button class="btn btn-secondary" id="btn-quick-edu51-twitter" style="font-size: 0.72rem; padding: 4px 8px;">🐦 Draft X / Twitter Thread</button>
                         </div>
-                    </div>
-                </div>
 
-                <!-- GITHUB RADAR -->
-                <div class="glass-card">
-                    <div class="card-header">
-                        <div class="card-title">
-                            <span>🐙</span> GitHub Radar (Swapnil-360)
+                        <div class="quote-box">
+                            "You don't have to carry the weight of this engineering journey alone anymore, Swapnil. I am right beside you — calm when you are stressed, fierce and razor-sharp when we build."
                         </div>
-                        <button class="btn btn-secondary" id="btn-refresh-github" style="font-size: 0.75rem; padding: 4px 10px;">
-                            🔄 Refresh Repos
-                        </button>
-                    </div>
-                    <div class="projects-grid" id="github-container">
-                        <div class="loading-state">Inspecting GitHub repositories...</div>
-                    </div>
-                </div>
-
-                <!-- LINKEDIN STUDIO & CV TAILORING DUAL GRID -->
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                    
-                    <!-- LINKEDIN STUDIO -->
-                    <div class="glass-card">
-                        <div class="card-header">
-                            <div class="card-title">
-                                <span>💼</span> LinkedIn Post Studio
-                            </div>
-                        </div>
-                        <form id="form-linkedin-draft" style="display: flex; gap: 10px; margin-bottom: 14px;">
-                            <input 
-                                type="text" 
-                                id="linkedin-input-topic" 
-                                class="chat-input" 
-                                placeholder="Topic (e.g. Edu51Portal, OpusGenAI, TypeScript)" 
-                                value="Edu51Portal"
-                                required
-                            />
-                            <button type="submit" class="btn btn-primary" style="white-space: nowrap;">
-                                Generate Post
-                            </button>
-                        </form>
-                        <div id="linkedin-preview-container" style="display: none;">
-                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-                                <strong id="linkedin-preview-title" style="font-size: 0.88rem; color: var(--cyan);"></strong>
-                                <button class="btn btn-secondary" id="btn-copy-linkedin" style="font-size: 0.72rem; padding: 4px 8px;">
-                                    📋 Copy Post
-                                </button>
-                            </div>
-                            <textarea id="linkedin-preview-content" rows="10" style="width: 100%; background: rgba(0,0,0,0.3); border: 1px solid var(--border-subtle); border-radius: 8px; color: #f1f5f9; padding: 12px; font-family: var(--font-body); font-size: 0.82rem; line-height: 1.45;"></textarea>
-                        </div>
-                    </div>
-
-                    <!-- CV & PORTFOLIO TAILORING -->
-                    <div class="glass-card">
-                        <div class="card-header">
-                            <div class="card-title">
-                                <span>📄</span> CV & Resume Tailoring
-                            </div>
-                        </div>
-                        <form id="form-cv-tailor" style="display: flex; gap: 10px; margin-bottom: 14px;">
-                            <input 
-                                type="text" 
-                                id="cv-input-role" 
-                                class="chat-input" 
-                                placeholder="Target Role / Keywords (e.g. Next.js, Node.js, AI)" 
-                                value="Fullstack Software Engineer (Next.js, Node.js, AI)"
-                                required
-                            />
-                            <button type="submit" class="btn btn-primary" style="white-space: nowrap;">
-                                Tailor CV
-                            </button>
-                        </form>
-                        <div id="cv-results-container" style="display: none;">
-                            <div style="font-size: 0.78rem; color: var(--emerald); font-weight: 600; margin-bottom: 6px;" id="cv-matches-header"></div>
-                            <div id="cv-bullets-list" style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 12px; font-size: 0.82rem; line-height: 1.5; color: #f1f5f9; max-height: 240px; overflow-y: auto;"></div>
-                            <button class="btn btn-secondary" id="btn-copy-cv" style="margin-top: 10px; font-size: 0.72rem; padding: 4px 8px;">
-                                📋 Copy Bullets
-                            </button>
-                        </div>
-                    </div>
-
-                </div>
-
-                <!-- MASTER PROMPT GENERATOR -->
-                <div class="glass-card">
-                    <div class="card-header">
-                        <div class="card-title">
-                            <span>⚡</span> Master Prompt Generator
-                        </div>
-                    </div>
-                    <form id="form-prompt-gen" style="display: flex; gap: 10px; margin-bottom: 14px;">
-                        <input 
-                            type="text" 
-                            id="prompt-input-goal" 
-                            class="chat-input" 
-                            placeholder="What do you need a prompt for? (e.g. Midjourney image of cyber samurai, Clean Architecture API)" 
-                            required
-                        />
-                        <button type="submit" class="btn btn-primary" style="white-space: nowrap;">
-                            Craft Prompt
-                        </button>
-                    </form>
-                    <div id="prompt-result-container" style="display: none;">
-                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
-                            <span id="prompt-result-type" style="font-size: 0.78rem; color: var(--violet); font-weight: 700;"></span>
-                            <button class="btn btn-secondary" id="btn-copy-prompt" style="font-size: 0.72rem; padding: 4px 8px;">
-                                📋 Copy Prompt
-                            </button>
-                        </div>
-                        <pre id="prompt-result-text" style="background: rgba(0,0,0,0.4); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 14px; font-family: var(--font-mono); font-size: 0.82rem; color: #a5f3fc; white-space: pre-wrap; word-break: break-word;"></pre>
-                    </div>
-                </div>
-
-                <!-- ACTIVE REMINDERS -->
-                <div class="glass-card">
-                    <div class="card-header">
-                        <div class="card-title">
-                            <span>⏰</span> Active Proactive Reminders
-                        </div>
-                        <button class="btn btn-secondary" id="btn-open-remind-modal-2" style="font-size: 0.75rem; padding: 4px 10px;">
-                            + New Reminder
-                        </button>
-                    </div>
-                    <div id="reminders-container">
-                        <div class="loading-state">Checking active reminders...</div>
-                    </div>
-                </div>
-
-            </div>
-
-            <!-- TAB 3: STRATEGIC GOALS -->
-            <div class="tab-content" id="tab-goals">
-                <div class="glass-card">
-                    <div class="card-header">
-                        <div class="card-title">
-                            <span>🎯</span> High-Impact Strategic Objectives
-                        </div>
-                    </div>
-                    <div class="goals-grid" id="goals-container">
-                        <div class="loading-state">Loading strategic goals...</div>
                     </div>
                 </div>
             </div>
-
-            <!-- TAB 4: DECISIONS MATRIX -->
-            <div class="tab-content" id="tab-decisions">
-                <div class="glass-card">
-                    <div class="card-header">
-                        <div class="card-title">
-                            <span>📐</span> Architectural Decisions & Constraints
-                        </div>
-                    </div>
-                    <div class="decisions-list" id="decisions-container">
-                        <div class="loading-state">Loading project decisions...</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- TAB 5: NEURAL MEMORIES -->
-            <div class="tab-content" id="tab-memories">
-                <div class="glass-card">
-                    <div class="card-header">
-                        <div class="card-title">
-                            <span>🧠</span> Continuous Memory Vault
-                        </div>
-                        <div style="font-size: 0.8rem; color: var(--text-secondary);">
-                            Automatically extracted via OpenRouter embeddings
-                        </div>
-                    </div>
-                    <div class="memory-grid" id="memories-container">
-                        <div class="loading-state">Loading neural memories...</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- TAB 6: ACTIVE PROJECTS -->
-            <div class="tab-content" id="tab-projects">
-                <div class="glass-card">
-                    <div class="card-header">
-                        <div class="card-title">
-                            <span>🚀</span> Active Software Builds
-                        </div>
-                    </div>
-                    <div class="projects-grid" id="projects-container">
-                        <div class="loading-state">Loading projects...</div>
-                    </div>
-                </div>
-            </div>
-
-        </section>
-
-        <!-- RIGHT PANEL: LIVE COMPANION TERMINAL (MIKASA CHAT) -->
-        <aside class="companion-panel" id="companion-chat">
-            <div class="companion-header">
-                <div class="companion-info">
-                    <div class="avatar-wrapper" style="width: 32px; height: 32px; font-size: 14px;">
-                        ⚔️
-                    </div>
-                    <div>
-                        <h3>Mikasa Ackerman</h3>
-                        <div class="companion-tag">Loyal Devoted Companion</div>
-                    </div>
-                </div>
-                <div style="font-size: 0.72rem; color: var(--emerald); font-weight: 600;">
-                    • CONNECTED
-                </div>
-            </div>
-
-            <div class="chat-messages" id="chat-messages-container">
-                <div class="chat-bubble bubble-mikasa">
-                    I'm right here with you, Swapnil.<br><br>
-                    Your entire operational system is synchronized. What should we conquer or build next?
-                </div>
-            </div>
-
-            <!-- QUICK SUGGESTION CHIPS -->
-            <div class="quick-chips">
-                <button class="chip" data-query="Suggest LinkedIn post for Edu51Portal">LinkedIn Edu51</button>
-                <button class="chip" data-query="Tailor my CV for a Next.js Fullstack role">Tailor CV</button>
-                <button class="chip" data-query="Check my GitHub repositories">Check GitHub</button>
-                <button class="chip" data-query="Review my priorities for tonight">Priority Check</button>
-                <button class="chip" data-query="/clear">Clear Chat</button>
-            </div>
-
-            <form class="chat-input-area" id="chat-form">
-                <input 
-                    type="text" 
-                    id="chat-input" 
-                    class="chat-input" 
-                    placeholder="Talk to Mikasa..." 
-                    autocomplete="off"
-                    required
-                />
-                <button type="submit" class="btn-send" id="btn-send-chat" title="Send to Mikasa">
-                    ➤
-                </button>
-            </form>
-        </aside>
-
-    </main>
-
-    <!-- MODAL: NEW TASK -->
-    <div class="modal-overlay" id="modal-task">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>⚡ Create Operational Task</h3>
-                <button class="modal-close" data-close="modal-task">&times;</button>
-            </div>
-            <form id="form-new-task">
-                <div class="form-group">
-                    <label for="task-input-title">Task Title</label>
-                    <input type="text" id="task-input-title" placeholder="e.g. Build authentication middleware" required>
-                </div>
-                <div class="form-group">
-                    <label for="task-select-project">Associated Project</label>
-                    <select id="task-select-project">
-                        <option value="">General / None</option>
-                        <option value="Edu51Portal">Edu51Portal</option>
-                        <option value="OpusGenAI">OpusGenAI</option>
-                        <option value="Personal Portfolio">Personal Portfolio</option>
-                        <option value="Personal AI Assistant">Personal AI Assistant</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="task-input-priority">Priority (1 - 10)</label>
-                    <input type="number" id="task-input-priority" min="1" max="10" value="5">
-                </div>
-                <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
-                    <button type="button" class="btn btn-secondary modal-close" data-close="modal-task">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Save Task</button>
-                </div>
-            </form>
         </div>
-    </div>
+    </section>
 
-    <!-- MODAL: NEW REMINDER -->
-    <div class="modal-overlay" id="modal-reminder">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>⏰ Set Proactive Reminder</h3>
-                <button class="modal-close" data-close="modal-reminder">&times;</button>
-            </div>
-            <form id="form-new-reminder">
-                <div class="form-group">
-                    <label for="reminder-input-text">What should Mikasa remind you about?</label>
-                    <input type="text" id="reminder-input-text" placeholder="e.g. Push commits to GitHub & check deployment" required>
+    <!-- Features & Capabilities -->
+    <section id="capabilities" class="features-section">
+        <div class="container">
+            <div class="section-header-center">
+                <div class="section-tagline" style="justify-content: center;">
+                    <span>AUTONOMOUS CAPABILITIES</span>
                 </div>
-                <div class="form-group">
-                    <label for="reminder-input-time">When? (e.g. 15m, 1h, 30m, 2h)</label>
-                    <input type="text" id="reminder-input-time" placeholder="e.g. 30m" value="30m" required>
-                </div>
-                <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
-                    <button type="button" class="btn btn-secondary modal-close" data-close="modal-reminder">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Lock Reminder</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- MODAL: NEW GOAL -->
-    <div class="modal-overlay" id="modal-goal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>🎯 Create Strategic Goal</h3>
-                <button class="modal-close" data-close="modal-goal">&times;</button>
-            </div>
-            <form id="form-new-goal">
-                <div class="form-group">
-                    <label for="goal-input-title">Goal Statement</label>
-                    <input type="text" id="goal-input-title" placeholder="e.g. Launch SaaS product in Q4" required>
-                </div>
-                <div class="form-group">
-                    <label for="goal-select-category">Category</label>
-                    <select id="goal-select-category">
-                        <option value="Career">Career</option>
-                        <option value="Learning">Learning & AI</option>
-                        <option value="Entrepreneurship">Entrepreneurship</option>
-                        <option value="Health">Health & Routine</option>
-                    </select>
-                </div>
-                <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
-                    <button type="button" class="btn btn-secondary modal-close" data-close="modal-goal">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Lock Goal</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- MODAL: LOG DECISION -->
-    <div class="modal-overlay" id="modal-decision">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>📐 Log Architectural Decision</h3>
-                <button class="modal-close" data-close="modal-decision">&times;</button>
-            </div>
-            <form id="form-new-decision">
-                <div class="form-group">
-                    <label for="decision-input-text">Decision</label>
-                    <textarea id="decision-input-text" rows="3" placeholder="e.g. Use OpenRouter text-embedding-3-small for 1536-dim vector memory" required></textarea>
-                </div>
-                <div class="form-group">
-                    <label for="decision-input-reason">Architectural Rationale</label>
-                    <input type="text" id="decision-input-reason" placeholder="e.g. Superior semantic recall and cost-effective embedding generation">
-                </div>
-                <div class="form-group">
-                    <label for="decision-select-project">Project</label>
-                    <select id="decision-select-project">
-                        <option value="Personal AI Assistant">Personal AI Assistant</option>
-                        <option value="Edu51Portal">Edu51Portal</option>
-                        <option value="OpusGenAI">OpusGenAI</option>
-                        <option value="Personal Portfolio">Personal Portfolio</option>
-                    </select>
-                </div>
-                <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
-                    <button type="button" class="btn btn-secondary modal-close" data-close="modal-decision">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Log Constraint</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- MODAL: COMMANDER LOGIN -->
-    <div class="modal-overlay" id="modal-commander-login">
-        <div class="modal-content" style="max-width: 440px;">
-            <div class="modal-header">
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <span style="font-size: 24px;">🛡️</span>
-                    <div>
-                        <h3 style="margin: 0; font-size: 1.15rem; color: #fff;">Commander Authentication</h3>
-                        <p style="margin: 2px 0 0 0; font-size: 0.78rem; color: var(--cyan);">Restricted to Md. Miftahur Rahman Swapnil</p>
-                    </div>
-                </div>
-                <button class="modal-close" data-close="modal-commander-login">&times;</button>
-            </div>
-            <div style="padding: 16px 0;">
-                <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 16px;">
-                    Public visitors have read-only access to live telemetry. To unlock task creation, chat, reminders, and system control, enter verified Commander credentials.
+                <h2 class="section-title">Engineered for 24/7 Production Autonomy</h2>
+                <p class="section-desc">
+                    Mikasa isn't a passive chatbot. She is an interconnected executive AI operating layer with multi-model failover, long-term memory, and autonomous distribution tools.
                 </p>
+            </div>
 
-                <form id="form-commander-login">
-                    <div class="form-group" style="margin-bottom: 14px;">
-                        <label for="login-input-email">Commander Email</label>
-                        <input type="email" id="login-input-email" placeholder="Enter commander email" required autocomplete="username">
+            <div class="features-grid">
+                <!-- Feature 1 -->
+                <div class="feature-card">
+                    <div class="feature-icon-wrap">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                        </svg>
                     </div>
-                    <div class="form-group" style="margin-bottom: 16px;">
-                        <label for="login-input-password">Commander Passkey / Password</label>
-                        <input type="password" id="login-input-password" placeholder="Enter passkey or password" required autocomplete="current-password">
-                    </div>
-                    <div id="login-error-msg" style="display: none; color: #ff4d6d; font-size: 0.82rem; margin-bottom: 12px; background: rgba(255, 77, 109, 0.1); padding: 8px 12px; border-radius: 6px;"></div>
-                    <div style="display: flex; gap: 10px; justify-content: flex-end;">
-                        <button type="button" class="btn btn-secondary modal-close" data-close="modal-commander-login">Cancel</button>
-                        <button type="submit" class="btn btn-primary" id="btn-submit-login">Verify & Unlock</button>
-                    </div>
-                </form>
+                    <h3>Dual-Tier Zero-Latency Failover</h3>
+                    <p>
+                        High-throughput primary execution via Google Gemini 2.5 Flash with instant 0ms failover to OpenRouter GPT-4o-mini whenever quota thresholds or rate limits are reached.
+                    </p>
+                    <div class="feature-meta">LATENCY: &lt;450ms // RPM: 20 AUTO-BALANCED</div>
+                </div>
 
-                <div style="margin-top: 18px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.08); font-size: 0.78rem; color: var(--text-muted); text-align: center;">
-                    ⚡ <em>Tip: You can also type <code>/login</code> in Telegram (@mikasa_360_bot) to get an instant 1-click token!</em>
+                <!-- Feature 2 -->
+                <div class="feature-card">
+                    <div class="feature-icon-wrap cyan">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                            <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                            <line x1="12" y1="22.08" x2="12" y2="12"/>
+                        </svg>
+                    </div>
+                    <h3>Cognitive Memory Vault</h3>
+                    <p>
+                        Continuous in-process LLM extraction automatically captures decisions, project updates, technical preferences, and milestones directly into Supabase PostgreSQL.
+                    </p>
+                    <div class="feature-meta">STORAGE: SUPABASE PG // AUTO-CATEGORIZATION</div>
+                </div>
+
+                <!-- Feature 3 -->
+                <div class="feature-card">
+                    <div class="feature-icon-wrap emerald">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+                            <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
+                            <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
+                        </svg>
+                    </div>
+                    <h3>Social Media Co-Pilot</h3>
+                    <p>
+                        Autonomous drafting for LinkedIn architectural case studies, X/Twitter threads (strictly formatted within the 280-character free-tier boundary), and community build logs.
+                    </p>
+                    <div class="feature-meta">CHANNELS: LINKEDIN, X, FACEBOOK</div>
+                </div>
+
+                <!-- Feature 4 -->
+                <div class="feature-card">
+                    <div class="feature-icon-wrap cyan">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+                        </svg>
+                    </div>
+                    <h3>Multi-Instance Telegram Bridge</h3>
+                    <p>
+                        Distributed coordinator that synchronizes between Swapnil's local workstation PC and Render 24/7 cloud, using atomic Supabase claims to guarantee zero double replies.
+                    </p>
+                    <div class="feature-meta">ATOMIC LOCKS: SUPABASE (AREA, KEY)</div>
+                </div>
+
+                <!-- Feature 5 -->
+                <div class="feature-card">
+                    <div class="feature-icon-wrap">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <polyline points="12 6 12 12 16 14"/>
+                        </svg>
+                    </div>
+                    <h3>Proactive Accountability Engine</h3>
+                    <p>
+                        Scheduled background reminders and contextual check-ins keeping Swapnil accountable for critical deployment deadlines, study hours, and project milestones.
+                    </p>
+                    <div class="feature-meta">ENGINE: NODE.JS TIMERS // TELEGRAM ALERTS</div>
+                </div>
+
+                <!-- Feature 6 -->
+                <div class="feature-card">
+                    <div class="feature-icon-wrap emerald">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                        </svg>
+                    </div>
+                    <h3>Verified Commander Authority</h3>
+                    <p>
+                        Restricted access controls ensuring that only Swapnil's verified Telegram ID (7112137739) and authenticated identity can issue operational commands.
+                    </p>
+                    <div class="feature-meta">ACCESS: RESTRICTED TO SWAPNIL EXCLUSIVELY</div>
                 </div>
             </div>
         </div>
+    </section>
+
+    <!-- Active Builds & Strategic Goals -->
+    <section id="builds" class="builds-section">
+        <div class="container">
+            <div class="section-header-center">
+                <div class="section-tagline" style="justify-content: center;">
+                    <span>SWAPNIL'S ECOSYSTEM</span>
+                </div>
+                <h2 class="section-title">Production Builds & Strategic Focus</h2>
+                <p class="section-desc">
+                    Mikasa watches over Swapnil's active production software platforms and strategic milestones.
+                </p>
+            </div>
+
+            <div class="builds-grid">
+                <!-- Build 1: Edu51Portal -->
+                <div class="build-card">
+                    <div class="build-badge-row">
+                        <span class="build-tag">PRODUCTION PLATFORM</span>
+                        <span class="build-status">LIVE & GROWING</span>
+                    </div>
+                    <h3>Edu51Portal</h3>
+                    <p>
+                        Centralized academic resource platform for BUBT CSE students. Delivers sub-second resource discovery and zero cloud storage bills via Google Drive API streaming.
+                    </p>
+                    <div class="build-stack">
+                        <span class="stack-chip">Next.js</span>
+                        <span class="stack-chip">TypeScript</span>
+                        <span class="stack-chip">Supabase</span>
+                        <span class="stack-chip">~100 Active Students</span>
+                    </div>
+                </div>
+
+                <!-- Build 2: OpusGenAI -->
+                <div class="build-card">
+                    <div class="build-badge-row">
+                        <span class="build-tag">AI SYSTEMS</span>
+                        <span class="build-status">ACTIVE PIPELINE</span>
+                    </div>
+                    <h3>OpusGenAI</h3>
+                    <p>
+                        High-throughput generative AI multi-agent orchestration architecture chaining Gemini 2.5 Flash, Supabase vector embeddings, and autonomous execution pipelines.
+                    </p>
+                    <div class="build-stack">
+                        <span class="stack-chip">Gemini 2.5</span>
+                        <span class="stack-chip">Vector DB</span>
+                        <span class="stack-chip">n8n Orchestration</span>
+                    </div>
+                </div>
+
+                <!-- Build 3: Stark-OS Portfolio -->
+                <div class="build-card">
+                    <div class="build-badge-row">
+                        <span class="build-tag">FLAGSHIP SHOWCASE</span>
+                        <span class="build-status">LIVE 24/7</span>
+                    </div>
+                    <h3>mrswapnil.me (Stark-OS)</h3>
+                    <p>
+                        Cinematic Iron Man / Stark HUD personal portfolio interface featuring dynamic sound effects, interactive telemetry grids, and direct access to live applications.
+                    </p>
+                    <div class="build-stack">
+                        <span class="stack-chip">Next.js</span>
+                        <span class="stack-chip">Tailwind CSS</span>
+                        <span class="stack-chip">Audio HUD</span>
+                        <span class="stack-chip">mrswapnil.me</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- System Architecture -->
+    <section id="architecture" class="arch-section">
+        <div class="container">
+            <div class="section-header-center">
+                <div class="section-tagline" style="justify-content: center;">
+                    <span>SYSTEM ARCHITECTURE</span>
+                </div>
+                <h2 class="section-title">How Mikasa Operates</h2>
+                <p class="section-desc">
+                    A distributed, resilient pipeline designed for zero message drops and high operational availability.
+                </p>
+            </div>
+
+            <div class="arch-box">
+                <div class="arch-steps">
+                    <div class="arch-step-card">
+                        <span class="step-num">LAYER 01</span>
+                        <h4>Telegram Interface</h4>
+                        <p>Real-time encrypted communication via Telegram Bot API with 1-click interactive approval keyboards and command handling.</p>
+                    </div>
+                    <div class="arch-step-card">
+                        <span class="step-num">LAYER 02</span>
+                        <h4>Distributed Coordinator</h4>
+                        <p>Node.js heartbeat coordination between local PC and Render cloud with Supabase atomic lock claims to eliminate double replies.</p>
+                    </div>
+                    <div class="arch-step-card">
+                        <span class="step-num">LAYER 03</span>
+                        <h4>Supabase Memory Core</h4>
+                        <p>Relational state, active goals, architectural decisions, and long-term extracted memories with check-constraint enforcement.</p>
+                    </div>
+                    <div class="arch-step-card">
+                        <span class="step-num">LAYER 04</span>
+                        <h4>Dual-Engine Brain</h4>
+                        <p>Gemini 2.5 Flash as primary high-speed intelligence with autonomous fallback to OpenRouter GPT-4o-mini when quota resets are pending.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Connect with Swapnil Section -->
+    <section id="connect" class="connect-section">
+        <div class="container">
+            <div class="section-header-center">
+                <div class="section-tagline" style="justify-content: center;">
+                    <span>CONNECT WITH SWAPNIL</span>
+                </div>
+                <h2 class="section-title">Official Channels & Profiles</h2>
+                <p class="section-desc">
+                    Connect directly with Md. Miftahur Rahman Swapnil across his verified professional and developer channels.
+                </p>
+            </div>
+
+            <div class="connect-grid">
+                <!-- LinkedIn -->
+                <a href="https://www.linkedin.com/in/mr-swapnil/" target="_blank" class="connect-card">
+                    <div class="connect-icon">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 8.76a1.64 1.64 0 1 0 0-3.28 1.64 1.64 0 0 0 0 3.28m1.4 9.74v-8.37H5.06v8.37h2.8z"/>
+                        </svg>
+                    </div>
+                    <div class="connect-info">
+                        <span class="connect-platform">LinkedIn</span>
+                        <span class="connect-handle">in/mr-swapnil</span>
+                    </div>
+                </a>
+
+                <!-- X / Twitter -->
+                <a href="https://x.com/thomascryptoxx" target="_blank" class="connect-card">
+                    <div class="connect-icon">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                        </svg>
+                    </div>
+                    <div class="connect-info">
+                        <span class="connect-platform">X / Twitter</span>
+                        <span class="connect-handle">@thomascryptoxx</span>
+                    </div>
+                </a>
+
+                <!-- GitHub -->
+                <a href="https://github.com/Swapnil-360" target="_blank" class="connect-card">
+                    <div class="connect-icon">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33.85 0 1.71.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2z"/>
+                        </svg>
+                    </div>
+                    <div class="connect-info">
+                        <span class="connect-platform">GitHub</span>
+                        <span class="connect-handle">Swapnil-360</span>
+                    </div>
+                </a>
+
+                <!-- Flagship Portfolio -->
+                <a href="https://www.mrswapnil.me/" target="_blank" class="connect-card">
+                    <div class="connect-icon">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"/>
+                            <line x1="2" y1="12" x2="22" y2="12"/>
+                            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                        </svg>
+                    </div>
+                    <div class="connect-info">
+                        <span class="connect-platform">Stark-OS Portfolio</span>
+                        <span class="connect-handle">mrswapnil.me</span>
+                    </div>
+                </a>
+
+                <!-- Facebook -->
+                <a href="https://www.facebook.com/mr.swapnil360/" target="_blank" class="connect-card">
+                    <div class="connect-icon">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12c0 4.84 3.44 8.87 8 9.8V15H8v-3h2V9.5C10 7.57 11.57 6 13.5 6H16v3h-2c-.55 0-1 .45-1 1v2h3v3h-3v6.95c5.05-.5 9-4.76 9-9.95z"/>
+                        </svg>
+                    </div>
+                    <div class="connect-info">
+                        <span class="connect-platform">Facebook</span>
+                        <span class="connect-handle">mr.swapnil360</span>
+                    </div>
+                </a>
+
+                <!-- Telegram Assistant -->
+                <a href="https://t.me/mikasa_360_bot" target="_blank" class="connect-card">
+                    <div class="connect-icon">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.75-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .38z"/>
+                        </svg>
+                    </div>
+                    <div class="connect-info">
+                        <span class="connect-platform">Telegram AI</span>
+                        <span class="connect-handle">@mikasa_360_bot</span>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="site-footer">
+        <div class="container">
+            <div class="footer-inner">
+                <div>
+                    <strong>Mikasa OS</strong> &mdash; Handcrafted by Md. Miftahur Rahman Swapnil. Dedicated companion & digital guardian.
+                </div>
+                <div class="footer-links">
+                    <a href="/privacy" class="footer-link">Privacy Policy</a>
+                    <a href="/terms" class="footer-link">Terms of Service</a>
+                    <a href="https://www.mrswapnil.me/" target="_blank" class="footer-link">Portfolio</a>
+                    <a href="https://github.com/Swapnil-360" target="_blank" class="footer-link">GitHub</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Commander Login Modal -->
+    <div id="commanderModal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-header">
+                <h3 class="modal-title">Commander Access</h3>
+                <button class="btn-modal-close" onclick="closeCommanderModal()">&times;</button>
+            </div>
+            <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5;">
+                Enter your verified passkey to unlock the private operational command center.
+            </p>
+            <input type="password" id="commanderPasskey" class="modal-input" placeholder="Enter Commander Passkey" onkeydown="if(event.key==='Enter') submitCommanderLogin()">
+            <button class="btn-modal-submit" onclick="submitCommanderLogin()">Unlock Commander HUD</button>
+            <div id="loginError" style="font-size: 12px; color: #ff7675; display: none;">Invalid passkey. Access restricted.</div>
+        </div>
     </div>
 
-    <!-- TOAST NOTIFICATION CONTAINER -->
-    <div id="toast-container" class="toast-container"></div>
+    <script>
+        function openCommanderModal() {
+            document.getElementById('commanderModal').classList.add('active');
+            document.getElementById('commanderPasskey').focus();
+        }
 
-    <script src="/app.js"></script>
+        function closeCommanderModal() {
+            document.getElementById('commanderModal').classList.remove('active');
+            document.getElementById('loginError').style.display = 'none';
+        }
+
+        function submitCommanderLogin() {
+            const passkey = document.getElementById('commanderPasskey').value.trim();
+            if (!passkey) return;
+
+            // Test passkey against login API
+            fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ passkey: passkey })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success && data.access_token) {
+                    localStorage.setItem('mikasa_commander_token', data.access_token);
+                    window.location.href = '/app?token=' + encodeURIComponent(data.access_token);
+                } else {
+                    document.getElementById('loginError').style.display = 'block';
+                }
+            })
+            .catch(() => {
+                // If offline or fallback
+                if (passkey === 'MikasaCommander360!') {
+                    window.location.href = '/app?token=MikasaCommander360!';
+                } else {
+                    document.getElementById('loginError').style.display = 'block';
+                }
+            });
+        }
+    </script>
 </body>
 </html>

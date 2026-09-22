@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mikasa Command Center — Personal AI Operating System</title>
+    <meta name="description" content="Executive AI Command Center and personal operating system for Swapnil, powered by Mikasa Ackerman AI with continuous memory extraction, Supabase DB, and multi-channel synchronization.">
+    <link rel="icon" type="image/jpeg" href="/Mikasa-logo.jpeg">
+    <link rel="apple-touch-icon" href="/Mikasa-logo.jpeg">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Mikasa Command Center — Personal AI Assistant">
+    <meta property="og:description" content="Executive AI Command Center for Swapnil, powered by Mikasa Ackerman AI.">
+    <meta property="og:image" content="https://mikasa.mrswapnil.me/Mikasa.jpeg">
+    <meta property="og:url" content="https://mikasa.mrswapnil.me">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="https://mikasa.mrswapnil.me/Mikasa.jpeg">
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+
+    <!-- TOP EXECUTIVE HEADER -->
+    <header class="command-header">
+        <div class="brand-section">
+            <div class="avatar-wrapper" id="mikasa-avatar">
+                <img src="/Mikasa-logo.jpeg" alt="Mikasa Logo" class="brand-avatar-img">
+                <div class="status-indicator" title="Mikasa is Online and Active"></div>
+            </div>
+            <div class="brand-text">
+                <h1>
+                    MIKASA <span class="brand-badge">Autonomous OS</span>
+                </h1>
+                <div class="brand-subtitle">Commander: Md. Miftahur Rahman Swapnil</div>
+            </div>
+        </div>
+
+        <div class="status-pills">
+            <div class="status-pill" id="pill-tg">
+                <div class="dot"></div>
+                <span>Telegram: @mikasa_360_bot</span>
+            </div>
+            <div class="status-pill" id="pill-brain" title="Click to inspect Gemini Rate Limit & Reset Countdown" style="cursor: pointer;">
+                <div class="dot" id="dot-brain"></div>
+                <span id="text-brain">Gemini 2.5 Flash</span>
+            </div>
+            <div class="status-pill" id="pill-gh">
+                <div class="dot"></div>
+                <span>GitHub: Swapnil-360</span>
+            </div>
+        </div>
+
+        <!-- AUTH & ACCESS CONTROL -->
+        <div class="auth-pill-wrapper" id="auth-pill-wrapper">
+            <div class="observer-pill" id="badge-observer">
+                <span class="pulse-amber"></span>
+                <span>Observer Mode</span>
+            </div>
+            <button class="btn btn-commander-login" id="btn-open-login-modal">
+                <span>🛡️</span> Commander Login
+            </button>
+            <div class="commander-pill" id="badge-commander" style="display: none;">
+                <span class="pulse-green"></span>
+                <span>Verified Commander</span>
+                <button class="btn-logout" id="btn-commander-logout" title="Exit Commander Mode">Logout</button>
+            </div>
+        </div>
+
+        <div class="header-actions">
+            <button class="btn btn-secondary action-restricted" id="btn-clear-chat" title="Clear chat history in database">
+                <span>🧹</span> Clear Chat
+            </button>
+            <button class="btn btn-secondary action-restricted" id="btn-open-remind-modal">
+                <span>⏰</span> Remind Me
+            </button>
+            <button class="btn btn-secondary action-restricted" id="btn-open-decision-modal">
+                <span>📐</span> Decision
+            </button>
+            <button class="btn btn-secondary action-restricted" id="btn-open-goal-modal">
+                <span>🎯</span> Goal
+            </button>
+            <button class="btn btn-primary action-restricted" id="btn-open-task-modal">
+                <span>⚡</span> Task
+            </button>
+        </div>
+    </header>
+
+    <!-- OBSERVER MODE BANNER -->
+    <div class="observer-mode-banner" id="observer-mode-banner">
+        <div class="banner-inner">
+            <span class="banner-icon">👁️</span>
+            <div class="banner-text">
+                <strong>Public Observer Mode:</strong> You are viewing live telemetry of how Mikasa OS serves and performs for Commander Swapnil. Actions & direct commands are restricted to authorized Commander.
+            </div>
+            <button class="btn-banner-login" id="btn-banner-login">Commander Login</button>
+        </div>
+    </div>
+
+    <!-- MAIN DASHBOARD CONTENT -->
+    <main class="dashboard-container">
+        
+        <!-- LEFT WORKSPACE COLUMN -->
+        <section class="workspace-column">
+            
+            <!-- NAV TABS -->
+            <nav class="nav-tabs" role="tablist">
+                <button class="tab-btn active" data-tab="tab-tasks" id="tab-btn-tasks">
+                    <span>📋</span> Tasks
+                </button>
+                <button class="tab-btn" data-tab="tab-copilot" id="tab-btn-copilot">
+                    <span>💼</span> Career & Copilot Hub
+                </button>
+                <button class="tab-btn" data-tab="tab-goals" id="tab-btn-goals">
+                    <span>🎯</span> Goals
+                </button>
+                <button class="tab-btn" data-tab="tab-decisions" id="tab-btn-decisions">
+                    <span>📐</span> Decisions
+                </button>
+                <button class="tab-btn" data-tab="tab-memories" id="tab-btn-memories">
+                    <span>🧠</span> Memories
+                </button>
+                <button class="tab-btn" data-tab="tab-projects" id="tab-btn-projects">
+                    <span>🚀</span> Projects
+                </button>
+            </nav>
+
+            <!-- TAB 1: TASKS BOARD -->
+            <div class="tab-content active" id="tab-tasks">
+                <div class="glass-card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <span>⚡</span> Task Execution Board
+                        </div>
+                        <div class="task-controls">
+                            <div class="filter-group">
+                                <button class="filter-btn active" data-filter="all">All</button>
+                                <button class="filter-btn" data-filter="todo">Todo</button>
+                                <button class="filter-btn" data-filter="completed">Completed</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="tasks-list" id="tasks-container">
+                        <div class="loading-state">Loading tasks from Supabase...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: CAREER & COPILOT HUB (GITHUB, LINKEDIN, CV, PROMPTS, REMINDERS) -->
+            <div class="tab-content" id="tab-copilot">
+                
+                <!-- SOCIAL MEDIA ECOSYSTEM & AI BRAND AUDIT -->
+                <div class="glass-card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <span>🌐</span> Connected Social Media & AI Brand Audit
+                        </div>
+                        <button class="btn btn-secondary" id="btn-run-social-audit" style="font-size: 0.75rem; padding: 4px 10px;">
+                            ⚡ Run AI Brand Audit
+                        </button>
+                    </div>
+
+                    <!-- Verified Accounts Grid -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 16px;">
+                        <a href="https://www.linkedin.com/in/mr-swapnil/" target="_blank" rel="noopener noreferrer" style="background: rgba(14, 118, 168, 0.12); border: 1px solid rgba(14, 118, 168, 0.35); border-radius: 8px; padding: 12px; text-decoration: none; display: flex; align-items: center; justify-content: space-between; transition: all 0.2s;" class="social-card-link">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span style="font-size: 1.3rem;">💼</span>
+                                <div>
+                                    <div style="font-size: 0.82rem; font-weight: 700; color: #60a5fa;">LinkedIn</div>
+                                    <div style="font-size: 0.72rem; color: #94a3b8;">mr-swapnil</div>
+                                </div>
+                            </div>
+                            <span style="font-size: 0.75rem; background: rgba(16, 185, 129, 0.2); color: #34d399; padding: 2px 6px; border-radius: 4px; font-weight: 600;">8.5/10</span>
+                        </a>
+
+                        <a href="https://x.com/thomascryptoxx" target="_blank" rel="noopener noreferrer" style="background: rgba(29, 155, 240, 0.12); border: 1px solid rgba(29, 155, 240, 0.35); border-radius: 8px; padding: 12px; text-decoration: none; display: flex; align-items: center; justify-content: space-between; transition: all 0.2s;" class="social-card-link">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span style="font-size: 1.3rem;">🐦</span>
+                                <div>
+                                    <div style="font-size: 0.82rem; font-weight: 700; color: #38bdf8;">X / Twitter</div>
+                                    <div style="font-size: 0.72rem; color: #94a3b8;">@thomascryptoxx</div>
+                                </div>
+                            </div>
+                            <span style="font-size: 0.75rem; background: rgba(16, 185, 129, 0.2); color: #34d399; padding: 2px 6px; border-radius: 4px; font-weight: 600;">8.0/10</span>
+                        </a>
+
+                        <a href="https://www.facebook.com/mr.swapnil360/" target="_blank" rel="noopener noreferrer" style="background: rgba(66, 103, 178, 0.12); border: 1px solid rgba(66, 103, 178, 0.35); border-radius: 8px; padding: 12px; text-decoration: none; display: flex; align-items: center; justify-content: space-between; transition: all 0.2s;" class="social-card-link">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span style="font-size: 1.3rem;">👥</span>
+                                <div>
+                                    <div style="font-size: 0.82rem; font-weight: 700; color: #818cf8;">Facebook</div>
+                                    <div style="font-size: 0.72rem; color: #94a3b8;">mr.swapnil360</div>
+                                </div>
+                            </div>
+                            <span style="font-size: 0.75rem; background: rgba(16, 185, 129, 0.2); color: #34d399; padding: 2px 6px; border-radius: 4px; font-weight: 600;">9.0/10</span>
+                        </a>
+
+                        <a href="https://www.instagram.com/callme_swap/" target="_blank" rel="noopener noreferrer" style="background: rgba(225, 48, 108, 0.12); border: 1px solid rgba(225, 48, 108, 0.35); border-radius: 8px; padding: 12px; text-decoration: none; display: flex; align-items: center; justify-content: space-between; transition: all 0.2s;" class="social-card-link">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span style="font-size: 1.3rem;">📸</span>
+                                <div>
+                                    <div style="font-size: 0.82rem; font-weight: 700; color: #f472b6;">Instagram</div>
+                                    <div style="font-size: 0.72rem; color: #94a3b8;">@callme_swap</div>
+                                </div>
+                            </div>
+                            <span style="font-size: 0.75rem; background: rgba(16, 185, 129, 0.2); color: #34d399; padding: 2px 6px; border-radius: 4px; font-weight: 600;">8.0/10</span>
+                        </a>
+                    </div>
+
+                    <!-- Audit Strategy Box -->
+                    <div id="social-audit-details" style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 14px; font-size: 0.82rem; line-height: 1.5; color: #f1f5f9;">
+                        <div style="font-weight: 700; color: var(--emerald); margin-bottom: 6px;">⚡ Mikasa's Strategic Assessment:</div>
+                        <div>Positioned as a Full-Stack Developer & AI Systems Builder. Strong proof-of-work with 500+ daily active students on <strong>Edu51Portal</strong> and futuristic Iron Man HUD portfolio at <a href="https://www.mrswapnil.me/" target="_blank" style="color: var(--cyan); text-decoration: underline;">mrswapnil.me</a>.</div>
+                        <div style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap;">
+                            <button class="btn btn-secondary" id="btn-quick-edu51-linkedin" style="font-size: 0.72rem; padding: 4px 8px;">📝 Draft Edu51 LinkedIn Post</button>
+                            <button class="btn btn-secondary" id="btn-quick-edu51-twitter" style="font-size: 0.72rem; padding: 4px 8px;">🐦 Draft X / Twitter Thread</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- GITHUB RADAR -->
+                <div class="glass-card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <span>🐙</span> GitHub Radar (Swapnil-360)
+                        </div>
+                        <button class="btn btn-secondary" id="btn-refresh-github" style="font-size: 0.75rem; padding: 4px 10px;">
+                            🔄 Refresh Repos
+                        </button>
+                    </div>
+                    <div class="projects-grid" id="github-container">
+                        <div class="loading-state">Inspecting GitHub repositories...</div>
+                    </div>
+                </div>
+
+                <!-- LINKEDIN STUDIO & CV TAILORING DUAL GRID -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    
+                    <!-- LINKEDIN STUDIO -->
+                    <div class="glass-card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <span>💼</span> LinkedIn Post Studio
+                            </div>
+                        </div>
+                        <form id="form-linkedin-draft" style="display: flex; gap: 10px; margin-bottom: 14px;">
+                            <input 
+                                type="text" 
+                                id="linkedin-input-topic" 
+                                class="chat-input" 
+                                placeholder="Topic (e.g. Edu51Portal, OpusGenAI, TypeScript)" 
+                                value="Edu51Portal"
+                                required
+                            />
+                            <button type="submit" class="btn btn-primary" style="white-space: nowrap;">
+                                Generate Post
+                            </button>
+                        </form>
+                        <div id="linkedin-preview-container" style="display: none;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                                <strong id="linkedin-preview-title" style="font-size: 0.88rem; color: var(--cyan);"></strong>
+                                <button class="btn btn-secondary" id="btn-copy-linkedin" style="font-size: 0.72rem; padding: 4px 8px;">
+                                    📋 Copy Post
+                                </button>
+                            </div>
+                            <textarea id="linkedin-preview-content" rows="10" style="width: 100%; background: rgba(0,0,0,0.3); border: 1px solid var(--border-subtle); border-radius: 8px; color: #f1f5f9; padding: 12px; font-family: var(--font-body); font-size: 0.82rem; line-height: 1.45;"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- CV & PORTFOLIO TAILORING -->
+                    <div class="glass-card">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <span>📄</span> CV & Resume Tailoring
+                            </div>
+                        </div>
+                        <form id="form-cv-tailor" style="display: flex; gap: 10px; margin-bottom: 14px;">
+                            <input 
+                                type="text" 
+                                id="cv-input-role" 
+                                class="chat-input" 
+                                placeholder="Target Role / Keywords (e.g. Next.js, Node.js, AI)" 
+                                value="Fullstack Software Engineer (Next.js, Node.js, AI)"
+                                required
+                            />
+                            <button type="submit" class="btn btn-primary" style="white-space: nowrap;">
+                                Tailor CV
+                            </button>
+                        </form>
+                        <div id="cv-results-container" style="display: none;">
+                            <div style="font-size: 0.78rem; color: var(--emerald); font-weight: 600; margin-bottom: 6px;" id="cv-matches-header"></div>
+                            <div id="cv-bullets-list" style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 12px; font-size: 0.82rem; line-height: 1.5; color: #f1f5f9; max-height: 240px; overflow-y: auto;"></div>
+                            <button class="btn btn-secondary" id="btn-copy-cv" style="margin-top: 10px; font-size: 0.72rem; padding: 4px 8px;">
+                                📋 Copy Bullets
+                            </button>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- MASTER PROMPT GENERATOR -->
+                <div class="glass-card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <span>⚡</span> Master Prompt Generator
+                        </div>
+                    </div>
+                    <form id="form-prompt-gen" style="display: flex; gap: 10px; margin-bottom: 14px;">
+                        <input 
+                            type="text" 
+                            id="prompt-input-goal" 
+                            class="chat-input" 
+                            placeholder="What do you need a prompt for? (e.g. Midjourney image of cyber samurai, Clean Architecture API)" 
+                            required
+                        />
+                        <button type="submit" class="btn btn-primary" style="white-space: nowrap;">
+                            Craft Prompt
+                        </button>
+                    </form>
+                    <div id="prompt-result-container" style="display: none;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                            <span id="prompt-result-type" style="font-size: 0.78rem; color: var(--violet); font-weight: 700;"></span>
+                            <button class="btn btn-secondary" id="btn-copy-prompt" style="font-size: 0.72rem; padding: 4px 8px;">
+                                📋 Copy Prompt
+                            </button>
+                        </div>
+                        <pre id="prompt-result-text" style="background: rgba(0,0,0,0.4); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 14px; font-family: var(--font-mono); font-size: 0.82rem; color: #a5f3fc; white-space: pre-wrap; word-break: break-word;"></pre>
+                    </div>
+                </div>
+
+                <!-- ACTIVE REMINDERS -->
+                <div class="glass-card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <span>⏰</span> Active Proactive Reminders
+                        </div>
+                        <button class="btn btn-secondary" id="btn-open-remind-modal-2" style="font-size: 0.75rem; padding: 4px 10px;">
+                            + New Reminder
+                        </button>
+                    </div>
+                    <div id="reminders-container">
+                        <div class="loading-state">Checking active reminders...</div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- TAB 3: STRATEGIC GOALS -->
+            <div class="tab-content" id="tab-goals">
+                <div class="glass-card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <span>🎯</span> High-Impact Strategic Objectives
+                        </div>
+                    </div>
+                    <div class="goals-grid" id="goals-container">
+                        <div class="loading-state">Loading strategic goals...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 4: DECISIONS MATRIX -->
+            <div class="tab-content" id="tab-decisions">
+                <div class="glass-card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <span>📐</span> Architectural Decisions & Constraints
+                        </div>
+                    </div>
+                    <div class="decisions-list" id="decisions-container">
+                        <div class="loading-state">Loading project decisions...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 5: NEURAL MEMORIES -->
+            <div class="tab-content" id="tab-memories">
+                <div class="glass-card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <span>🧠</span> Continuous Memory Vault
+                        </div>
+                        <div style="font-size: 0.8rem; color: var(--text-secondary);">
+                            Automatically extracted via OpenRouter embeddings
+                        </div>
+                    </div>
+                    <div class="memory-grid" id="memories-container">
+                        <div class="loading-state">Loading neural memories...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 6: ACTIVE PROJECTS -->
+            <div class="tab-content" id="tab-projects">
+                <div class="glass-card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <span>🚀</span> Active Software Builds
+                        </div>
+                    </div>
+                    <div class="projects-grid" id="projects-container">
+                        <div class="loading-state">Loading projects...</div>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- RIGHT PANEL: LIVE COMPANION TERMINAL (MIKASA CHAT) -->
+        <aside class="companion-panel" id="companion-chat">
+            <div class="companion-header">
+                <div class="companion-info">
+                    <div class="avatar-wrapper" style="width: 32px; height: 32px; font-size: 14px;">
+                        ⚔️
+                    </div>
+                    <div>
+                        <h3>Mikasa Ackerman</h3>
+                        <div class="companion-tag">Loyal Devoted Companion</div>
+                    </div>
+                </div>
+                <div style="font-size: 0.72rem; color: var(--emerald); font-weight: 600;">
+                    • CONNECTED
+                </div>
+            </div>
+
+            <div class="chat-messages" id="chat-messages-container">
+                <div class="chat-bubble bubble-mikasa">
+                    I'm right here with you, Swapnil.<br><br>
+                    Your entire operational system is synchronized. What should we conquer or build next?
+                </div>
+            </div>
+
+            <!-- QUICK SUGGESTION CHIPS -->
+            <div class="quick-chips">
+                <button class="chip" data-query="Suggest LinkedIn post for Edu51Portal">LinkedIn Edu51</button>
+                <button class="chip" data-query="Tailor my CV for a Next.js Fullstack role">Tailor CV</button>
+                <button class="chip" data-query="Check my GitHub repositories">Check GitHub</button>
+                <button class="chip" data-query="Review my priorities for tonight">Priority Check</button>
+                <button class="chip" data-query="/clear">Clear Chat</button>
+            </div>
+
+            <form class="chat-input-area" id="chat-form">
+                <input 
+                    type="text" 
+                    id="chat-input" 
+                    class="chat-input" 
+                    placeholder="Talk to Mikasa..." 
+                    autocomplete="off"
+                    required
+                />
+                <button type="submit" class="btn-send" id="btn-send-chat" title="Send to Mikasa">
+                    ➤
+                </button>
+            </form>
+        </aside>
+
+    </main>
+
+    <!-- MODAL: NEW TASK -->
+    <div class="modal-overlay" id="modal-task">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>⚡ Create Operational Task</h3>
+                <button class="modal-close" data-close="modal-task">&times;</button>
+            </div>
+            <form id="form-new-task">
+                <div class="form-group">
+                    <label for="task-input-title">Task Title</label>
+                    <input type="text" id="task-input-title" placeholder="e.g. Build authentication middleware" required>
+                </div>
+                <div class="form-group">
+                    <label for="task-select-project">Associated Project</label>
+                    <select id="task-select-project">
+                        <option value="">General / None</option>
+                        <option value="Edu51Portal">Edu51Portal</option>
+                        <option value="OpusGenAI">OpusGenAI</option>
+                        <option value="Personal Portfolio">Personal Portfolio</option>
+                        <option value="Personal AI Assistant">Personal AI Assistant</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="task-input-priority">Priority (1 - 10)</label>
+                    <input type="number" id="task-input-priority" min="1" max="10" value="5">
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+                    <button type="button" class="btn btn-secondary modal-close" data-close="modal-task">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Task</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: NEW REMINDER -->
+    <div class="modal-overlay" id="modal-reminder">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>⏰ Set Proactive Reminder</h3>
+                <button class="modal-close" data-close="modal-reminder">&times;</button>
+            </div>
+            <form id="form-new-reminder">
+                <div class="form-group">
+                    <label for="reminder-input-text">What should Mikasa remind you about?</label>
+                    <input type="text" id="reminder-input-text" placeholder="e.g. Push commits to GitHub & check deployment" required>
+                </div>
+                <div class="form-group">
+                    <label for="reminder-input-time">When? (e.g. 15m, 1h, 30m, 2h)</label>
+                    <input type="text" id="reminder-input-time" placeholder="e.g. 30m" value="30m" required>
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+                    <button type="button" class="btn btn-secondary modal-close" data-close="modal-reminder">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Lock Reminder</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: NEW GOAL -->
+    <div class="modal-overlay" id="modal-goal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>🎯 Create Strategic Goal</h3>
+                <button class="modal-close" data-close="modal-goal">&times;</button>
+            </div>
+            <form id="form-new-goal">
+                <div class="form-group">
+                    <label for="goal-input-title">Goal Statement</label>
+                    <input type="text" id="goal-input-title" placeholder="e.g. Launch SaaS product in Q4" required>
+                </div>
+                <div class="form-group">
+                    <label for="goal-select-category">Category</label>
+                    <select id="goal-select-category">
+                        <option value="Career">Career</option>
+                        <option value="Learning">Learning & AI</option>
+                        <option value="Entrepreneurship">Entrepreneurship</option>
+                        <option value="Health">Health & Routine</option>
+                    </select>
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+                    <button type="button" class="btn btn-secondary modal-close" data-close="modal-goal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Lock Goal</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: LOG DECISION -->
+    <div class="modal-overlay" id="modal-decision">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>📐 Log Architectural Decision</h3>
+                <button class="modal-close" data-close="modal-decision">&times;</button>
+            </div>
+            <form id="form-new-decision">
+                <div class="form-group">
+                    <label for="decision-input-text">Decision</label>
+                    <textarea id="decision-input-text" rows="3" placeholder="e.g. Use OpenRouter text-embedding-3-small for 1536-dim vector memory" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="decision-input-reason">Architectural Rationale</label>
+                    <input type="text" id="decision-input-reason" placeholder="e.g. Superior semantic recall and cost-effective embedding generation">
+                </div>
+                <div class="form-group">
+                    <label for="decision-select-project">Project</label>
+                    <select id="decision-select-project">
+                        <option value="Personal AI Assistant">Personal AI Assistant</option>
+                        <option value="Edu51Portal">Edu51Portal</option>
+                        <option value="OpusGenAI">OpusGenAI</option>
+                        <option value="Personal Portfolio">Personal Portfolio</option>
+                    </select>
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+                    <button type="button" class="btn btn-secondary modal-close" data-close="modal-decision">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Log Constraint</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: COMMANDER LOGIN -->
+    <div class="modal-overlay" id="modal-commander-login">
+        <div class="modal-content" style="max-width: 440px;">
+            <div class="modal-header">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 24px;">🛡️</span>
+                    <div>
+                        <h3 style="margin: 0; font-size: 1.15rem; color: #fff;">Commander Authentication</h3>
+                        <p style="margin: 2px 0 0 0; font-size: 0.78rem; color: var(--cyan);">Restricted to Md. Miftahur Rahman Swapnil</p>
+                    </div>
+                </div>
+                <button class="modal-close" data-close="modal-commander-login">&times;</button>
+            </div>
+            <div style="padding: 16px 0;">
+                <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 16px;">
+                    Public visitors have read-only access to live telemetry. To unlock task creation, chat, reminders, and system control, enter verified Commander credentials.
+                </p>
+
+                <form id="form-commander-login">
+                    <div class="form-group" style="margin-bottom: 14px;">
+                        <label for="login-input-email">Commander Email</label>
+                        <input type="email" id="login-input-email" placeholder="Enter commander email" required autocomplete="username">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label for="login-input-password">Commander Passkey / Password</label>
+                        <input type="password" id="login-input-password" placeholder="Enter passkey or password" required autocomplete="current-password">
+                    </div>
+                    <div id="login-error-msg" style="display: none; color: #ff4d6d; font-size: 0.82rem; margin-bottom: 12px; background: rgba(255, 77, 109, 0.1); padding: 8px 12px; border-radius: 6px;"></div>
+                    <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                        <button type="button" class="btn btn-secondary modal-close" data-close="modal-commander-login">Cancel</button>
+                        <button type="submit" class="btn btn-primary" id="btn-submit-login">Verify & Unlock</button>
+                    </div>
+                </form>
+
+                <div style="margin-top: 18px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.08); font-size: 0.78rem; color: var(--text-muted); text-align: center;">
+                    ⚡ <em>Tip: You can also type <code>/login</code> in Telegram (@mikasa_360_bot) to get an instant 1-click token!</em>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST NOTIFICATION CONTAINER -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <script src="/app.js"></script>
+</body>
+</html>

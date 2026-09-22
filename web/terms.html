@@ -7,17 +7,32 @@
     <meta name="description" content="Terms of Service for Mikasa Autonomous AI Operating System operated by Md. Miftahur Rahman Swapnil.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-base: #090a0f;
-            --bg-surface: #10121b;
-            --border-color: rgba(255, 255, 255, 0.08);
+            --bg-base: #090b11;
+            --bg-surface: #111420;
+            --bg-surface-elevated: #181d2e;
+            --border-subtle: rgba(255, 255, 255, 0.08);
+            --border-glow: rgba(229, 57, 53, 0.35);
             --primary: #e53935;
+            --primary-hover: #ff5252;
             --text-main: #f0f2f8;
             --text-muted: #9aa1b6;
-            --font-sans: 'Outfit', -apple-system, sans-serif;
+            --text-dim: #636b83;
+            --accent-cyan: #00e5ff;
+            --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             --font-mono: 'JetBrains Mono', monospace;
+            --radius-sm: 8px;
+            --radius-md: 14px;
+            --radius-lg: 20px;
+            --transition-smooth: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
 
         body {
@@ -25,148 +40,389 @@
             color: var(--text-main);
             font-family: var(--font-sans);
             line-height: 1.7;
-            padding: 40px 20px;
+            padding: 40px 20px 80px;
+            -webkit-font-smoothing: antialiased;
         }
 
         .container {
-            max-width: 860px;
+            max-width: 880px;
             margin: 0 auto;
-            background: var(--bg-surface);
-            border: 1px solid var(--border-color);
-            border-radius: 16px;
-            padding: 48px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+        }
+
+        .back-nav {
+            margin-bottom: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
         }
 
         .back-link {
             display: inline-flex;
             align-items: center;
-            gap: 6px;
-            color: var(--primary);
+            gap: 8px;
+            color: #ff7675;
             text-decoration: none;
             font-size: 14px;
             font-weight: 600;
-            margin-bottom: 24px;
+            font-family: var(--font-mono);
+            transition: var(--transition-smooth);
+            padding: 8px 14px;
+            background: rgba(229, 57, 53, 0.08);
+            border: 1px solid rgba(229, 57, 53, 0.25);
+            border-radius: var(--radius-sm);
         }
 
         .back-link:hover {
-            text-decoration: underline;
+            background: rgba(229, 57, 53, 0.16);
+            border-color: var(--primary);
+            color: #ffffff;
+            transform: translateX(-2px);
+        }
+
+        .policy-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            padding: 50px 48px;
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .policy-card::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary) 0%, rgba(229, 57, 53, 0.1) 100%);
+        }
+
+        .policy-header {
+            border-bottom: 1px solid var(--border-subtle);
+            padding-bottom: 28px;
+            margin-bottom: 36px;
+        }
+
+        .policy-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--primary);
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 12px;
         }
 
         h1 {
-            font-size: 36px;
+            font-size: 38px;
             font-weight: 800;
-            margin-bottom: 8px;
+            letter-spacing: -0.8px;
             color: #ffffff;
+            margin-bottom: 12px;
+            line-height: 1.2;
         }
 
-        .meta-date {
+        .meta-info {
             font-family: var(--font-mono);
             font-size: 13px;
+            color: var(--text-dim);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .meta-info span {
             color: var(--text-muted);
-            margin-bottom: 36px;
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 16px;
         }
 
         h2 {
             font-size: 22px;
             font-weight: 700;
-            margin-top: 32px;
-            margin-bottom: 12px;
+            margin-top: 36px;
+            margin-bottom: 14px;
+            color: #ffffff;
+            letter-spacing: -0.3px;
+        }
+
+        p {
+            margin-bottom: 18px;
+            color: #b0b7cc;
+            font-size: 15.5px;
+            line-height: 1.75;
+        }
+
+        p strong {
             color: #ffffff;
         }
 
-        p, ul {
-            margin-bottom: 16px;
-            color: var(--text-muted);
-            font-size: 15.5px;
-        }
-
         ul {
-            padding-left: 24px;
+            padding-left: 20px;
+            margin-bottom: 22px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
         }
 
         li {
-            margin-bottom: 8px;
+            color: #b0b7cc;
+            font-size: 15px;
+            line-height: 1.65;
         }
 
-        footer {
+        li strong {
+            color: #ffffff;
+        }
+
+        code {
+            font-family: var(--font-mono);
+            background: rgba(255, 255, 255, 0.06);
+            padding: 3px 7px;
+            border-radius: 4px;
+            color: #ff9a98;
+            font-size: 13.5px;
+        }
+
+        /* Connect with Swapnil Grid */
+        .connect-section {
+            margin-top: 24px;
+            padding-top: 24px;
+            border-top: 1px solid var(--border-subtle);
+        }
+
+        .connect-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+            margin-top: 18px;
+        }
+
+        .connect-card {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            background: var(--bg-surface-elevated);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 16px 20px;
+            text-decoration: none;
+            color: var(--text-main);
+            transition: var(--transition-smooth);
+        }
+
+        .connect-card:hover {
+            border-color: rgba(229, 57, 53, 0.4);
+            background: rgba(229, 57, 53, 0.05);
+            transform: translateY(-2px);
+        }
+
+        .connect-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-main);
+            flex-shrink: 0;
+            transition: var(--transition-smooth);
+        }
+
+        .connect-card:hover .connect-icon {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .connect-platform {
+            font-size: 14px;
+            font-weight: 700;
+            color: #ffffff;
+            display: block;
+        }
+
+        .connect-handle {
+            font-size: 12.5px;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+            display: block;
+        }
+
+        footer.policy-footer {
             margin-top: 48px;
             padding-top: 24px;
-            border-top: 1px solid var(--border-color);
-            text-align: center;
+            border-top: 1px solid var(--border-subtle);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
             font-size: 13px;
+            color: var(--text-dim);
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 20px;
+        }
+
+        .footer-links a {
             color: var(--text-muted);
+            text-decoration: none;
+            transition: var(--transition-smooth);
+        }
+
+        .footer-links a:hover {
+            color: #ffffff;
+            text-decoration: underline;
+        }
+
+        @media (max-width: 768px) {
+            .policy-card { padding: 32px 24px; }
+            h1 { font-size: 28px; }
+            .connect-grid { grid-template-columns: 1fr; }
+            footer.policy-footer { flex-direction: column; text-align: center; }
         }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <a href="/" class="back-link">← Back to Mikasa OS Home</a>
+        <div class="back-nav">
+            <a href="/" class="back-link">← Back to Mikasa OS Home</a>
+            <a href="/privacy" class="back-link" style="color: var(--text-muted); border-color: var(--border-subtle); background: transparent;">Privacy Policy →</a>
+        </div>
 
-        <h1>Terms of Service</h1>
-        <div class="meta-date">Last Updated: September 22, 2026 • Domain: mikasa.mrswapnil.me</div>
+        <div class="policy-card">
+            <div class="policy-header">
+                <div class="policy-badge">TERMS // USE CONDITIONS</div>
+                <h1>Terms of Service</h1>
+                <div class="meta-info">
+                    <div>Effective Date: <span>September 22, 2026</span></div>
+                    <div>Domain: <span>mikasa.mrswapnil.me</span></div>
+                    <div>Operator: <span>Md. Miftahur Rahman Swapnil</span></div>
+                </div>
+            </div>
 
-        <p>
-            Welcome to <strong>Mikasa Autonomous AI Operating System</strong> ("Mikasa", "the Service"). 
-            These Terms of Service govern the use of the web showcase, companion bots, and developer APIs operated by 
-            <strong>Md. Miftahur Rahman Swapnil</strong>.
-        </p>
+            <p>
+                Welcome to <strong>Mikasa Autonomous AI Operating System</strong> ("Mikasa", "the Service"). 
+                These Terms of Service govern the use of the web showcase, companion bots, and developer APIs operated by 
+                <strong>Md. Miftahur Rahman Swapnil</strong>.
+            </p>
 
-        <h2>1. Acceptance of Terms</h2>
-        <p>
-            By accessing <code>mikasa.mrswapnil.me</code> or interacting with connected automation services (such as the Telegram bot <code>@mikasa_360_bot</code>), 
-            you acknowledge and agree to these Terms. If you do not agree to these Terms, do not use the application.
-        </p>
+            <h2>1. Acceptance of Terms</h2>
+            <p>
+                By accessing <code>mikasa.mrswapnil.me</code> or interacting with connected automation services (such as the Telegram bot <code>@mikasa_360_bot</code>), 
+                you acknowledge and agree to these Terms. If you do not agree to these Terms, do not use the application.
+            </p>
 
-        <h2>2. Permitted Use & Access Boundaries</h2>
-        <p>
-            Mikasa is a custom-engineered executive assistant specifically configured for its owner and commander, Md. Miftahur Rahman Swapnil. 
-            Public visitors may view the public showcase, portfolio documentation, and review compliance materials. 
-            Unauthorized access attempts to backend executive endpoints or manipulation of private authentication tokens are strictly prohibited.
-        </p>
+            <h2>2. Permitted Use & Access Boundaries</h2>
+            <p>
+                Mikasa is a custom-engineered executive assistant specifically configured for its owner and commander, Md. Miftahur Rahman Swapnil. 
+                Public visitors may view the public showcase, portfolio documentation, and review compliance materials. 
+                Unauthorized access attempts to backend executive endpoints or manipulation of private authentication tokens are strictly prohibited.
+            </p>
 
-        <h2>3. Third-Party Platform Terms</h2>
-        <p>
-            Mikasa operates in compliance with all relevant platform developer policies and terms of service, including:
-        </p>
-        <ul>
-            <li><strong>X (Twitter) Developer Agreement and Policy</strong></li>
-            <li><strong>LinkedIn API Terms of Use</strong></li>
-            <li><strong>Meta Platform Terms & Developer Policies</strong></li>
-            <li><strong>GitHub API Terms of Service</strong></li>
-        </ul>
-        <p>
-            Content shared to these networks is generated strictly under the direction and approval of the account owner and adheres to all platform guidelines regarding authentic communication and rate limits.
-        </p>
+            <h2>3. Third-Party Platform Terms</h2>
+            <p>
+                Mikasa operates in compliance with all relevant platform developer policies and terms of service, including:
+            </p>
+            <ul>
+                <li><strong>X (Twitter) Developer Agreement and Policy:</strong> Compliant with rate limits and post constraints.</li>
+                <li><strong>LinkedIn API Terms of Use:</strong> Verified single-member career update publishing.</li>
+                <li><strong>Meta Platform Terms & Developer Policies:</strong> Verified Graph API distribution.</li>
+                <li><strong>GitHub API Terms of Service:</strong> Read-only repository query integration.</li>
+            </ul>
 
-        <h2>4. Intellectual Property</h2>
-        <p>
-            All custom code, architectures, branding, and original configurations of Mikasa OS remain the exclusive intellectual property of Md. Miftahur Rahman Swapnil. 
-            References to characters, names, and motifs from <em>Attack on Titan</em> (including "Mikasa Ackerman" and "Eren Yeager") are purely artistic homage and transformative parody under fair use conventions and do not imply commercial endorsement.
-        </p>
+            <h2>4. Intellectual Property</h2>
+            <p>
+                All custom code, architectures, branding, and original configurations of Mikasa OS remain the exclusive intellectual property of Md. Miftahur Rahman Swapnil. 
+                References to characters, names, and motifs from <em>Attack on Titan</em> (including "Mikasa Ackerman") are purely artistic homage and transformative parody under fair use conventions and do not imply commercial endorsement.
+            </p>
 
-        <h2>5. Disclaimer of Warranties</h2>
-        <p>
-            The software and public showcase are provided on an "AS IS" and "AS AVAILABLE" basis without warranties of any kind, whether express or implied. 
-            The owner makes no guarantees regarding uninterrupted uptime or AI model output perfection.
-        </p>
+            <h2>5. Disclaimer of Warranties</h2>
+            <p>
+                The software and public showcase are provided on an "AS IS" and "AS AVAILABLE" basis without warranties of any kind. 
+                The operator makes no guarantees regarding uninterrupted uptime or AI model output perfection.
+            </p>
 
-        <h2>6. Modifications to Terms</h2>
-        <p>
-            These Terms may be updated periodically to reflect new features, integrations, or compliance standards. Changes will be posted immediately with an updated revision date.
-        </p>
+            <div class="connect-section">
+                <h2>6. Connect with the Developer</h2>
+                <p>
+                    For questions regarding these Terms, collaboration, or software inquiries, reach out to <strong>Md. Miftahur Rahman Swapnil</strong> through any of his verified channels:
+                </p>
 
-        <h2>7. Contact</h2>
-        <p>
-            For questions regarding these Terms, please reach out via <a href="https://www.mrswapnil.me" target="_blank" style="color: var(--primary);">mrswapnil.me</a>.
-        </p>
+                <div class="connect-grid">
+                    <!-- LinkedIn -->
+                    <a href="https://www.linkedin.com/in/mr-swapnil/" target="_blank" class="connect-card">
+                        <div class="connect-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 8.76a1.64 1.64 0 1 0 0-3.28 1.64 1.64 0 0 0 0 3.28m1.4 9.74v-8.37H5.06v8.37h2.8z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <span class="connect-platform">LinkedIn</span>
+                            <span class="connect-handle">in/mr-swapnil</span>
+                        </div>
+                    </a>
 
-        <footer>
-            &copy; 2026 Md. Miftahur Rahman Swapnil. All rights reserved. Mikasa OS.
-        </footer>
+                    <!-- X / Twitter -->
+                    <a href="https://x.com/thomascryptoxx" target="_blank" class="connect-card">
+                        <div class="connect-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <span class="connect-platform">X / Twitter</span>
+                            <span class="connect-handle">@thomascryptoxx</span>
+                        </div>
+                    </a>
+
+                    <!-- GitHub -->
+                    <a href="https://github.com/Swapnil-360" target="_blank" class="connect-card">
+                        <div class="connect-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34-.46-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.87 1.52 2.34 1.07 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.55-1.11-4.55-4.92 0-1.11.38-2 1.03-2.71-.1-.25-.45-1.29.1-2.64 0 0 .84-.27 2.75 1.02.79-.22 1.65-.33 2.5-.33.85 0 1.71.11 2.5.33 1.91-1.29 2.75-1.02 2.75-1.02.55 1.35.2 2.39.1 2.64.65.71 1.03 1.6 1.03 2.71 0 3.82-2.34 4.66-4.57 4.91.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <span class="connect-platform">GitHub</span>
+                            <span class="connect-handle">Swapnil-360</span>
+                        </div>
+                    </a>
+
+                    <!-- Flagship Portfolio -->
+                    <a href="https://www.mrswapnil.me/" target="_blank" class="connect-card">
+                        <div class="connect-icon">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"/>
+                                <line x1="2" y1="12" x2="22" y2="12"/>
+                                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <span class="connect-platform">Stark-OS Portfolio</span>
+                            <span class="connect-handle">mrswapnil.me</span>
+                        </div>
+                    </a>
+                </div>
+            </div>
+
+            <footer class="policy-footer">
+                <div>&copy; 2026 Md. Miftahur Rahman Swapnil. All rights reserved. Mikasa OS.</div>
+                <div class="footer-links">
+                    <a href="/">Home</a>
+                    <a href="/privacy">Privacy</a>
+                    <a href="https://www.mrswapnil.me/" target="_blank">Portfolio</a>
+                </div>
+            </footer>
+        </div>
     </div>
 
 </body>

@@ -660,6 +660,45 @@ function matchJobOpportunity(jobDescription) {
     };
 }
 
+// 9C. PATHS LinkedIn Job Radar & Targeted Searches (Sections 19 & 26)
+function generateLinkedInJobRadar(roleOrQuery = null) {
+    const query = roleOrQuery ? roleOrQuery.trim() : 'Frontend Next.js Developer';
+    
+    const searches = [
+        {
+            title: "🇧🇩 Next.js & React Jobs (Bangladesh / Dhaka)",
+            filter: "Entry / Associate level in Bangladesh",
+            url: `https://www.linkedin.com/jobs/search/?keywords=Next.js%20React&location=Bangladesh&f_E=1%2C2&sortBy=DD`
+        },
+        {
+            title: "🌍 Remote Junior / Mid Full-Stack Engineer (Worldwide)",
+            filter: "Remote worldwide, TypeScript & Supabase / Node.js",
+            url: `https://www.linkedin.com/jobs/search/?keywords=Full%20Stack%20TypeScript%20Next.js&f_WT=2&f_E=1%2C2&sortBy=DD`
+        },
+        {
+            title: "🤖 AI & Automation Developer (Remote / Web3)",
+            filter: "Remote LLM, Agentic AI, Node.js & LangChain",
+            url: `https://www.linkedin.com/jobs/search/?keywords=AI%20Engineer%20Node.js&f_WT=2&sortBy=DD`
+        },
+        {
+            title: "💼 Wellfound (AngelList) High-Growth Tech Startups",
+            filter: "Startup opportunities with Next.js & modern stack",
+            url: `https://wellfound.com/jobs?roles[]=Frontend%20Engineer&roles[]=Full%20Stack%20Engineer`
+        }
+    ];
+
+    return {
+        query,
+        searches,
+        instructions: [
+            "1. Tap any of the curated search links above to see live openings on LinkedIn.",
+            "2. When you spot an interesting role, copy the job description text or link.",
+            "3. Send it to me here with `/job [paste job text]`.",
+            "4. I will instantly run the PATHS Matching Matrix (✓ △ ✗) and draft a personalized recruiter pitch or tailored CV bullets for you!"
+        ]
+    };
+}
+
 // 10. Master Prompt Generator
 function generateOptimizedPrompt(goalOrRequest) {
     const text = goalOrRequest.trim();
@@ -964,6 +1003,20 @@ async function handleActionIntent(message) {
         };
     }
 
+    // 6B. Job Search & Opportunity Radar Pattern (PATHS Section 19 & 26)
+    const isJobSearch = text.match(/^(?:\/jobs|search\s+(?:for\s+)?jobs?|find\s+jobs?|linkedin\s+jobs?|search\s+job\s+for\s+me|can\s+you\s+search\s+job)(?:\s+(?:from|on|in)?\s*(.+))?$/i) ||
+                        ((text.match(/\bjobs?\b/i) || text.match(/linkedin/i)) && (text.match(/search\s+job|find\s+job|looking\s+for\s+job|job\s+hunt|search\s+for\s+me/i)));
+    if (isJobSearch) {
+        const queryMatch = text.match(/(?:for|about|on|in)\s+([a-zA-Z0-9_\s\-]+)/i);
+        const query = queryMatch ? queryMatch[1].trim() : 'Next.js & Frontend Developer';
+        const radar = generateLinkedInJobRadar(query);
+        return {
+            action: 'job_radar',
+            success: true,
+            radar
+        };
+    }
+
     // 7. Audit Log Inspection Pattern (PATHS Section 34)
     const auditMatch = text.match(/^(?:\/audit|audit\s+log|show\s+audit|what\s+did\s+you\s+do\??)$/i);
     if (auditMatch) {
@@ -993,6 +1046,7 @@ module.exports = {
     auditSocialMedia,
     tailorCvForJob,
     matchJobOpportunity,
+    generateLinkedInJobRadar,
     generateOptimizedPrompt,
     getTasks,
     getGoals,

@@ -2013,6 +2013,20 @@ async function processUpdate(update) {
                     });
                     reply += "_Complete audit trails are permanently preserved in Supabase `current_state` and local cache._";
                 }
+            } else if (actionResult.action === 'job_radar') {
+                const r = actionResult.radar;
+                reply = [
+                    "🎯 *PATHS — Live LinkedIn Opportunity Radar (Sections 19 & 26)*",
+                    "",
+                    "Here are direct, pre-filtered live search feeds targeted specifically to your tech stack (Next.js, TypeScript, Supabase, AI):",
+                    "",
+                    ...r.searches.map(s => `• *${s.title}*\n  _${s.filter}_\n  🔗 [View Live Postings on LinkedIn](${s.url})\n`),
+                    "━━━━━━━━━━━━━━━━━━━━",
+                    "🚀 *How to use me as your Application Assistant:*",
+                    ...r.instructions.map(i => `${i}`),
+                    "",
+                    "_Whenever you find an opening, just paste it here with `/job` or send me the text!_"
+                ].join('\n');
             }
 
             if (reply) {

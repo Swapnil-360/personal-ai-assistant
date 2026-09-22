@@ -1516,7 +1516,11 @@ async function processUpdate(update) {
     const botUsername = 'mikasa_360_bot';
     const isMentioned = 
         text.includes('@' + botUsername) ||
-        (msg.entities && msg.entities.some(e => e.type === 'mention' && text.substring(e.offset, e.offset + e.length).toLowerCase() === '@' + botUsername.toLowerCase())) ||
+        // bot_command entities like /members@mikasa_360_bot count as addressing the bot
+        (msg.entities && msg.entities.some(e => 
+            (e.type === 'mention' && text.substring(e.offset, e.offset + e.length).toLowerCase() === '@' + botUsername.toLowerCase()) ||
+            (e.type === 'bot_command' && text.substring(e.offset, e.offset + e.length).toLowerCase().includes('@' + botUsername.toLowerCase()))
+        )) ||
         text.match(/\b(?:mikasa|ackerman|মিকাসা|মিখাসা|মাইকাসা)\b/i);
 
     if (isGroup && !isMentioned) {
@@ -1527,7 +1531,7 @@ async function processUpdate(update) {
     // Clean text of bot username mention and trigger name
     if (isMentioned) {
         text = text
-            .replace(new RegExp(`@${botUsername}`, 'gi'), '')
+            .replace(new RegExp(`@${botUsername}`, 'gi'), '')  // strip @mikasa_360_bot from commands
             .replace(/^[\s,:]*(?:hey\s+)?(?:mikasa|ackerman|মিকাসা|মিখাসা|মাইকাসা)[,\s:]*/i, '')
             .trim();
     }
@@ -1593,53 +1597,68 @@ async function processUpdate(update) {
 
     // ── GROUP MEMBER ROSTER (Commander-only) ──────────────────────────
     // Triggered by: "boloto ei group a ke ke ache", "who is in this group", "/members", etc.
-    const isGroupMemberQuery = isGroup && (
+    // Works in both group chats AND DMs from Commander
+    const isGroupMemberQuery = (
         text.match(/\bke\s+ke\s+ache\b/i) ||
         text.match(/\bgroup\s*(?:e|te|er)?\s*(?:ke|who|kon\s*kon|kara|member)/i) ||
         text.match(/\bwho(?:'s|\s+is|\s+are)\s+(?:in|here|in\s+this\s+group)\b/i) ||
         text.match(/\b(?:list|show)\s+(?:all\s+)?(?:members?|people|users?)\b/i) ||
-        text === '/members' || text === '/who'
+        text.trim() === '/members' || text.trim() === '/who'
     );
 
     if (isGroupMemberQuery) {
         await sendChatAction(chatId, 'typing');
         try {
-            // 1. Fetch admins from Telegram API
-            const admins = await getChatAdministrators(chatId);
+            // Determine which group to query
+            const targetChatId = isGroup ? chatId : null;
 
-            // 2. Get tracked speakers from memory
-            const trackedMap = groupMemberTracker.get(String(chatId)) || new Map();
-            const trackedMembers = [...trackedMap.values()];
+            // 1. Fetch admins from Telegram API (only if we're in a group)
+            const admins = targetChatId ? await getChatAdministrators(targetChatId) : [];
 
-            // 3. Merge: admins + tracked speakers, deduplicate by user ID
+            // 2. Get tracked speakers
             const allById = new Map();
-            for (const a of admins) allById.set(a.id, { ...a, isAdmin: true });
-            for (const t of trackedMembers) {
-                if (!allById.has(t.id)) allById.set(t.id, { ...t, isAdmin: false });
-                else allById.set(t.id, { ...allById.get(t.id), ...t, isAdmin: true }); // merge
+
+            if (targetChatId) {
+                // In-group: use this group's tracked members
+                for (const a of admins) allById.set(a.id, { ...a, isAdmin: true });
+                const trackedMap = groupMemberTracker.get(String(targetChatId)) || new Map();
+                for (const t of [...trackedMap.values()]) {
+                    if (!allById.has(t.id)) allById.set(t.id, { ...t, isAdmin: false });
+                    else allById.set(t.id, { ...allById.get(t.id), ...t });
+                }
+            } else {
+                // DM: scan all tracked groups and combine
+                for (const [gid, memberMap] of groupMemberTracker.entries()) {
+                    for (const m of memberMap.values()) {
+                        allById.set(m.id, m);
+                    }
+                }
             }
 
             const everyone = [...allById.values()];
 
             if (everyone.length === 0) {
                 await sendTelegramMessage(chatId,
-                    `Swapnil, ami ekhon pর্যন্ত শুধু তোমাকেই দেখেছি এই গ্রুপে! 🧣 Others will appear as they speak.`,
+                    `Swapnil, ami ekhono kono group member track korini! 🧣\n\n_Members show up here after they speak in the group. Admins are fetched live from Telegram._`,
                     msg.message_id);
                 return;
             }
 
-            // 4. Format the roster
-            const lines = ['👥 *Group Members I Know About:*', ''];
+            // 3. Format the roster
+            const contextLabel = isGroup ? 'This Group' : 'All Tracked Groups';
+            const lines = [`👥 *Members I Know About (${contextLabel}):*`, ''];
             let idx = 1;
             for (const m of everyone) {
-                const badge = m.isCommander ? ' 👑 _(Commander)_' : (m.role === 'creator' ? ' 🔑 _(Owner)_' : (m.role === 'administrator' ? ' 🛡️ _(Admin)_' : ''));
+                const badge = m.isCommander ? ' 👑 _(Commander — Swapnil)_'
+                    : (m.role === 'creator' ? ' 🔑 _(Owner)_'
+                    : (m.role === 'administrator' ? ' 🛡️ _(Admin)_' : ''));
                 const uname = m.username ? ` (@${m.username})` : '';
                 lines.push(`${idx}. *${m.fullName || m.name}*${uname}${badge}`);
                 idx++;
             }
 
             lines.push('');
-            lines.push(`_Note: I can only see members who have spoken or are admins. Admins fetched live via Telegram API._`);
+            lines.push(`_Admins fetched live · Regular members tracked as they speak_`);
 
             await sendTelegramMessage(chatId, lines.join('\n'), msg.message_id);
         } catch (err) {
@@ -1647,6 +1666,7 @@ async function processUpdate(update) {
         }
         return;
     }
+
 
     // 2. Handle /start Command
     if (text === '/start') {

@@ -711,7 +711,12 @@ function appendMikasaChatMessage(text) {
     const messagesContainer = document.getElementById('chat-messages-container');
     const bubble = document.createElement('div');
     bubble.className = 'chat-bubble bubble-mikasa';
-    bubble.innerHTML = formatMarkdown(text);
+    bubble.innerHTML = `
+        <div style="display: flex; align-items: flex-start; gap: 10px;">
+            <img src="/Mikasa-logo.jpeg" alt="Mikasa" class="chat-avatar-mikasa">
+            <div style="flex: 1; line-height: 1.5;">${formatMarkdown(text)}</div>
+        </div>
+    `;
     messagesContainer.appendChild(bubble);
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 }

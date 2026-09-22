@@ -162,6 +162,53 @@ function initAuthHandlers() {
     });
 }
 
+let cachedQuota = null;
+
+async function loadQuotaTelemetry() {
+    try {
+        const res = await fetch('/api/quota');
+        const data = await res.json();
+        cachedQuota = data;
+        updateQuotaUI(data);
+    } catch (e) {}
+}
+
+function updateQuotaUI(q) {
+    if (!q) return;
+    const textEl = document.getElementById('text-brain');
+    const dotEl = document.getElementById('dot-brain');
+    const pillEl = document.getElementById('pill-brain');
+
+    if (textEl && dotEl) {
+        if (q.is_cooldown) {
+            dotEl.style.background = '#f59e0b';
+            dotEl.style.boxShadow = '0 0 8px rgba(245, 158, 11, 0.6)';
+            textEl.textContent = `OpenRouter (${q.cooldown_remaining_seconds}s reset)`;
+            if (pillEl) pillEl.title = `⚠️ Gemini rate limit reached. Auto-routed to OpenRouter. Resets in ${q.cooldown_remaining_seconds}s. Click for details.`;
+        } else {
+            dotEl.style.background = '#10b981';
+            dotEl.style.boxShadow = '0 0 8px rgba(16, 185, 129, 0.6)';
+            textEl.textContent = `Gemini (${q.remaining_this_minute}/20 RPM)`;
+            if (pillEl) pillEl.title = `⚡ Gemini: ${q.remaining_this_minute}/20 remaining this minute (resets in ${q.window_reset_seconds}s). Fallback: OpenRouter Instant. Click for details.`;
+        }
+    }
+}
+
+function initQuotaClick() {
+    document.getElementById('pill-brain')?.addEventListener('click', () => {
+        if (!cachedQuota) {
+            showToast("⚡ Checking Gemini quota telemetry...", "info");
+            loadQuotaTelemetry();
+            return;
+        }
+        const q = cachedQuota;
+        const msg = q.is_cooldown
+            ? `⚠️ Gemini rate limited (${q.cooldown_remaining_seconds}s reset). Active: OpenRouter GPT-4o-mini.`
+            : `⚡ Gemini: ${q.remaining_this_minute}/20 req remaining this minute (resets in ~${q.window_reset_seconds}s). Daily: ${q.daily_usage}/1,500. Fallback: OpenRouter.`;
+        showToast(msg, q.is_cooldown ? 'warning' : 'success');
+    });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     checkUrlToken();
     initAuthHandlers();
@@ -170,6 +217,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initFilters();
     initChat();
     initCopilotHub();
+    initQuotaClick();
 
     // Verify authentication status
     checkCommanderAuth();
@@ -182,6 +230,10 @@ document.addEventListener('DOMContentLoaded', () => {
     loadProjects();
     loadGitHub();
     loadReminders();
+    loadQuotaTelemetry();
+
+    // Poll quota telemetry every 15s
+    setInterval(loadQuotaTelemetry, 15000);
 });
 
 // --- TAB SWITCHING ---
@@ -997,12 +1049,14 @@ async function sendMessageToMikasa(text) {
 
         const reply = data.reply || 'I am here with you, Swapnil.';
         appendMikasaChatMessage(reply);
+        loadQuotaTelemetry();
 
         // Auto-refresh memories and tasks silently
         setTimeout(() => {
             loadMemories();
             loadTasks();
             loadReminders();
+            loadQuotaTelemetry();
         }, 1500);
 
     } catch (err) {

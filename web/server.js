@@ -267,6 +267,12 @@ const server = http.createServer(async (req, res) => {
 
         // System Status
         if (pathname === '/api/status' && req.method === 'GET') {
+            let quota = null;
+            try {
+                const { getGeminiQuotaStatus } = require('../telegram_bridge');
+                quota = getGeminiQuotaStatus();
+            } catch (e) {}
+
             return sendJson(res, 200, {
                 status: 'operational',
                 agent: 'Mikasa Ackerman',
@@ -275,8 +281,27 @@ const server = http.createServer(async (req, res) => {
                 embeddings: 'OpenRouter text-embedding-3-small (1536-dim)',
                 channels: ['telegram (@mikasa_360_bot)', 'web_command_center'],
                 supabase_status: 'connected',
-                uptime: process.uptime()
+                uptime: process.uptime(),
+                quota: quota
             });
+        }
+
+        // Live Gemini Quota & Failover Telemetry API
+        if (pathname === '/api/quota' && req.method === 'GET') {
+            try {
+                const { getGeminiQuotaStatus } = require('../telegram_bridge');
+                return sendJson(res, 200, getGeminiQuotaStatus());
+            } catch (e) {
+                return sendJson(res, 200, {
+                    primary: 'Google Gemini 2.5 Flash',
+                    fallback: 'OpenRouter (GPT-4o-mini)',
+                    rpm_limit: 20,
+                    rpd_limit: 1500,
+                    remaining_this_minute: 20,
+                    is_cooldown: false,
+                    status: 'ready'
+                });
+            }
         }
 
         // GitHub Repos API

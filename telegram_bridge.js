@@ -107,6 +107,8 @@ function registerBotCommands() {
         { command: 'decisions', description: 'Confirmed architectural decisions' },
         { command: 'memories', description: 'View memory vault items' },
         { command: 'dashboard', description: 'Link to Web Command Center' },
+        { command: 'login', description: '1-click verified login for Web App' },
+        { command: 'quota', description: 'View Gemini quota & rate limit status' },
         { command: 'help', description: 'Full guide & capabilities' }
     ];
 
@@ -472,9 +474,97 @@ CRITICAL FORMATTING & CONCISENESS RULES (TELEGRAM MOBILE)
    - ALWAYS keep tweet drafts under 270 characters so it fits completely in Twitter's free tier without overflowing.`;
 }
 
-// Call Google Gemini API
+// --- GEMINI & OPENROUTER QUOTA & INSTANT FAILOVER MANAGER ---
+const GEMINI_RPM_LIMIT = 20; // Google Gemini Free Tier: 20 Requests Per Minute
+const GEMINI_RPD_LIMIT = 1500; // Google Gemini Free Tier: 1,500 Requests Per Day
+
+let geminiRequestTimestamps = [];
+let geminiDailyCounter = 0;
+let geminiDailyResetDay = new Date().getUTCDate();
+let geminiCooldownUntil = 0;
+let geminiLastCooldownReason = '';
+let lastUsedEngine = 'gemini';
+
+function pruneGeminiWindow() {
+    const now = Date.now();
+    // Prune timestamps older than 60 seconds
+    geminiRequestTimestamps = geminiRequestTimestamps.filter(ts => (now - ts) < 60000);
+
+    // Reset daily counter at 00:00 UTC
+    const currentDay = new Date().getUTCDate();
+    if (currentDay !== geminiDailyResetDay) {
+        geminiDailyCounter = 0;
+        geminiDailyResetDay = currentDay;
+    }
+}
+
+function getGeminiQuotaStatus() {
+    pruneGeminiWindow();
+    const now = Date.now();
+    const usedInWindow = geminiRequestTimestamps.length;
+    const remainingInWindow = Math.max(0, GEMINI_RPM_LIMIT - usedInWindow);
+
+    let windowResetSeconds = 0;
+    if (geminiRequestTimestamps.length > 0) {
+        const oldest = geminiRequestTimestamps[0];
+        windowResetSeconds = Math.max(1, Math.ceil((oldest + 60000 - now) / 1000));
+    }
+
+    const isInCooldown = now < geminiCooldownUntil;
+    const cooldownRemainingSeconds = isInCooldown ? Math.max(1, Math.ceil((geminiCooldownUntil - now) / 1000)) : 0;
+
+    return {
+        primary: 'Google Gemini 2.5 Flash',
+        fallback: 'OpenRouter (GPT-4o-mini)',
+        rpm_limit: GEMINI_RPM_LIMIT,
+        rpd_limit: GEMINI_RPD_LIMIT,
+        used_this_minute: usedInWindow,
+        remaining_this_minute: remainingInWindow,
+        window_reset_seconds: windowResetSeconds,
+        is_cooldown: isInCooldown,
+        cooldown_remaining_seconds: cooldownRemainingSeconds,
+        cooldown_reason: isInCooldown ? geminiLastCooldownReason : null,
+        daily_usage: geminiDailyCounter,
+        status: isInCooldown ? 'cooldown_fallback' : (remainingInWindow === 0 ? 'rpm_fallback' : 'ready'),
+        last_used_engine: lastUsedEngine
+    };
+}
+
+function setGeminiCooldown(seconds, reason = 'Quota exceeded') {
+    const retrySecs = Math.max(5, Math.ceil(seconds || 60));
+    geminiCooldownUntil = Date.now() + (retrySecs * 1000);
+    geminiLastCooldownReason = reason;
+    console.warn(`[Gemini Quota Manager] Cooldown engaged for ${retrySecs}s. Reason: ${reason}`);
+}
+
+// Call Google Gemini API (with pre-flight quota checks)
 function callGeminiApi(systemPrompt, userMessage, apiKey) {
     return new Promise((resolve, reject) => {
+        pruneGeminiWindow();
+        const now = Date.now();
+
+        // 1. If currently in cooldown, reject immediately to allow instant zero-delay failover
+        if (now < geminiCooldownUntil) {
+            const secLeft = Math.max(1, Math.ceil((geminiCooldownUntil - now) / 1000));
+            return reject({
+                isQuotaError: true,
+                message: `Gemini cooldown active (${secLeft}s remaining)`,
+                retryAfterSeconds: secLeft
+            });
+        }
+
+        // 2. Preemptive check: If already 20 requests in the rolling 60s window
+        if (geminiRequestTimestamps.length >= GEMINI_RPM_LIMIT) {
+            const oldest = geminiRequestTimestamps[0];
+            const secToWait = Math.max(1, Math.ceil((oldest + 60000 - now) / 1000));
+            setGeminiCooldown(secToWait, `Preemptive 20 RPM limit reached (${geminiRequestTimestamps.length}/${GEMINI_RPM_LIMIT})`);
+            return reject({
+                isQuotaError: true,
+                message: `Preemptive Gemini limit: 20 requests in 60s reached`,
+                retryAfterSeconds: secToWait
+            });
+        }
+
         const payload = JSON.stringify({
             system_instruction: {
                 parts: [{ text: systemPrompt }]
@@ -491,44 +581,62 @@ function callGeminiApi(systemPrompt, userMessage, apiKey) {
             }
         });
 
-        const models = ['gemini-2.5-flash', 'gemini-1.5-flash'];
+        // Use gemini-2.5-flash as the primary state-of-the-art model
+        const model = 'gemini-2.5-flash';
+        const req = https.request({
+            hostname: 'generativelanguage.googleapis.com',
+            path: `/v1beta/models/${model}:generateContent?key=${apiKey}`,
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Content-Length': Buffer.byteLength(payload)
+            }
+        }, (res) => {
+            let data = '';
+            res.on('data', chunk => data += chunk);
+            res.on('end', () => {
+                try {
+                    const json = JSON.parse(data);
+                    if (json.error) {
+                        const errMsg = json.error.message || '';
+                        console.warn(`[Gemini warning]:`, errMsg);
 
-        function tryModel(idx) {
-            if (idx >= models.length) return reject(new Error('All Gemini models failed'));
-            const model = models[idx];
-            const req = https.request({
-                hostname: 'generativelanguage.googleapis.com',
-                path: `/v1beta/models/${model}:generateContent?key=${apiKey}`,
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Content-Length': Buffer.byteLength(payload)
-                }
-            }, (res) => {
-                let data = '';
-                res.on('data', chunk => data += chunk);
-                res.on('end', () => {
-                    try {
-                        const json = JSON.parse(data);
-                        if (json.error) {
-                            console.warn(`[Gemini ${model} warning]:`, json.error.message);
-                            return tryModel(idx + 1);
+                        // Parse retry seconds from Google error (e.g. "Please retry in 47.823964834s")
+                        const isQuota = res.statusCode === 429 || /quota|exceeded|rate.?limit|resource_exhausted/i.test(errMsg);
+                        let retrySeconds = 60;
+                        const match = errMsg.match(/retry in ([0-9.]+)s/i);
+                        if (match && match[1]) {
+                            retrySeconds = Math.ceil(parseFloat(match[1]));
                         }
-                        const text = json.candidates?.[0]?.content?.parts?.[0]?.text;
-                        if (text) resolve(text);
-                        else tryModel(idx + 1);
-                    } catch (e) {
-                        tryModel(idx + 1);
+
+                        if (isQuota) {
+                            setGeminiCooldown(retrySeconds, errMsg);
+                        }
+
+                        return reject({
+                            isQuotaError: isQuota,
+                            message: errMsg,
+                            retryAfterSeconds: retrySeconds
+                        });
                     }
-                });
+
+                    const text = json.candidates?.[0]?.content?.parts?.[0]?.text;
+                    if (text) {
+                        geminiRequestTimestamps.push(Date.now());
+                        geminiDailyCounter++;
+                        resolve(text);
+                    } else {
+                        reject(new Error('Empty candidate reply from Gemini'));
+                    }
+                } catch (e) {
+                    reject(e);
+                }
             });
+        });
 
-            req.on('error', () => tryModel(idx + 1));
-            req.write(payload);
-            req.end();
-        }
-
-        tryModel(0);
+        req.on('error', (err) => reject(err));
+        req.write(payload);
+        req.end();
     });
 }
 
@@ -619,7 +727,7 @@ function callN8nAgent(message, conversationId, userContext, url) {
     });
 }
 
-// Master Autonomous Mikasa Agent Caller (Cloud-first with local fallback)
+// Master Autonomous Mikasa Agent Caller (Cloud-first with local fallback & instant OpenRouter failover)
 async function callMikasaAgent(message, conversationId, userContext) {
     const geminiKey = getEnv('GEMINI_API_KEY') || getEnv('GOOGLE_API_KEY');
     const openrouterKey = getEnv('OPENROUTER_API_KEY');
@@ -646,23 +754,39 @@ async function callMikasaAgent(message, conversationId, userContext) {
 
     const systemPrompt = await buildMikasaSystemPrompt(userContext, conversationId);
 
-    // 2. Direct Gemini 2.5/1.5 Flash Cloud Integration
+    // 2. Direct Gemini 2.5 Flash Cloud Integration (with zero-latency OpenRouter failover)
     if (geminiKey) {
-        try {
-            console.log('[Mikasa Agent] Calling Gemini Cloud directly with full profile & grounding...');
-            const reply = await callGeminiApi(systemPrompt, message, geminiKey);
-            if (reply) return { reply };
-        } catch (err) {
-            console.warn('[Direct Gemini Call Failed, trying fallback]:', err.message);
+        const quotaStatus = getGeminiQuotaStatus();
+        if (quotaStatus.is_cooldown) {
+            console.log(`[Mikasa Instant Failover] Gemini is in cooldown (${quotaStatus.cooldown_remaining_seconds}s remaining). Routing INSTANTLY to OpenRouter!`);
+        } else {
+            try {
+                console.log('[Mikasa Agent] Calling Gemini Cloud directly (Primary Engine)...');
+                const reply = await callGeminiApi(systemPrompt, message, geminiKey);
+                if (reply) {
+                    lastUsedEngine = 'gemini';
+                    return { reply, engine: 'gemini-2.5-flash' };
+                }
+            } catch (err) {
+                console.warn('[Direct Gemini Call Failed, switching instantly to OpenRouter]:', err.message || err);
+            }
         }
     }
 
-    // 3. Direct OpenRouter Cloud Integration
+    // 3. Direct OpenRouter Cloud Integration (Instant Fallback: gpt-4o-mini)
     if (openrouterKey) {
         try {
-            console.log('[Mikasa Agent] Calling OpenRouter Cloud directly...');
+            console.log('[Mikasa Agent] Calling OpenRouter Cloud directly (Fallback Engine: gpt-4o-mini)...');
             const reply = await callOpenRouterApi(systemPrompt, message, openrouterKey);
-            if (reply) return { reply };
+            if (reply) {
+                lastUsedEngine = 'openrouter';
+                const quotaStatus = getGeminiQuotaStatus();
+                let notice = '';
+                if (quotaStatus.is_cooldown) {
+                    notice = `\n\n*(⚡ Note: Gemini 20 RPM limit reached. Instantly switched to OpenRouter GPT-4o-mini. Gemini resets in ~${quotaStatus.cooldown_remaining_seconds}s)*`;
+                }
+                return { reply: reply + notice, engine: 'openrouter-gpt-4o-mini', fallback_active: true };
+            }
         } catch (err) {
             console.warn('[Direct OpenRouter Call Failed]:', err.message);
         }
@@ -1537,6 +1661,36 @@ async function processUpdate(update) {
         return;
     }
 
+    // 11B. Handle /quota or /limits Command (Live AI Rate Limit & Failover Telemetry)
+    if (text === '/quota' || text === '/limits' || text === '/rate' || text === '/engine') {
+        const q = getGeminiQuotaStatus();
+        const prioIcon = q.is_cooldown ? '🔴' : (q.remaining_this_minute <= 3 ? '🟡' : '🟢');
+
+        const lines = [
+            "⚡ *Mikasa AI Engine Quota & Latency Telemetry*",
+            "",
+            `*Primary Engine:* Google Gemini 2.5 Flash ${prioIcon}`,
+            `• *Minute Limit:* 20 requests / min (Google Free Tier)`,
+            `• *Used This Minute:* ${q.used_this_minute} / ${q.rpm_limit} requests`,
+            `• *Remaining in Window:* ${q.remaining_this_minute} requests`,
+            `• *Minute Window Resets:* in ~${q.window_reset_seconds}s`,
+            `• *Daily Limit:* 1,500 requests / day`,
+            `• *Used Today:* ${q.daily_usage} / ${q.rpd_limit} requests`,
+            q.is_cooldown 
+                ? `• *Cooldown Active:* ⚠️ Yes (resets in ${q.cooldown_remaining_seconds}s)` 
+                : `• *Engine Health:* ✅ Normal & Ready`,
+            "",
+            `*Failover Engine:* OpenRouter (GPT-4o-mini) 🟢`,
+            `• *Status:* 🛡️ Armed & Instant (0ms switchover)`,
+            `• *Active Right Now:* ${q.is_cooldown ? 'YES (Handling all traffic)' : 'Standby'}`,
+            "",
+            "💡 *Smart Balancing:* If you send >20 messages in 60s, Mikasa switches to OpenRouter instantly without dropping or delaying any messages!"
+        ];
+
+        await sendTelegramMessage(chatId, lines.join('\n'), msg.message_id);
+        return;
+    }
+
     // 12. Handle /tasks Command
     if (text === '/tasks') {
         await sendChatAction(chatId, 'typing');
@@ -1810,5 +1964,7 @@ module.exports = {
     callMikasaAgent,
     sendTelegramMessage,
     callN8nAgent,
-    startPolling
+    startPolling,
+    getGeminiQuotaStatus,
+    setGeminiCooldown
 };

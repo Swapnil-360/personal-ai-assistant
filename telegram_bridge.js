@@ -1523,8 +1523,8 @@ async function processUpdate(update) {
         )) ||
         text.match(/\b(?:mikasa|ackerman|মিকাসা|মিখাসা|মাইকাসা)\b/i);
 
-    if (isGroup && !isMentioned) {
-        // Silently ignore normal group chatter not directed to Mikasa
+    if (isGroup && !isMentioned && !isCommander) {
+        // Silently ignore group chatter NOT directed to Mikasa, UNLESS it's from the Commander
         return;
     }
 

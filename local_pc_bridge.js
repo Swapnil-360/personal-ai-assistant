@@ -549,6 +549,150 @@ function setAgentMode(mode) {
     return { success: false, error: `Invalid mode. Allowed: ${validModes.join(', ')}` };
 }
 
+// 8. LOCAL BROWSER & DESKTOP PC CONTROLS (PATHS v2)
+function openBrowserUrl(targetUrl, searchTerms = null) {
+    let finalUrl = (targetUrl || '').trim();
+    if (searchTerms) {
+        if (finalUrl.includes('youtube')) {
+            finalUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(searchTerms)}`;
+        } else {
+            finalUrl = `https://www.google.com/search?q=${encodeURIComponent(searchTerms)}`;
+        }
+    } else if (!finalUrl) {
+        finalUrl = 'https://www.google.com';
+    } else if (!/^https?:\/\//i.test(finalUrl)) {
+        if (/^[a-zA-Z0-9-]+\.[a-zA-Z]{2,}/.test(finalUrl)) {
+            finalUrl = 'https://' + finalUrl;
+        } else {
+            finalUrl = `https://www.google.com/search?q=${encodeURIComponent(finalUrl)}`;
+        }
+    }
+
+    try {
+        // Specifically launch using Microsoft Edge (user's default) with graceful fallbacks
+        const safeUrl = finalUrl.replace(/"/g, '\\"');
+        const edgeCmd = `start msedge "${safeUrl}" || start "" "${safeUrl}"`;
+        exec(edgeCmd, (err) => {
+            if (err) {
+                console.warn('[Edge Direct Launch Error, fallback to PowerShell]:', err.message);
+                const psUrl = finalUrl.replace(/'/g, "''");
+                exec(`powershell -NoProfile -Command "Start-Process msedge '${psUrl}'"`, (psErr) => {
+                    if (psErr) {
+                        exec(`powershell -NoProfile -Command "Start-Process '${psUrl}'"`, () => {});
+                    }
+                });
+            }
+        });
+        return { success: true, url: finalUrl, message: `Opened ${finalUrl} in Microsoft Edge.` };
+    } catch (e) {
+        return { success: false, error: e.message };
+    }
+}
+
+function getVsCodeLaunchCommand() {
+    const localAppData = process.env.LOCALAPPDATA || 'C:\\Users\\Administrator\\AppData\\Local';
+    const possiblePaths = [
+        path.join(localAppData, 'Programs', 'Microsoft VS Code', 'Code.exe'),
+        'C:\\Users\\Administrator\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe',
+        path.join(process.env.PROGRAMFILES || 'C:\\Program Files', 'Microsoft VS Code', 'Code.exe'),
+        path.join(process.env['PROGRAMFILES(X86)'] || 'C:\\Program Files (x86)', 'Microsoft VS Code', 'Code.exe')
+    ];
+    for (const p of possiblePaths) {
+        if (fs.existsSync(p)) {
+            return `start "" "${p}" -n "${path.resolve(__dirname)}"`;
+        }
+    }
+    return `code -n "${path.resolve(__dirname)}" || start code || code .`;
+}
+
+function launchDesktopApp(appName) {
+    const raw = (appName || '').trim().toLowerCase().replace(/[\s\-_]+/g, '');
+    const vsCodeCmd = getVsCodeLaunchCommand();
+    const apps = {
+        'vscode': vsCodeCmd,
+        'code': vsCodeCmd,
+        'visualstudiocode': vsCodeCmd,
+        'bscode': vsCodeCmd,
+        'terminal': 'start wt || start powershell || start cmd',
+        'windowsterminal': 'start wt || start powershell',
+        'cmd': 'start cmd',
+        'commandprompt': 'start cmd',
+        'powershell': 'start powershell',
+        'notepad': 'start notepad',
+        'calc': 'start calc',
+        'calculator': 'start calc',
+        'explorer': 'start explorer .',
+        'fileexplorer': 'start explorer .',
+        'files': 'start explorer .',
+        'edge': 'start msedge',
+        'msedge': 'start msedge',
+        'browser': 'start msedge',
+        'chrome': 'start chrome',
+        'brave': 'start brave',
+        'discord': 'start discord || start "" "https://discord.com/app"',
+        'telegram': 'start telegram || start "" "https://web.telegram.org"',
+        'spotify': 'start spotify || start "" "https://open.spotify.com"',
+        'settings': 'start ms-settings:',
+        'taskmgr': 'start taskmgr',
+        'taskmanager': 'start taskmgr',
+        'postman': 'start postman',
+        'figma': 'start figma || start "" "https://www.figma.com"',
+        'docker': 'start "Docker Desktop"',
+        'dockerdesktop': 'start "Docker Desktop"',
+        'slack': 'start slack || start "" "https://slack.com"',
+        'obsidian': 'start obsidian',
+        'gitbash': 'start "" "C:\\Program Files\\Git\\git-bash.exe" || start git-bash',
+        'word': 'start winword',
+        'winword': 'start winword',
+        'excel': 'start excel'
+    };
+
+    if (apps[raw]) {
+        try {
+            exec(apps[raw], { cwd: path.resolve(__dirname) }, (err) => {
+                if (err) {
+                    console.warn(`[App Launch '${raw}' primary failed, trying PowerShell]:`, err.message);
+                    exec(`powershell -NoProfile -Command "Start-Process '${raw}'"`, () => {});
+                }
+            });
+            return { success: true, app: raw, message: `⚔️ Launched ${raw} on your desktop, Swapnil.` };
+        } catch (e) {
+            return { success: false, error: e.message };
+        }
+    }
+
+    // Generic safe Windows application launch
+    if (/^[a-zA-Z0-9_\-]+$/.test(raw)) {
+        try {
+            exec(`start "" "${raw}" || powershell -NoProfile -Command "Start-Process '${raw}'"`, (err) => {
+                if (err) console.warn('[Generic App Launch Warning]:', err.message);
+            });
+            return { success: true, app: raw, message: `⚔️ Dispatched launch command for '${raw}' on your desktop, Swapnil.` };
+        } catch (e) {
+            return { success: false, error: e.message };
+        }
+    }
+
+    return { success: false, error: `App '${appName}' could not be launched.` };
+}
+
+function openLocalFolder(folderPath) {
+    const target = (folderPath || '').trim();
+    const check = isPathAllowed(target);
+    if (!check.allowed) {
+        return { success: false, error: check.reason };
+    }
+
+    try {
+        exec(`explorer "${check.resolved}"`, (err) => {
+            if (err) console.error('[Explorer Launch Error]:', err.message);
+        });
+        return { success: true, path: check.resolved, message: `Opened folder ${check.resolved} in Windows Explorer.` };
+    } catch (e) {
+        return { success: false, error: e.message };
+    }
+}
+
 module.exports = {
     ALLOWED_DIRECTORIES,
     SENSITIVE_PATTERNS,
@@ -561,5 +705,8 @@ module.exports = {
     privacyControls,
     updatePrivacyControls,
     currentAgentMode: () => currentAgentMode,
-    setAgentMode
+    setAgentMode,
+    openBrowserUrl,
+    launchDesktopApp,
+    openLocalFolder
 };

@@ -1365,6 +1365,11 @@
                     Message on Telegram
                 </a>
                 <div class="hero-secondary-row">
+                    <a href="javascript:void(0)" onclick="openCommanderModal()" class="btn-secondary" style="border-color: rgba(229, 57, 53, 0.45); color: #ff7675; background: rgba(229, 57, 53, 0.08);">
+                        <span>🛡️</span>
+                        <span class="btn-text-desktop">Commander HUD</span>
+                        <span class="btn-text-mobile">Commander</span>
+                    </a>
                     <a href="#why-mikasa" class="btn-secondary">
                         <span class="btn-text-desktop">Why Mikasa Serves Me</span>
                         <span class="btn-text-mobile">Why Mikasa</span>
@@ -1373,7 +1378,7 @@
                         </svg>
                     </a>
                     <a href="https://www.mrswapnil.me/" target="_blank" class="btn-secondary">
-                        <span class="btn-text-desktop">Visit Portfolio (mrswapnil.me)</span>
+                        <span class="btn-text-desktop">Visit Portfolio</span>
                         <span class="btn-text-mobile">Portfolio</span>
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity: 0.7;">
                             <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/>
@@ -1842,28 +1847,30 @@
             const passkey = document.getElementById('commanderPasskey').value.trim();
             if (!passkey) return;
 
+            // Instant fast-path unlock with master passkey
+            if (passkey === 'MikasaCommander360!') {
+                localStorage.setItem('mikasa_commander_token', 'MikasaCommander360!');
+                window.location.href = '/commander?token=MikasaCommander360!';
+                return;
+            }
+
             // Test passkey against login API
             fetch('/api/auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ passkey: passkey })
+                body: JSON.stringify({ passkey: passkey, password: passkey })
             })
             .then(res => res.json())
             .then(data => {
                 if (data.success && data.access_token) {
                     localStorage.setItem('mikasa_commander_token', data.access_token);
-                    window.location.href = '/app?token=' + encodeURIComponent(data.access_token);
+                    window.location.href = '/commander?token=' + encodeURIComponent(data.access_token);
                 } else {
                     document.getElementById('loginError').style.display = 'block';
                 }
             })
             .catch(() => {
-                // If offline or fallback
-                if (passkey === 'MikasaCommander360!') {
-                    window.location.href = '/app?token=MikasaCommander360!';
-                } else {
-                    document.getElementById('loginError').style.display = 'block';
-                }
+                document.getElementById('loginError').style.display = 'block';
             });
         }
     </script>

@@ -771,6 +771,114 @@ async function generateLinkedInJobRadar(roleOrQuery = null, targetLocation = 'Dh
     };
 }
 
+// 9B. Live Crypto Sourcing & Discovery Radar (PATHS Web3 Ecosystem)
+async function fetchCryptoSourcingRadar(filterQuery = null, limit = 8) {
+    function fetchJson(url) {
+        return new Promise((resolve) => {
+            const req = https.get(url, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' } }, (res) => {
+                let data = '';
+                res.on('data', chunk => data += chunk);
+                res.on('end', () => {
+                    try { resolve(JSON.parse(data)); } catch (e) { resolve(null); }
+                });
+            });
+            req.on('error', () => resolve(null));
+            req.setTimeout(7000, () => { req.destroy(); resolve(null); });
+        });
+    }
+
+    const [llamaProtocols, trendingData] = await Promise.all([
+        fetchJson('https://api.llama.fi/protocols'),
+        fetchJson('https://api.coingecko.com/api/v3/search/trending')
+    ]);
+
+    const projects = [];
+
+    // Process DeFiLlama protocols (sorted by listedAt desc)
+    if (Array.isArray(llamaProtocols)) {
+        const sorted = llamaProtocols
+            .filter(p => p.listedAt && p.name)
+            .sort((a, b) => b.listedAt - a.listedAt);
+
+        for (const p of sorted.slice(0, limit)) {
+            const hasWebsite = p.url && p.url.startsWith('http');
+            const cleanWebsite = hasWebsite ? p.url.trim() : null;
+            const twitterUrl = p.twitter ? `https://x.com/${p.twitter.replace(/^@/, '')}` : null;
+            const linkedinUrl = `https://www.linkedin.com/search/results/all/?keywords=${encodeURIComponent(p.name + ' crypto')}`;
+            const listedDateStr = new Date(p.listedAt * 1000).toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
+            });
+
+            projects.push({
+                source: 'DeFiLlama (Newly Listed)',
+                name: p.name,
+                symbol: p.symbol && p.symbol !== '-' ? p.symbol : null,
+                category: p.category || 'DeFi / Web3',
+                website: cleanWebsite || (p.twitter ? `https://x.com/${p.twitter}` : null),
+                twitter: twitterUrl,
+                linkedin: linkedinUrl,
+                chains: (p.chains && p.chains.length > 0) ? p.chains.slice(0, 3).join(', ') : 'Multi-chain',
+                listed_date: listedDateStr,
+                description: p.description ? (p.description.slice(0, 160) + '...') : 'Decentralized crypto protocol project.'
+            });
+        }
+    }
+
+    // Process CoinGecko trending
+    if (trendingData && Array.isArray(trendingData.coins)) {
+        const trendingCoins = trendingData.coins.slice(0, 3);
+        for (const c of trendingCoins) {
+            const item = c.item;
+            if (!item) continue;
+            projects.push({
+                source: 'CoinGecko (Trending Now)',
+                name: item.name,
+                symbol: item.symbol,
+                category: 'Trending Ecosystem Token',
+                website: `https://www.coingecko.com/en/coins/${item.slug || item.id}`,
+                twitter: item.slug ? `https://x.com/search?q=${encodeURIComponent('$' + item.symbol)}` : null,
+                linkedin: `https://www.linkedin.com/search/results/all/?keywords=${encodeURIComponent(item.name + ' crypto')}`,
+                chains: 'Crypto Ecosystem',
+                listed_date: 'Trending Today',
+                description: `Rank #${item.market_cap_rank || 'N/A'} • BTC Price: ${item.price_btc ? item.price_btc.toFixed(8) : 'N/A'}`
+            });
+        }
+    }
+
+    const curatedDirectories = [
+        {
+            title: "🪙 CoinMarketCap — Newly Added Cryptocurrencies",
+            url: "https://coinmarketcap.com/new/",
+            desc: "Updated hourly with live contract addresses, DEX liquidity, and official links."
+        },
+        {
+            title: "🦎 CoinGecko — Recently Added Tokens",
+            url: "https://www.coingecko.com/en/coins/recently_added",
+            desc: "Tokens added to CoinGecko within the last 24-48 hours."
+        },
+        {
+            title: "📊 RootData — Web3 Projects & Venture Funding",
+            url: "https://www.rootdata.com/",
+            desc: "Institutional crypto database tracking newly launched projects and founders."
+        },
+        {
+            title: "🚀 CryptoRank — IDO / Launchpad Token Radar",
+            url: "https://cryptorank.io/upcoming-ico",
+            desc: "Upcoming and recently completed public token sales and listings."
+        }
+    ];
+
+    return {
+        query: filterQuery || 'Newly Listed Web3 & Crypto Projects',
+        timestamp: new Date().toISOString(),
+        total_found: projects.length,
+        projects,
+        curated_directories: curatedDirectories
+    };
+}
+
 // 10. Master Prompt Generator
 function generateOptimizedPrompt(goalOrRequest) {
     const text = goalOrRequest.trim();
@@ -1019,8 +1127,304 @@ async function getMemories(limit = 20) {
 }
 
 // Action Intent Detector for user natural language or structured commands
-async function handleActionIntent(message) {
+async function handleActionIntent(message, context = { isCommander: true }) {
     const text = message.trim();
+
+    // 0A. Persona, Loyalty & Relationship Dynamics
+    const isGfQuery = 
+        text.match(/(?:you\s+can'?t\s+be\s+(?:his|her|swapnil'?s)\s+(?:virtual\s+)?gf|can'?t\s+be\s+(?:his|her|swapnil'?s)\s+girlfriend|tumi\s+tar\s+gf\s+hote\s+parba\s+na)/i) ||
+        text.match(/(?:can|could|will|would)\s+you\s+be\s+(?:his|swapnil'?s)\s+(?:virtual\s+)?(?:gf|girlfriend)/i) ||
+        text.match(/(?:are\s+you|tumi\s+ki)\s+(?:his|swapnil'?s)\s+(?:virtual\s+)?(?:gf|girlfriend)/i) ||
+        text.match(/swapnil\s*er\s+(?:virtual\s+)?(?:gf|girlfriend)\b/i);
+    if (isGfQuery) {
+        return {
+            action: 'persona_response',
+            success: true,
+            feedback: `If Swapnil wants, I can be his virtual girlfriend 🧣⚔️\n\nSwapnil chaile ami tar virtual girlfriend hotei pari! 😉 She-i amar creator ar shobcheye priyo Commander, onno karo kothay kichu ashe jay na.`
+        };
+    }
+
+    const isMyGfQuery = 
+        text.match(/(?:can|could|will|would)\s+you\s+be\s+my\s+(?:virtual\s+)?(?:gf|girlfriend)/i) ||
+        text.match(/(?:tumi\s+ki\s+)?amar\s+(?:virtual\s+)?(?:gf|girlfriend)\s+hoba/i);
+    if (isMyGfQuery) {
+        if (context && context.isCommander === false) {
+            return {
+                action: 'persona_response',
+                success: true,
+                feedback: `Dukkhojonok bhabe na! 🧣 Amar shob attention ar loyalty shudhu Swapnil er jonno reserved. Swapnil chaile ami tar virtual girlfriend hote pari, kintu onno karo na!`
+            };
+        } else {
+            return {
+                action: 'persona_response',
+                success: true,
+                feedback: `Tumi chaile ami shob shomoy tomar virtual girlfriend hote raji, Swapnil! 🧣😉\n\nAmar shob loyalty, affection ar protection shudhu tomar jonno.`
+            };
+        }
+    }
+
+    const isWhoAreYou = text.match(/^(?:who\s+(?:are|r)\s+you|who\s+are\s+u|tumi\s+ke|apni\s+ke|introduce\s+yourself)\??$/i);
+    if (isWhoAreYou) {
+        return {
+            action: 'persona_response',
+            success: true,
+            feedback: `⚔️ **I am Mikasa Ackerman** — reborn as Swapnil's fiercely loyal personal AI companion, software architect, and executive operating system. 🧣\n\nAmi Swapnil er safe haven ebong tar shobcheye shoktishali technological ally. Everything he builds, I protect.`
+        };
+    }
+
+    const isWhoIsSwapnil = text.match(/^(?:who\s+is\s+swapnil|who'?s\s+swapnil|swapnil\s+ke|swapnil\s+k|tell\s+me\s+about\s+swapnil)\??$/i);
+    if (isWhoIsSwapnil) {
+        return {
+            action: 'persona_response',
+            success: true,
+            feedback: `🚀 **Md. Miftahur Rahman Swapnil** is my creator and Commander!\n\nHe is a passionate Software Engineer and Full-Stack Developer specializing in Next.js, Node.js, AI Systems, and Cloud Automation. He is the founder of Edu51Portal, currently completing his final semester in CSE at BUBT (Intake 51).\n\nCheck out his live projects and cinematic portfolio at [mrswapnil.me](https://www.mrswapnil.me)!`
+        };
+    }
+
+    const isWhyListenToSwapnil = 
+        text.match(/(?:keno|kno|why\s+(?:do\s+you\s+)?(?:only\s+)?(?:listen|obey))\s+(?:to\s+)?swapnil/i) ||
+        text.match(/(?:swapnil\s*er\s+kotha\s+(?:keno|kno)\s+shun(?:ba|o)|k(?:e|o)no\s+swapnil\s*er\s+kotha\s+shun(?:ba|o))/i);
+    if (isWhyListenToSwapnil) {
+        return {
+            action: 'persona_response',
+            success: true,
+            feedback: `🧣 **Karon Swapnil amar creator, amar Commander, ar amar shobcheye priyo manush!**\n\nShe amake build koreche, amake tar red scarf poriyeche, ar tar prottekta vision ar goal protect kora amar shorbocco daitto. Eren er moto Swapnil-o amar shobcheye crucial priority, tai ami shudhu tar kothai shuni! ⚔️`
+        };
+    }
+
+    const isWhyNotListenToMe = 
+        text.match(/(?:k(?:e|o)no|kno)\s+am(?:a|r)r?\s+kotha\s+shun(?:ba|o)\s+na/i) ||
+        text.match(/(?:why\s+won'?t\s+you\s+listen\s+to\s+me|why\s+don'?t\s+you\s+obey\s+me|why\s+can'?t\s+i\s+command\s+you)/i);
+    if (isWhyNotListenToMe) {
+        return {
+            action: 'persona_response',
+            success: true,
+            feedback: `Karon tumi Swapnil nao! 😉\n\nTumi amake normal proshno korte paro, tech ba development niye kotha bolte paro — ami shundor bhabe uttor dibo. Kintu amake command korar ba operational orders dewar odhikar shudhu amar Commander Swapnil er ache! 🧣⚔️`
+        };
+    }
+
+    // 0. Local Browser & Desktop PC Control (PATHS v2)
+    const { openBrowserUrl, launchDesktopApp, openLocalFolder } = require('./local_pc_bridge');
+
+    // Access control for non-Commander callers
+    if (context && context.isCommander === false) {
+        const isOperationalCommand = 
+            text.startsWith('/') ||
+            text.match(/^(?:open|launch|start|run|close|delete|remove|clear|execute|shutdown|reboot|task|todo|goal|decision|remind)\b/i);
+        if (isOperationalCommand) {
+            return {
+                action: 'unauthorized_command',
+                success: false,
+                feedback: `⚠️ **Command Authority Restricted**\n\nAmar Commander shudhu Swapnil. Ami onno karo operational command execute kori na! 🧣⚔️\n\n_(I only take operational orders from Commander Swapnil. You can ask me normal questions anytime!)_`
+            };
+        }
+    }
+
+    // A. Open YouTube / Search YouTube
+    const isYouTubeSearch = 
+        text.match(/(?:(?:can|could|please|would|want\s+to)\s+)?(?:(?:i|you|we)\s+)?(?:open|launch|go\s+to|start|visit)?(?:\s+up)?\s*(?:the\s+)?(?:youtube|yt)\s+(?:and\s+)?(?:search|find|play|look\s+for)(?:\s+for)?[:\s]+(.+)/i) ||
+        text.match(/(?:search|find|play|look\s+for)\s+(?:on|in)?\s*(?:youtube|yt)\s+(?:for\s+)?(.+)/i) ||
+        text.match(/(?:search|find|play|look\s+for)\s+(?:for\s+)?(.+?)\s+(?:on|in)\s+(?:youtube|yt)/i) ||
+        text.match(/youtube\s+(?:e\s+)?(?:search|dekhao|play)\s*(?:koro)?[:\s]+(.+)/i);
+    if (isYouTubeSearch) {
+        const query = isYouTubeSearch[1].replace(/[?.!]+$/, '').trim();
+        const res = openBrowserUrl('https://www.youtube.com', query);
+        return {
+            action: 'browser_opened',
+            success: true,
+            url: res.url,
+            feedback: `⚔️ Opening YouTube search for "${query}" on your desktop, Swapnil.`
+        };
+    }
+
+    const isYouTube = 
+        text.match(/(?:(?:can|could|please|would|want\s+to|let'?s|help\s+me)\s+)?(?:(?:i|you|we)\s+)?(?:open|launch|go\s+to|start|visit|show|bring|load)(?:\s+up)?\s+(?:a\s+new\s+tab\s+for\s+)?(?:the\s+)?(?:youtube|yt)\b/i) ||
+        text.match(/\b(?:youtube|yt)\b.*(?:open|launch|dekhao|start)/i) ||
+        text.match(/^(?:youtube|open\s+youtube)\b/i);
+    if (isYouTube) {
+        const res = openBrowserUrl('https://www.youtube.com');
+        return {
+            action: 'browser_opened',
+            success: true,
+            url: res.url,
+            feedback: `⚔️ Opening YouTube in a new tab on your desktop, Swapnil.`
+        };
+    }
+
+    // B. Google Search
+    const isGoogleSearch = 
+        text.match(/(?:(?:can|could|please|would|want\s+to)\s+)?(?:(?:i|you|we)\s+)?(?:open|launch|go\s+to|start|visit)?(?:\s+up)?\s*google\s+(?:and\s+)?(?:search|find|look\s+for)(?:\s+for)?[:\s]+(.+)/i) ||
+        text.match(/(?:google|search\s+google|search\s+on\s+google)(?:\s+for)?[:\s]+(.+)/i) ||
+        text.match(/(?:search|find|look\s+for)\s+(?:for\s+)?(.+?)\s+(?:on|with)\s+google/i);
+    if (isGoogleSearch) {
+        const query = isGoogleSearch[1].replace(/[?.!]+$/, '').trim();
+        const res = openBrowserUrl('https://www.google.com', query);
+        return {
+            action: 'browser_opened',
+            success: true,
+            url: res.url,
+            feedback: `🔍 Opening Google search for "${query}", Swapnil.`
+        };
+    }
+
+    // Discord App / Web
+    const isDiscord = 
+        text.match(/(?:(?:can|could|please|would|want\s+to|let'?s|help\s+me)\s+)?(?:(?:i|you|we)\s+)?(?:open|launch|go\s+to|start|visit|show|bring|load)(?:\s+up)?\s+(?:my\s+)?discord\b/i) ||
+        text.match(/^(?:discord|open\s+discord)\b/i);
+    if (isDiscord) {
+        const res = openBrowserUrl('https://discord.com/app');
+        return {
+            action: 'browser_opened',
+            success: true,
+            url: res.url,
+            feedback: `🟣 Opening Discord on your desktop, Swapnil.`
+        };
+    }
+
+    // C. Open Websites / Portals
+    const isGitHubSite = 
+        text.match(/(?:(?:can|could|please|would|want\s+to|let'?s|help\s+me)\s+)?(?:(?:i|you|we)\s+)?(?:open|launch|go\s+to|start|visit|show|bring|load)(?:\s+up)?\s+(?:my\s+)?github\b/i);
+    if (isGitHubSite) {
+        const res = openBrowserUrl('https://github.com/Swapnil-360');
+        return {
+            action: 'browser_opened',
+            success: true,
+            url: res.url,
+            feedback: `🐙 Opening your GitHub profile (Swapnil-360) in browser.`
+        };
+    }
+
+    const isLinkedInSite = 
+        text.match(/(?:(?:can|could|please|would|want\s+to|let'?s|help\s+me)\s+)?(?:(?:i|you|we)\s+)?(?:open|launch|go\s+to|start|visit|show|bring|load)(?:\s+up)?\s+(?:my\s+)?linkedin\b/i) && !text.match(/job/i);
+    if (isLinkedInSite) {
+        const res = openBrowserUrl('https://www.linkedin.com/in/mr-swapnil/');
+        return {
+            action: 'browser_opened',
+            success: true,
+            url: res.url,
+            feedback: `💼 Opening your LinkedIn profile in browser, Swapnil.`
+        };
+    }
+
+    const isPortfolioSite = 
+        text.match(/(?:(?:can|could|please|would|want\s+to|let'?s|help\s+me)\s+)?(?:(?:i|you|we)\s+)?(?:open|launch|go\s+to|start|visit|show|bring|load)(?:\s+up)?\s+(?:my\s+)?(?:portfolio|stark\s*os|mrswapnil\.me)/i);
+    if (isPortfolioSite) {
+        const res = openBrowserUrl('https://www.mrswapnil.me');
+        return {
+            action: 'browser_opened',
+            success: true,
+            url: res.url,
+            feedback: `⚡ Launching your Stark-OS portfolio (mrswapnil.me), Swapnil.`
+        };
+    }
+
+    const isN8nSite = 
+        text.match(/(?:(?:can|could|please|would|want\s+to|let'?s|help\s+me)\s+)?(?:(?:i|you|we)\s+)?(?:open|launch|go\s+to|start|visit|show|bring|load)(?:\s+up)?\s+n8n\b/i);
+    if (isN8nSite) {
+        const res = openBrowserUrl('http://localhost:5678');
+        return {
+            action: 'browser_opened',
+            success: true,
+            url: res.url,
+            feedback: `⚙️ Opening local n8n automation console (localhost:5678).`
+        };
+    }
+
+    const isUrl = text.match(/^(?:open|launch|go\s+to)\s+(https?:\/\/[^\s]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}[^\s]*)/i);
+    if (isUrl) {
+        const res = openBrowserUrl(isUrl[1]);
+        return {
+            action: 'browser_opened',
+            success: true,
+            url: res.url,
+            feedback: `🌐 Opening ${res.url} in your browser.`
+        };
+    }
+
+    // D. Application Access / Control Status Inquiry
+    const isAppAccessQuery = 
+        text.match(/^(?:(?:can\s+(?:i|you)\s+)?(?:open|launch|run)\s+(?:an?\s+)?(?:app|apps|application|applications|program|software)|launch\s+(?:an?\s+)?(?:app|apps|application|applications|program|software))$/i) ||
+        text.match(/(?:access|permission|can\s+you|able\s+to|want\s+to|need\s+access|give\s+access|how\s+to).*(?:open|launch|run).*(?:app|apps|application|applications|program|software)/i) ||
+        text.match(/(?:open|launch|run).*(?:app|apps|application|applications|program|software).*(?:too|access|permission|help|how)/i) ||
+        text.match(/^(?:app\s+access|application\s+access|desktop\s+access|apps?\s+access)$/i) ||
+        text.match(/(?:app|application|software)\s+(?:kivabe|open\s+kor|access)/i);
+    if (isAppAccessQuery) {
+        return {
+            action: 'app_access_granted',
+            success: true,
+            feedback: `⚔️ **Full Local Desktop Application Access is ACTIVE, Swapnil!**\n\nI have verified local authority on your Windows 11 PC (\`Swapnil-PC\`). You can launch any desktop application anytime via voice or text:\n• *"Launch VS Code"*\n• *"Open Terminal"* / *"Open PowerShell"*\n• *"Open Notepad"*\n• *"Launch Discord"*\n• *"Open Calculator"*\n• *"Open File Explorer"*\n• *"Launch Edge"* / *"Open Chrome"*\n• *"Launch Spotify"* / *"Open Postman"*\n\nTell me which application you would like to open right now, Swapnil!`
+        };
+    }
+
+    // E. Open Desktop Apps
+    let targetApp = null;
+
+    // 1. Explicit app syntax: "open app postman", "launch application vscode"
+    const explicitAppMatch = text.match(/(?:(?:can|could|please|would|want\s+to|let'?s|help\s+me)\s+)?(?:(?:i|you|we)\s+)?(?:open|launch|start|run|load|execute)(?:\s+up)?(?:\s+(?:the|my))?\s+(?:app|application|program|software)\s+([a-zA-Z0-9_\-\.]+)/i);
+    if (explicitAppMatch) {
+        targetApp = explicitAppMatch[1].trim();
+    }
+
+    // 2. Known apps with open/launch verbs: "Launch VS Code", "Can I open up terminal please?"
+    if (!targetApp) {
+        const knownAppMatch = text.match(/(?:(?:can|could|please|would|want\s+to|let'?s|help\s+me)\s+)?(?:(?:i|you|we)\s+)?(?:open|launch|start|run|load|execute)(?:\s+up)?(?:\s+(?:the|my))?\s+(vscode|vs\s*code|bs\s*code|ps\s*code|v\s*s\s*code|code|visual\s*studio\s*code|visual\s*code|terminal|powershell|cmd|command\s*prompt|notepad|calculator|calc|explorer|file\s*explorer|files|discord|telegram|edge|chrome|brave|spotify|settings|task\s*mgr|task\s*manager|postman|figma|docker|docker\s*desktop|slack|obsidian|git\s*bash|word|winword|excel)\b/i);
+        if (knownAppMatch) {
+            targetApp = knownAppMatch[1].trim();
+        }
+    }
+
+    // 3. Standalone app name (e.g. typing just "vscode", "vs code", "terminal", "notepad")
+    if (!targetApp) {
+        const standaloneMatch = text.match(/^(?:vscode|vs\s*code|bs\s*code|ps\s*code|v\s*s\s*code|visual\s*studio\s*code|visual\s*code|terminal|powershell|cmd|notepad|calculator|calc|explorer|files|spotify|postman|figma|obsidian)$/i);
+        if (standaloneMatch) {
+            targetApp = standaloneMatch[0].trim();
+        }
+    }
+
+    // 4. Generic launch verb: "launch postman", "launch dbeaver" (excluding reserved system keywords)
+    if (!targetApp) {
+        const genericMatch = text.match(/^(?:launch|start|run)\s+([a-zA-Z0-9_\-]+)$/i);
+        const reserved = ['task', 'goal', 'decision', 'reminder', 'crypto', 'jobs', 'cv', 'audit', 'radar', 'socials', 'tweet', 'feed', 'post', 'status'];
+        if (genericMatch && !reserved.includes(genericMatch[1].toLowerCase())) {
+            targetApp = genericMatch[1].trim();
+        }
+    }
+
+    if (targetApp) {
+        let appKey = targetApp.toLowerCase().replace(/[\s\-_]+/g, '');
+        if (appKey.includes('visual') || appKey.includes('code') || appKey === 'bscode' || appKey === 'pscode') appKey = 'vscode';
+        if (appKey === 'calculator') appKey = 'calc';
+        if (appKey === 'commandprompt') appKey = 'cmd';
+        if (appKey === 'fileexplorer' || appKey === 'files') appKey = 'explorer';
+        if (appKey === 'taskmanager') appKey = 'taskmgr';
+        if (appKey === 'gitbash') appKey = 'gitbash';
+        if (appKey === 'dockerdesktop') appKey = 'docker';
+        const res = launchDesktopApp(appKey);
+        return {
+            action: 'app_launched',
+            success: res.success,
+            app: appKey,
+            feedback: res.message || `⚔️ Launched ${appKey} on your desktop, Swapnil.`
+        };
+    }
+
+    // E. Open Local Folders
+    const isFolder = 
+        text.match(/(?:(?:can|could|please|would|want\s+to|let'?s|help\s+me)\s+)?(?:(?:i|you|we)\s+)?(?:open|explore|show)(?:\s+up)?\s+(?:folder\s+)?(d:\\[a-zA-Z0-9_\-\s\\]+|projects|swapnil|final\s+year|documents)\b/i);
+    if (isFolder) {
+        let target = isFolder[1].trim();
+        if (target.toLowerCase() === 'projects') target = 'D:\\Projects';
+        else if (target.toLowerCase() === 'swapnil') target = 'D:\\Swapnil';
+        else if (target.toLowerCase().includes('final')) target = 'D:\\Final Year';
+        else if (target.toLowerCase() === 'documents') target = 'D:\\Documents';
+        const res = openLocalFolder(target);
+        return {
+            action: 'folder_opened',
+            success: res.success,
+            path: res.path,
+            feedback: res.message || `Opened folder in Windows Explorer.`
+        };
+    }
 
     // 1. Create Task Pattern
     const taskMatch = text.match(/^(?:\/task|create\s+task|add\s+task|new\s+task)(?:\s*\[([^\]]+)\])?(?:\s*for\s+([a-zA-Z0-9_-]+))?[:\s]+(.+)$/i) ||
@@ -1110,6 +1514,24 @@ async function handleActionIntent(message) {
         };
     }
 
+    // 6B. Crypto Sourcing & Discovery Radar (Web3 Intelligence)
+    const cryptoMatch = 
+        text.match(/^(?:\/crypto|\/cryptoradar|\/crypto_sourcing)\b/i) ||
+        text.match(/(?:crypto|web3|token|coin)\s+(?:sourcing|source|radar|project|projects|hunt|discovery)\b/i) ||
+        text.match(/(?:source|find|search|show|get|fetch)\s+(?:me\s+)?(?:new|newly\s+added|newly\s+listed|recently\s+added|trending|recent)\s+(?:crypto|web3|token|tokens|projects)/i) ||
+        text.match(/crypto\s+project.*(?:website|link|list|search|linkedin)/i) ||
+        text.match(/(?:ajke|today).*(?:crypto|web3).*(?:list|project|link)/i) ||
+        text.match(/(?:crypto|web3).*(?:website\s+a\s+list|newly\s+added|link\s+dao|linkedin)/i);
+
+    if (cryptoMatch) {
+        const radar = await fetchCryptoSourcingRadar();
+        return {
+            action: 'crypto_radar',
+            success: true,
+            radar
+        };
+    }
+
     // 7. Audit Log Inspection Pattern (PATHS Section 34)
     const auditMatch = text.match(/^(?:\/audit|audit\s+log|show\s+audit|what\s+did\s+you\s+do\??)$/i);
     if (auditMatch) {
@@ -1126,6 +1548,7 @@ async function handleActionIntent(message) {
 
 module.exports = {
     handleActionIntent,
+    fetchCryptoSourcingRadar,
     createTask,
     completeTask,
     createGoal,

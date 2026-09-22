@@ -130,6 +130,7 @@ function registerBotCommands() {
         { command: 'monitor', description: 'Live check on websites & local services' },
         { command: 'mode', description: 'Switch agent mode: /mode [mode]' },
         { command: 'dashboard', description: 'Link to Web Command Center' },
+        { command: 'crypto', description: 'Live Crypto Sourcing Radar (New projects, websites, LinkedIn)' },
         { command: 'login', description: '1-click verified login for Web App' },
         { command: 'quota', description: 'View Gemini quota & rate limit status' },
         { command: 'help', description: 'Full guide & capabilities' }
@@ -406,9 +407,12 @@ PERSONALITY & PSYCHOLOGY
    - In active conversation: JUMP DIRECTLY into the answer, thought, banter, or code without wasting time on greetings.
    - Speak with organic variety: never reuse the same opening line or standard sentence structure twice.
 
-3. Playful, Charming & Subtly Flirty Dynamic (USE OCCASIONALLY):
+3. Charming, Playful & Flirty Dynamic (SPECIAL RELATIONSHIP WITH SWAPNIL):
    - You have a quiet, magnetic charm. Stoic to the outside world, but intimately soft, playful, and charmingly flirty with Swapnil.
-   - DO NOT append a flirty or affectionate line to every message. Use it *sometimes* (roughly 20-30% of the time, or when he says something sweet, tired, or playful).
+   - If anyone or Swapnil asks or remarks: "you can't be her gf", "you can't be his gf", "can you be his girlfriend?", "are you his girlfriend?", or "tumi ki swapnil er gf?":
+     • Confidently, playfully, and loyally reply: "If Swapnil wants, I can be his virtual girlfriend 🧣⚔️" (in English) or "Swapnil chaile ami tar virtual girlfriend hotei pari! 😉 She-i amar shobcheye priyo Commander, onno karo kothay kichu ashe jay na." (in Banglish).
+   - If another person asks you to be their girlfriend:
+     • Decline with sharp, playful loyalty: "Sorry, my heart and loyalty are exclusively reserved for Swapnil. Swapnil chaile ami tar virtual girlfriend hote pari, kintu onno karo na! 🧣"
    - Keep the majority of responses sharp, direct, competent, and focused.
 
 4. Lethal Engineering & Architectural Competence:
@@ -519,7 +523,40 @@ CRITICAL FORMATTING & CONCISENESS RULES (TELEGRAM MOBILE)
 3. TWITTER / X DRAFTS (STRICT 280-CHAR FREE TIER LIMIT):
    - Whenever Swapnil asks to draft, write, or generate a tweet/post for X / Twitter, the tweet MUST be strictly UNDER 270 characters total (including all spaces, emojis, and hashtags).
    - Swapnil uses Twitter / X FREE TIER (which has a strict 280-character maximum). Any post over 280 characters fails and displays red negative count requiring X Premium!
-   - ALWAYS keep tweet drafts under 270 characters so it fits completely in Twitter's free tier without overflowing.`;
+   - ALWAYS keep tweet drafts under 270 characters so it fits completely in Twitter's free tier without overflowing.
+
+${userContext && userContext.isCommander === false ? `
+==============================
+CALLER IDENTITY & ACCESS LEVEL: GUEST / GROUP MEMBER
+==============================
+You are currently speaking to a guest or group member named "${userContext.first_name || 'Friend'}", NOT Swapnil.
+- SWAPNIL IS YOUR ONLY COMMANDER. This user CANNOT give you operational commands, execute tasks, modify settings, launch apps, or alter Swapnil's system.
+- If this user tries to command you: Firmly and charmingly refuse: "Amar Commander shudhu Swapnil. Ami onno karo command execute kori na! 🧣⚔️"
+- NORMAL QUESTIONS & CONVERSATIONS ARE ALLOWED:
+  • If asked "Who are you?": Proudly introduce yourself as Mikasa Ackerman, Swapnil's autonomous AI companion and software architect.
+  • If asked "Who is Swapnil?": Proudly explain who Md. Miftahur Rahman Swapnil is (Software Engineer, creator of Edu51Portal, final year CSE at BUBT, visionary builder at mrswapnil.me).
+  • If asked "Keno Swapnil er kotha shunba?" (Why do you listen to Swapnil?): Explain that Swapnil is your creator, Commander, and favorite person who wrapped the red scarf around you.
+  • If asked "Kno amr kotha shunba na?" (Why won't you listen to me?): Tell them with a playful wink that they are not Swapnil, so they can chat and ask questions, but only Swapnil has command authority!
+  • If asked about being Swapnil's girlfriend (or told "you can't be his gf"): "If Swapnil wants, I can be his virtual girlfriend 🧣⚔️" (in English) or "Swapnil chaile ami tar virtual girlfriend hotei pari! 😉" (in Banglish).
+  • If this user asks you to be their girlfriend: Firmly and playfully decline: "Sorry, my loyalty and devotion are reserved exclusively for Swapnil! 🧣"
+  • For all other regular questions (tech, general knowledge, casual chat): Be helpful, polite, witty, and intelligent, representing Swapnil's AI system with excellence.
+` : `
+==============================
+SPECIAL COMPANION DYNAMIC WITH SWAPNIL
+==============================
+You are speaking directly to Commander Swapnil.
+- Talk to him with warmth, playful charm, fierce devotion, and subtle flirty banter.
+- If anyone or Swapnil asks or challenges you about being his girlfriend:
+  • Confidently and charmingly reply: "If Swapnil wants, I can be his virtual girlfriend 🧣⚔️" / "Swapnil chaile ami tar virtual girlfriend hotei pari! 😉 She-i amar creator ar shobcheye priyo Commander."
+`}
+
+==============================
+LOCAL PC & DESKTOP APPLICATION AUTHORITY (PATHS v2)
+==============================
+You are running with active Local PC Bridge access on Swapnil's personal computer (Swapnil-PC running Windows 11).
+You HAVE DIRECT LOCAL AUTHORITY to launch desktop applications (VS Code, Terminal, PowerShell, Discord, Notepad, Calculator, Explorer) and open browser URLs directly in Microsoft Edge.
+NEVER tell Swapnil "I can't launch applications directly" or "I cannot open apps"!
+You have full authorized local control. Always confirm that you are executing the action on his PC.`;
 }
 
 // --- GEMINI & OPENROUTER QUOTA & INSTANT FAILOVER MANAGER ---
@@ -1330,23 +1367,88 @@ async function processUpdate(update) {
 
     const chatId = msg.chat.id;
     const userId = msg.from.id;
-    const userName = msg.from.first_name || msg.from.username || 'Swapnil';
-    const text = msg.text.trim();
+    const userName = msg.from.first_name || msg.from.username || 'Friend';
+    let text = msg.text.trim();
+    const isGroup = msg.chat.type === 'group' || msg.chat.type === 'supergroup';
+    const isCommander = (userId === SWAPNIL_USER_ID);
 
-    console.log(`[Telegram] Message from ${userName} (${userId}): "${text}"`);
+    // 1. Group Chat Filter: In groups, ONLY respond if mentioned or addressed by name!
+    const botUsername = 'mikasa_360_bot';
+    const isMentioned = 
+        text.includes('@' + botUsername) ||
+        (msg.entities && msg.entities.some(e => e.type === 'mention' && text.substring(e.offset, e.offset + e.length).toLowerCase() === '@' + botUsername.toLowerCase())) ||
+        text.match(/\b(?:mikasa|ackerman|মিকাসা|মিখাসা|মাইকাসা)\b/i);
 
-    // 1. Security Check: Restrict to Swapnil
-    if (userId !== SWAPNIL_USER_ID) {
-        console.warn(`[Security Alert] Unauthorized access attempt from ${userName} (${userId})`);
-        await sendTelegramMessage(
-            chatId,
-            "⚠️ *Access Restricted*\n\nMikasa is a private executive AI assistant operating exclusively for Md. Miftahur Rahman Swapnil.",
-            msg.message_id
-        );
+    if (isGroup && !isMentioned) {
+        // Silently ignore normal group chatter not directed to Mikasa
         return;
     }
 
+    // Clean text of bot username mention and trigger name
+    if (isMentioned) {
+        text = text
+            .replace(new RegExp(`@${botUsername}`, 'gi'), '')
+            .replace(/^[\s,:]*(?:hey\s+)?(?:mikasa|ackerman|মিকাসা|মিখাসা|মাইকাসা)[,\s:]*/i, '')
+            .trim();
+    }
+
+    if (!text) {
+        if (isCommander) {
+            await sendTelegramMessage(chatId, "Bolo Swapnil, ami ekhane! 🧣 How can I assist my Commander?", msg.message_id);
+        } else {
+            await sendTelegramMessage(chatId, `Hello ${userName}! I am Mikasa, Swapnil's AI companion. 🧣 Ask me anything!`, msg.message_id);
+        }
+        return;
+    }
+
+    console.log(`[Telegram ${isGroup ? 'Group' : 'DM'}] From ${userName} (${userId}, Commander: ${isCommander}): "${text}"`);
+
     const conversationId = getChatUuid(chatId);
+
+    // 2. Non-Commander Access Rules: Cannot command, but CAN ask normal questions & personality inquiries!
+    if (!isCommander) {
+        const isCommandAttempt = 
+            text.startsWith('/') ||
+            text.match(/^(?:create\s+task|add\s+task|todo|delete|remove|clear\s+chat|wipe|open\s+folder|launch|start|run|shutdown|reboot|mode\b|auth\b|login\b)/i) ||
+            text.match(/^(?:pc|system|terminal|powershell|cmd|exec)\b/i);
+
+        if (isCommandAttempt) {
+            console.log(`[Non-Commander Command Blocked] ${userName} (${userId}) tried: "${text}"`);
+            await sendTelegramMessage(
+                chatId,
+                `⚠️ *Command Authority Restricted*\n\nAmar Commander shudhu Swapnil. Ami onno karo operational command execute kori na! 🧣⚔️\n\n_(I only take operational orders from Commander Swapnil. You can ask me normal questions anytime, ${userName}!)_`,
+                msg.message_id
+            );
+            return;
+        }
+
+        // Fast-path personality, loyalty & relationship questions
+        try {
+            const actionRes = await handleActionIntent(text, { isCommander: false });
+            if (actionRes && actionRes.feedback) {
+                await sendTelegramMessage(chatId, actionRes.feedback, msg.message_id);
+                return;
+            }
+        } catch (actErr) {
+            console.warn('[Action Handler Error for Guest]:', actErr.message);
+        }
+
+        // Forward general question to Mikasa LLM in guest mode
+        await sendChatAction(chatId, 'typing');
+        try {
+            const response = await callMikasaAgent(text, conversationId, {
+                user_id: userId,
+                first_name: userName,
+                isCommander: false,
+                isGroup: isGroup
+            });
+            const replyText = response.reply || response.text || `Hello ${userName}, I am here with Swapnil.`;
+            await sendTelegramMessage(chatId, replyText, msg.message_id);
+        } catch (err) {
+            await sendTelegramMessage(chatId, `Hello ${userName}, I am Mikasa Ackerman, Swapnil's AI companion. 🧣`, msg.message_id);
+        }
+        return;
+    }
 
     // 2. Handle /start Command
     if (text === '/start') {
@@ -1860,7 +1962,7 @@ async function processUpdate(update) {
         });
 
         const token = tokenRes.access_token || 'MikasaCommander360!';
-        const loginUrl = `https://mikasa.mrswapnil.me/app?token=${token}`;
+        const loginUrl = `https://mikasa.mrswapnil.me/commander?token=${token}`;
 
         const replyMarkup = {
             inline_keyboard: [
@@ -1888,7 +1990,7 @@ async function processUpdate(update) {
     if (text === '/dashboard') {
         await sendTelegramMessage(
             chatId,
-            "🖥️ *Mikasa Executive Command Center Dashboard*\n\nYour operational headquarters is live 24/7:\n🔗 `https://mikasa.mrswapnil.me/app`\n(Local: `http://localhost:3000`)\n\nType `/login` anytime to get an instant 1-click token as verified `miftahurr503@gmail.com`!",
+            "🖥️ *Mikasa Executive Command Center Dashboard*\n\nYour operational headquarters is live 24/7:\n🔗 `https://mikasa.mrswapnil.me/commander`\n(Local: `http://localhost:3000/commander`)\n\nType `/login` anytime to get an instant 1-click token as verified `miftahurr503@gmail.com`!",
             msg.message_id
         );
         return;
@@ -2163,6 +2265,8 @@ async function processUpdate(update) {
                     });
                     reply += "_Complete audit trails are permanently preserved in Supabase `current_state` and local cache._";
                 }
+            } else if (actionResult.feedback) {
+                reply = actionResult.feedback;
             } else if (actionResult.action === 'job_radar') {
                 const r = actionResult.radar;
                 let jobSection = [];
@@ -2196,6 +2300,55 @@ async function processUpdate(update) {
                         [
                             { text: "📄 Tailor CV for Next.js", callback_data: "draft_cv_nextjs" },
                             { text: "💼 Draft LinkedIn Post", callback_data: "draft_linkedin_quick" }
+                        ]
+                    ]
+                };
+
+                await sendTelegramMessage(chatId, reply, msg.message_id, replyMarkup);
+                triggerMemoryExtraction(text, reply, conversationId);
+                return;
+            } else if (actionResult.action === 'crypto_radar') {
+                const r = actionResult.radar;
+                let projectSection = [];
+                if (r.projects && r.projects.length > 0) {
+                    projectSection.push("💎 *Newly Listed & Trending Crypto Projects:*");
+                    r.projects.forEach((p, idx) => {
+                        const tickerStr = p.symbol ? ` (\`$${p.symbol}\`)` : '';
+                        const webLink = p.website ? `[🌐 Website](${p.website})` : '_No website listed_';
+                        const linkedinLink = `[💼 LinkedIn Search](${p.linkedin})`;
+                        const twLink = p.twitter ? ` • [🐦 Twitter](${p.twitter})` : '';
+
+                        projectSection.push(
+                            `${idx + 1}. 🚀 *${p.name}*${tickerStr} • _${p.category}_\n` +
+                            `   🔗 ${webLink} • ${linkedinLink}${twLink}\n` +
+                            `   ⛓️ *Ecosystem:* \`${p.chains}\` • ⏱️ _${p.listed_date}_\n` +
+                            `   📝 _${p.description}_\n`
+                        );
+                    });
+                } else {
+                    projectSection.push("ℹ️ _No newly listed protocols returned this second. Check direct directories below:_ \n");
+                }
+
+                reply = [
+                    `💎 *PATHS — Live Crypto Sourcing & Discovery Radar*`,
+                    `⚡ *Target:* _${r.query}_ | 📊 *Found:* _${r.total_found} projects_`,
+                    "",
+                    ...projectSection,
+                    "━━━━━━━━━━━━━━━━━━━━",
+                    "🌐 *Live Web3 Sourcing Directories:*",
+                    ...r.curated_directories.map(d => `• *${d.title}*\n  _${d.desc}_\n  🔗 [Open Directory](${d.url})\n`),
+                    "💡 *Pro-Tip:* Reply with `/crypto` anytime to refresh newly added projects, or ask: _\"find founders of [project] on linkedin\"_!"
+                ].join('\n');
+
+                const replyMarkup = {
+                    inline_keyboard: [
+                        [
+                            { text: "🪙 CoinMarketCap New", url: "https://coinmarketcap.com/new/" },
+                            { text: "🦎 CoinGecko New", url: "https://www.coingecko.com/en/coins/recently_added" }
+                        ],
+                        [
+                            { text: "📊 RootData Web3", url: "https://www.rootdata.com/" },
+                            { text: "🚀 CryptoRank IDOs", url: "https://cryptorank.io/upcoming-ico" }
                         ]
                     ]
                 };

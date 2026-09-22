@@ -249,11 +249,28 @@ document.addEventListener('DOMContentLoaded', () => {
     setInterval(loadQuotaTelemetry, 15000);
 });
 
-// --- TAB SWITCHING ---
+// --- TAB & SECTOR SWITCHING ---
 function initTabs() {
+    const sectorBtns = document.querySelectorAll('.sector-tab-btn');
+    const sectorPanels = document.querySelectorAll('.sector-panel');
+
+    sectorBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            sectorBtns.forEach(b => b.classList.remove('active'));
+            sectorPanels.forEach(p => p.classList.remove('active'));
+
+            btn.classList.add('active');
+            const targetSectorId = btn.getAttribute('data-sector');
+            const targetPanel = document.getElementById(targetSectorId);
+            if (targetPanel) {
+                targetPanel.classList.add('active');
+            }
+        });
+    });
+
+    // Also support any legacy .tab-btn elements if present
     const tabBtns = document.querySelectorAll('.tab-btn');
     const tabContents = document.querySelectorAll('.tab-content');
-
     tabBtns.forEach(btn => {
         btn.addEventListener('click', () => {
             tabBtns.forEach(b => b.classList.remove('active'));
@@ -535,8 +552,8 @@ function renderTasks() {
         const isCompleted = t.status === 'completed';
         const prioIcon = t.priority >= 8 ? '🔥' : (t.priority >= 5 ? '⚡' : '📌');
         return `
-            <div class="task-item ${isCompleted ? 'completed' : ''}" id="task-item-${t.id}">
-                <div class="task-left">
+            <div class="task-hud-item ${isCompleted ? 'completed' : ''}" id="task-item-${t.id}">
+                <div class="task-hud-left">
                     <input 
                         type="checkbox" 
                         class="task-checkbox" 
@@ -545,10 +562,10 @@ function renderTasks() {
                         onchange="toggleTaskStatus('${t.id}', this.checked)"
                         title="${isCommander ? 'Toggle completion' : '🔒 Observer Mode (Read Only)'}"
                     />
-                    <span class="task-title">${escapeHtml(t.title)}</span>
+                    <span class="task-hud-title">${escapeHtml(t.title)}</span>
                 </div>
-                <div class="task-meta">
-                    <span class="prio-badge">${prioIcon} P${t.priority || 5}</span>
+                <div class="task-hud-meta">
+                    <span class="${t.priority >= 8 ? 'priority-pill-high' : 'priority-pill-med'}">${prioIcon} P${t.priority || 5}</span>
                 </div>
             </div>
         `;
@@ -1026,26 +1043,26 @@ async function loadLiveLinkedInJobs(query = 'Frontend Developer Next.js', loc = 
         
         let html = '';
         if (data.live_jobs && data.live_jobs.length > 0) {
-            html += `<div class="linkedin-jobs-grid">` + data.live_jobs.map(j => `
-                <div class="job-card-radar">
+            html += data.live_jobs.map(j => `
+                <div class="job-radar-hud-card">
                     <div>
-                        <div class="job-radar-title">${escapeHtml(j.title)}</div>
-                        <div class="job-radar-company">🏢 ${escapeHtml(j.company)}</div>
-                        <div class="job-radar-meta">
+                        <div class="job-title">${escapeHtml(j.title)}</div>
+                        <div class="job-company">🏢 ${escapeHtml(j.company)}</div>
+                        <div class="job-meta" style="margin-top: 6px;">
                             <span>📍 ${escapeHtml(j.location)}</span>
                             <span>⏱️ ${escapeHtml(j.posted)}</span>
                         </div>
                     </div>
-                    <div class="job-radar-actions">
-                        <a href="${j.url}" target="_blank" rel="noopener noreferrer" class="btn-job-apply">
+                    <div class="job-actions" style="margin-top: 10px;">
+                        <a href="${j.url}" target="_blank" rel="noopener noreferrer" class="btn-apply-linkedin">
                             🔗 Apply on LinkedIn
                         </a>
-                        <button type="button" class="btn-job-tailor" onclick="window.tailorForJob('${escapeHtml(j.title.replace(/'/g, "\\'"))}')">
+                        <button type="button" class="btn-tailor-cv-quick" onclick="window.tailorForJob('${escapeHtml(j.title.replace(/'/g, "\\'"))}')">
                             📄 Tailor CV
                         </button>
                     </div>
                 </div>
-            `).join('') + `</div>`;
+            `).join('');
         } else {
             html += `<div style="text-align: center; color: #94a3b8; padding: 14px;">No live postings returned for "${escapeHtml(query)}" in "${escapeHtml(loc)}". Check the direct search feeds below.</div>`;
         }
@@ -1075,7 +1092,7 @@ async function loadLiveLinkedInJobs(query = 'Frontend Developer Next.js', loc = 
 function initChat() {
     const form = document.getElementById('chat-form');
     const input = document.getElementById('chat-input');
-    const chips = document.querySelectorAll('.chip');
+    const chips = document.querySelectorAll('.chip, .hud-chip-btn');
 
     form?.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -1111,14 +1128,14 @@ async function sendMessageToMikasa(text) {
 
     // 1. Append User Bubble
     const userBubble = document.createElement('div');
-    userBubble.className = 'chat-bubble bubble-user';
+    userBubble.className = 'chat-bubble-hud bubble-swapnil';
     userBubble.textContent = text;
     messagesContainer.appendChild(userBubble);
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
     // 2. Append Typing Indicator
     const typingBubble = document.createElement('div');
-    typingBubble.className = 'chat-bubble bubble-mikasa';
+    typingBubble.className = 'chat-bubble-hud bubble-mikasa';
     typingBubble.id = 'chat-typing-indicator';
     typingBubble.innerHTML = `
         <div class="typing-dots">
@@ -1150,9 +1167,26 @@ async function sendMessageToMikasa(text) {
         const data = await res.json();
         typingBubble.remove();
 
-        const reply = data.reply || 'I am here with you, Swapnil.';
+        let reply = data.reply || 'I am here with you, Swapnil.';
+        if (data.actionResult && data.actionResult.feedback && !reply.includes(data.actionResult.feedback)) {
+            reply += `\n\n⚡ *[Action Executed]*: ${data.actionResult.feedback}`;
+        }
         appendMikasaChatMessage(reply);
         loadQuotaTelemetry();
+
+        // If intent opened a browser URL, open tab directly in active browser
+        if (data.actionResult && data.actionResult.action === 'browser_opened' && data.actionResult.url) {
+            try {
+                window.open(data.actionResult.url, '_blank');
+            } catch (e) {
+                console.warn('[Client Window Open Error]:', e);
+            }
+        }
+
+        // If intent launched a desktop application, show confirmation toast
+        if (data.actionResult && data.actionResult.action === 'app_launched') {
+            showToast(data.actionResult.feedback || `Launched ${data.actionResult.app} on desktop`, "success");
+        }
 
         // Auto-refresh memories and tasks silently
         setTimeout(() => {
@@ -1171,10 +1205,10 @@ async function sendMessageToMikasa(text) {
 function appendMikasaChatMessage(text) {
     const messagesContainer = document.getElementById('chat-messages-container');
     const bubble = document.createElement('div');
-    bubble.className = 'chat-bubble bubble-mikasa';
+    bubble.className = 'chat-bubble-hud bubble-mikasa';
     bubble.innerHTML = `
         <div style="display: flex; align-items: flex-start; gap: 10px;">
-            <img src="/Mikasa-logo.jpeg" alt="Mikasa" class="chat-avatar-mikasa">
+            <img src="/Mikasa-logo.jpeg" alt="Mikasa" class="companion-avatar" style="width: 26px; height: 26px; flex-shrink: 0;">
             <div style="flex: 1; line-height: 1.5;">${formatMarkdown(text)}</div>
         </div>
     `;
@@ -1308,6 +1342,169 @@ function initPCHub() {
         });
     }
 
+    // 8. Quick Launch Dock Actions (Browser & Desktop Apps)
+    const dockTiles = document.querySelectorAll('.dock-tile-btn[data-action]');
+    dockTiles.forEach(tile => {
+        tile.addEventListener('click', async (e) => {
+            e.preventDefault();
+            const action = tile.getAttribute('data-action');
+            if (!isCommander) {
+                showToast("🔒 Quick Launch PC actions require verified Commander passkey.", "warning");
+                openModal('modal-commander-login');
+                return;
+            }
+
+            try {
+                if (action === 'open-youtube') {
+                    showToast("🔴 Opening YouTube in browser...", "info");
+                    window.open('https://www.youtube.com', '_blank');
+                    const res = await authFetch('/api/pc/browser/open', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ url: 'https://www.youtube.com' })
+                    });
+                    const d = await res.json();
+                    showToast(d.message || "YouTube launched", "success");
+                } else if (action === 'open-github') {
+                    showToast("🐙 Opening GitHub Swapnil-360...", "info");
+                    window.open('https://github.com/Swapnil-360', '_blank');
+                    const res = await authFetch('/api/pc/browser/open', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ url: 'https://github.com/Swapnil-360' })
+                    });
+                    const d = await res.json();
+                    showToast(d.message || "GitHub opened", "success");
+                } else if (action === 'launch-vscode') {
+                    showToast("💻 Launching VS Code on local PC...", "info");
+                    const res = await authFetch('/api/pc/app/launch', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ app: 'vscode' })
+                    });
+                    const d = await res.json();
+                    showToast(d.message || "VS Code launched", "success");
+                } else if (action === 'launch-terminal') {
+                    showToast("⚡ Launching PowerShell Terminal...", "info");
+                    const res = await authFetch('/api/pc/app/launch', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ app: 'terminal' })
+                    });
+                    const d = await res.json();
+                    showToast(d.message || "Terminal launched", "success");
+                } else if (action === 'open-google') {
+                    window.open('https://www.google.com', '_blank');
+                    const res = await authFetch('/api/pc/browser/open', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ url: 'https://www.google.com' })
+                    });
+                    const d = await res.json();
+                    showToast(d.message || "Google opened", "success");
+                } else if (action === 'open-linkedin') {
+                    window.open('https://www.linkedin.com/in/mr-swapnil/', '_blank');
+                    const res = await authFetch('/api/pc/browser/open', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ url: 'https://www.linkedin.com/in/mr-swapnil/' })
+                    });
+                    const d = await res.json();
+                    showToast(d.message || "LinkedIn opened", "success");
+                } else if (action === 'open-portfolio') {
+                    window.open('https://www.mrswapnil.me', '_blank');
+                    const res = await authFetch('/api/pc/browser/open', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ url: 'https://www.mrswapnil.me' })
+                    });
+                    const d = await res.json();
+                    showToast(d.message || "Portfolio opened", "success");
+                } else if (action === 'open-n8n') {
+                    window.open('http://localhost:5678', '_blank');
+                    const res = await authFetch('/api/pc/browser/open', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ url: 'http://localhost:5678' })
+                    });
+                    const d = await res.json();
+                    showToast(d.message || "n8n Studio opened", "success");
+                } else if (action === 'open-projects-folder') {
+                    showToast("📁 Opening D:\\Projects in Windows Explorer...", "info");
+                    const res = await authFetch('/api/pc/browser/open', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ folder: 'D:\\Projects' })
+                    });
+                    const d = await res.json();
+                    showToast(d.message || "Folder opened", "success");
+                } else if (action === 'open-swapnil-folder') {
+                    showToast("📁 Opening D:\\Swapnil in Windows Explorer...", "info");
+                    const res = await authFetch('/api/pc/browser/open', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ folder: 'D:\\Swapnil' })
+                    });
+                    const d = await res.json();
+                    showToast(d.message || "Folder opened", "success");
+                } else if (action === 'open-discord') {
+                    showToast("🟣 Opening Discord...", "info");
+                    window.open('https://discord.com/app', '_blank');
+                    const res = await authFetch('/api/pc/browser/open', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ url: 'https://discord.com/app' })
+                    });
+                    const d = await res.json();
+                    showToast(d.message || "Discord launched", "success");
+                } else if (action === 'open-crypto-sourcing') {
+                    showToast("💎 Querying live Web3 & Crypto Radar...", "info");
+                    await sendMessageToMikasa("Find newly listed crypto projects and tokens");
+                }
+            } catch (err) {
+                showToast("Action error: " + err.message, "warning");
+            }
+        });
+    });
+
+    // 9. Quick Search Launcher Bar
+    const inputQuickSearch = document.getElementById('input-quick-search');
+    const btnQuickGoogle = document.getElementById('btn-quick-google');
+    const btnQuickYoutube = document.getElementById('btn-quick-youtube');
+
+    async function triggerQuickSearch(engine = 'google') {
+        const query = (inputQuickSearch?.value || '').trim();
+        if (!query) {
+            showToast("Please enter search terms first", "info");
+            return;
+        }
+        const url = engine === 'youtube'
+            ? `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`
+            : `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+
+        try {
+            showToast(`Opening ${engine === 'youtube' ? 'YouTube' : 'Google'} for "${query}"...`, "info");
+            window.open(url, '_blank');
+            const res = await authFetch('/api/pc/browser/open', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url })
+            });
+            const d = await res.json();
+            showToast(d.message || "Search opened in browser", "success");
+        } catch (e) {
+            showToast("Search launch error: " + e.message, "warning");
+        }
+    }
+
+    if (btnQuickGoogle) btnQuickGoogle.addEventListener('click', () => triggerQuickSearch('google'));
+    if (btnQuickYoutube) btnQuickYoutube.addEventListener('click', () => triggerQuickSearch('youtube'));
+    if (inputQuickSearch) {
+        inputQuickSearch.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') triggerQuickSearch('google');
+        });
+    }
+
     // Initial Telemetry & Monitors Load
     loadPCTelemetry();
     loadServiceMonitors();
@@ -1323,9 +1520,14 @@ function initJarvisVoice() {
     const labelHeaderVoice = document.getElementById('label-header-voice');
     const voiceLabel = document.getElementById('voice-label');
     const voiceFeedback = document.getElementById('voice-feedback');
+    const btnArcReactor = document.getElementById('btn-arc-reactor');
+    const reactorRingsWrapper = document.getElementById('reactor-rings-wrapper');
+    const visualizerBars = document.getElementById('audio-visualizer-bars');
+    const reactorStatusText = document.getElementById('reactor-status-text');
+
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
-    const allVoiceBtns = [btnVoice, btnChatMic, btnHeaderVoice, btnChatHeaderVoice].filter(Boolean);
+    const allVoiceBtns = [btnVoice, btnChatMic, btnHeaderVoice, btnChatHeaderVoice, btnArcReactor, reactorRingsWrapper].filter(Boolean);
 
     if (!SpeechRecognition) {
         if (voiceFeedback) voiceFeedback.textContent = "Web Speech API not supported in this browser. Use chat input.";
@@ -1343,6 +1545,9 @@ function initJarvisVoice() {
     speechRecognitionInstance.onstart = () => {
         isVoiceListening = true;
         allVoiceBtns.forEach(btn => btn.classList.add('listening'));
+        if (reactorRingsWrapper) reactorRingsWrapper.classList.add('listening');
+        if (visualizerBars) visualizerBars.classList.add('speaking');
+        if (reactorStatusText) reactorStatusText.textContent = "LISTENING...";
         if (labelHeaderVoice) labelHeaderVoice.textContent = "Listening...";
         if (voiceLabel) voiceLabel.textContent = "Listening... Speak now";
         if (voiceFeedback) voiceFeedback.textContent = "Mikasa is listening to your microphone...";
@@ -1364,6 +1569,9 @@ function initJarvisVoice() {
         console.warn('Speech recognition error:', event.error);
         isVoiceListening = false;
         allVoiceBtns.forEach(btn => btn.classList.remove('listening'));
+        if (reactorRingsWrapper) reactorRingsWrapper.classList.remove('listening');
+        if (visualizerBars) visualizerBars.classList.remove('speaking');
+        if (reactorStatusText) reactorStatusText.textContent = "SPEAK [V]";
         if (labelHeaderVoice) labelHeaderVoice.textContent = "Voice Mode";
         if (voiceLabel) voiceLabel.textContent = 'Speak Command ("Hey Mikasa...")';
         if (voiceFeedback) voiceFeedback.textContent = `Voice recognition notice: ${event.error}. Click to retry.`;
@@ -1372,6 +1580,9 @@ function initJarvisVoice() {
     speechRecognitionInstance.onend = () => {
         isVoiceListening = false;
         allVoiceBtns.forEach(btn => btn.classList.remove('listening'));
+        if (reactorRingsWrapper) reactorRingsWrapper.classList.remove('listening');
+        if (visualizerBars) visualizerBars.classList.remove('speaking');
+        if (reactorStatusText) reactorStatusText.textContent = "SPEAK [V]";
         if (labelHeaderVoice) labelHeaderVoice.textContent = "Voice Mode";
         if (voiceLabel) voiceLabel.textContent = 'Speak Command ("Hey Mikasa...")';
     };
@@ -1390,6 +1601,18 @@ function initJarvisVoice() {
     }
 
     allVoiceBtns.forEach(btn => btn.addEventListener('click', toggleVoice));
+
+    // Global keyboard shortcut: Press 'v' or 'V' to toggle voice (when not in input)
+    window.addEventListener('keydown', (e) => {
+        const tag = (document.activeElement?.tagName || '').toLowerCase();
+        if (tag === 'input' || tag === 'textarea' || document.activeElement?.isContentEditable) {
+            return;
+        }
+        if (e.key === 'v' || e.key === 'V') {
+            e.preventDefault();
+            toggleVoice();
+        }
+    });
 }
 
 async function handleVoiceCommand(spokenText) {
@@ -1404,12 +1627,20 @@ async function handleVoiceCommand(spokenText) {
 
     if (speechSynthEnabled && window.speechSynthesis) {
         setTimeout(() => {
-            const bubbles = document.querySelectorAll('.chat-bubble.bubble-mikasa');
+            const visualizerBars = document.getElementById('audio-visualizer-bars');
+            const bubbles = document.querySelectorAll('.chat-bubble-hud.bubble-mikasa, .chat-bubble.bubble-mikasa');
             const lastBubble = bubbles[bubbles.length - 1];
             if (lastBubble) {
                 const cleanVoiceText = lastBubble.textContent.replace(/[*_#`~\[\]\(\)]/g, ' ').replace(/\s+/g, ' ').trim();
                 const utterance = new SpeechSynthesisUtterance(cleanVoiceText.slice(0, 280));
                 utterance.rate = 1.05;
+                if (visualizerBars) visualizerBars.classList.add('speaking');
+                utterance.onend = () => {
+                    if (visualizerBars) visualizerBars.classList.remove('speaking');
+                };
+                utterance.onerror = () => {
+                    if (visualizerBars) visualizerBars.classList.remove('speaking');
+                };
                 window.speechSynthesis.speak(utterance);
             }
         }, 1200);

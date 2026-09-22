@@ -25,6 +25,7 @@ const {
     tailorCvForJob,
     generateLinkedInJobRadar,
     fetchLiveLinkedInJobs,
+    fetchCryptoSourcingRadar,
     generateOptimizedPrompt,
     addNote,
     supabaseRequest
@@ -46,7 +47,10 @@ const {
     privacyControls,
     updatePrivacyControls,
     currentAgentMode,
-    setAgentMode
+    setAgentMode,
+    openBrowserUrl,
+    launchDesktopApp,
+    openLocalFolder
 } = require('../local_pc_bridge');
 
 const COMMANDER_EMAIL = process.env.COMMANDER_EMAIL || 'miftahurr503@gmail.com';
@@ -214,18 +218,11 @@ const server = http.createServer(async (req, res) => {
         // Commander Login API
         if (pathname === '/api/auth/login' && req.method === 'POST') {
             const body = await parseBody(req);
+            const passkey = (body.passkey || body.password || '').trim();
             const email = (body.email || '').trim().toLowerCase();
-            const password = body.password || '';
 
-            if (email !== COMMANDER_EMAIL.toLowerCase()) {
-                return sendJson(res, 403, {
-                    success: false,
-                    error: "Access restricted. Invalid commander credentials."
-                });
-            }
-
-            // Direct passkey check
-            if (password === COMMANDER_PASSKEY) {
+            // Direct passkey check (MikasaCommander360! allows instant 1-click unlock from landing page)
+            if (passkey === COMMANDER_PASSKEY) {
                 return sendJson(res, 200, {
                     success: true,
                     access_token: COMMANDER_PASSKEY,
@@ -237,8 +234,15 @@ const server = http.createServer(async (req, res) => {
                 });
             }
 
+            if (email && email !== COMMANDER_EMAIL.toLowerCase()) {
+                return sendJson(res, 403, {
+                    success: false,
+                    error: "Access restricted. Invalid commander credentials."
+                });
+            }
+
             // Verify with Supabase Auth
-            const payload = JSON.stringify({ email, password });
+            const payload = JSON.stringify({ email, password: passkey });
             const tokenRes = await new Promise((resolve) => {
                 const r = https.request({
                     hostname: 'qjhrmctbrobpnoumzmju.supabase.co',
@@ -417,6 +421,16 @@ const server = http.createServer(async (req, res) => {
             return sendJson(res, 200, guide);
         }
 
+        // Live Crypto Sourcing & Discovery Radar API
+        if (pathname === '/api/crypto/radar' && req.method === 'GET') {
+            try {
+                const radar = await fetchCryptoSourcingRadar();
+                return sendJson(res, 200, radar);
+            } catch (err) {
+                return sendJson(res, 500, { error: err.message });
+            }
+        }
+
         // Live LinkedIn Jobs & Career Radar API
         if (pathname === '/api/career/jobs' && req.method === 'GET') {
             const q = parsedUrl.searchParams.get('q') || 'Frontend Developer Next.js';
@@ -516,11 +530,13 @@ const server = http.createServer(async (req, res) => {
             const conversationId = getSessionUuid(body.conversation_id || 'commander_session');
 
             let replyText = '';
+            let actionData = null;
 
-            // Check if message is a direct action intent (e.g. Job Search, Task, Goal, Decision)
+            // Check if message is a direct action intent (e.g. Job Search, Task, Goal, Decision, Browser)
             try {
                 const actionRes = await handleActionIntent(message);
                 if (actionRes) {
+                    actionData = actionRes;
                     if (actionRes.action === 'job_radar') {
                         const r = actionRes.radar;
                         let jobsList = '';
@@ -531,6 +547,15 @@ const server = http.createServer(async (req, res) => {
                         replyText = `🎯 **PATHS — Live LinkedIn Opportunity Radar (Sections 19 & 26)**\n🔍 **Query:** _${r.query}_ | 📍 **Location:** _${r.targetLocation}_${jobsList}\n\n━━━━━━━━━━━━━━━━━━━━\n🌐 **Pre-Filtered Live Feeds:**\n` + 
                             r.searches.map(s => `• [${s.title}](${s.url}) — _${s.filter}_`).join('\n') + 
                             `\n\n_Tip: Tell me "tailor cv for [title]" to generate tailored resume bullets immediately!_`;
+                    } else if (actionRes.action === 'crypto_radar') {
+                        const r = actionRes.radar;
+                        let projList = '';
+                        if (r.projects && r.projects.length > 0) {
+                            projList = "\n\n💎 **Newly Listed & Trending Crypto Projects:**\n" + 
+                                r.projects.map((p, i) => `${i + 1}. **${p.name}** ${p.symbol ? `(\`$${p.symbol}\`)` : ''} • _${p.category}_\n   🌐 [Website](${p.website || '#'}) • 💼 [LinkedIn Search](${p.linkedin})${p.twitter ? ` • 🐦 [Twitter](${p.twitter})` : ''}\n   ⛓️ _Ecosystem: ${p.chains}_ • ⏱️ _${p.listed_date}_\n   📝 _${p.description}_`).join('\n\n');
+                        }
+                        replyText = `💎 **PATHS — Live Crypto Sourcing & Discovery Radar**\n⚡ **Target:** _${r.query}_\n━━━━━━━━━━━━━━━━━━━━${projList}\n\n━━━━━━━━━━━━━━━━━━━━\n🌐 **Live Web3 Sourcing Directories:**\n` + 
+                            r.curated_directories.map(d => `• [${d.title}](${d.url}) — _${d.desc}_`).join('\n');
                     } else if (actionRes.action === 'job_matched') {
                         const a = actionRes.analysis;
                         replyText = `🎯 **Job Opportunity Matching Matrix**\nTarget: _${actionRes.job_query}_\n\n\`\`\`\n${a.matrix}\n\`\`\`\n\n**Strategy:** ${a.strategy}`;
@@ -538,6 +563,8 @@ const server = http.createServer(async (req, res) => {
                         replyText = `⚔️ Task locked in: **"${actionRes.task.title}"** under project **${actionRes.project_name}**.`;
                     } else if (actionRes.action === 'task_completed') {
                         replyText = `⚔️ Task marked completed: **"${actionRes.task?.title || 'Done'}"**. Well done, Swapnil!`;
+                    } else if (actionRes.feedback) {
+                        replyText = actionRes.feedback;
                     }
                 }
             } catch (actErr) {
@@ -564,7 +591,8 @@ const server = http.createServer(async (req, res) => {
 
             return sendJson(res, 200, {
                 reply: replyText,
-                conversation_id: conversationId
+                conversation_id: conversationId,
+                actionResult: actionData
             });
         }
 
@@ -650,11 +678,38 @@ const server = http.createServer(async (req, res) => {
             return sendJson(res, modeResult.success ? 200 : 400, modeResult);
         }
 
+        // Direct Browser Open API (PATHS v2 Localhost Control)
+        if (pathname === '/api/pc/browser/open' && req.method === 'POST') {
+            if (!await requireCommander()) return;
+            const body = await parseBody(req);
+            const resOpen = openBrowserUrl(body.url, body.search || null);
+            return sendJson(res, 200, resOpen);
+        }
+
+        // Direct Desktop App & Folder Launch API (PATHS v2 Localhost Control)
+        if (pathname === '/api/pc/app/launch' && req.method === 'POST') {
+            if (!await requireCommander()) return;
+            const body = await parseBody(req);
+            let resLaunch;
+            if (body.folder) {
+                resLaunch = openLocalFolder(body.folder);
+            } else {
+                resLaunch = launchDesktopApp(body.app);
+            }
+            return sendJson(res, 200, resLaunch);
+        }
+
         // --- STATIC FILE & PAGE ROUTING ---
+        // Redirect /app directly to /commander
+        if (pathname === '/app') {
+            res.writeHead(302, { 'Location': '/commander' });
+            return res.end();
+        }
+
         let targetFile = '';
         if (pathname === '/' || pathname === '/index.html' || pathname === '/landing') {
             targetFile = 'index.html';
-        } else if (pathname === '/app' || pathname === '/commander' || pathname === '/hud' || pathname === '/dashboard') {
+        } else if (pathname === '/commander' || pathname === '/hud' || pathname === '/dashboard') {
             targetFile = 'app.html';
         } else if (pathname === '/privacy' || pathname === '/privacy-policy') {
             targetFile = 'privacy.html';

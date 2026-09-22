@@ -1970,7 +1970,7 @@ async function processUpdate(update) {
         try {
             const files = await searchAllowedFiles(query, 5);
             if (files.length === 0) {
-                await sendTelegramMessage(chatId, `⚠️ No files found matching "*${query}*" in allowed PC folders (\`D:\\Projects\`, \`D:\\Documents\`, \`D:\\Downloads\\PATHS\`).`, msg.message_id);
+                await sendTelegramMessage(chatId, `⚠️ No files found matching "*${query}*" in allowed PC folders (\`D:\\Projects\`, \`D:\\Swapnil\`, \`D:\\Final Year\`, \`D:\\Documents\`).`, msg.message_id);
                 return;
             }
 

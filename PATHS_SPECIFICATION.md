@@ -125,6 +125,8 @@ The **Local PC Agent** (`local_pc_bridge.js`) exposes controlled tools to the or
 
 ### Allowed Directory Allowlist:
 * `D:\Projects`
+* `D:\Swapnil`
+* `D:\Final Year`
 * `D:\Documents`
 * `D:\Downloads\PATHS`
 * `D:\PATHS-Shared`

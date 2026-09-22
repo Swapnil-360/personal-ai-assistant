@@ -9,11 +9,11 @@ const { recordAuditLog } = require('./actions_handler');
 // 1. ALLOWED DIRECTORY SYSTEM & SENSITIVE PATH SAFEGUARDS
 const ALLOWED_DIRECTORIES = [
     'D:\\Projects',
+    'D:\\Swapnil',
+    'D:\\Final Year',
     'D:\\Documents',
     'D:\\Downloads\\PATHS',
     'D:\\PATHS-Shared',
-    'D:\Swapnil',
-    'D:\Final Year',
     path.resolve(__dirname) // Active repository workspace
 ];
 

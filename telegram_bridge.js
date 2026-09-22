@@ -56,7 +56,8 @@ if (!BOT_TOKEN) {
 const N8N_WEBHOOK_URL = getEnv('N8N_WEBHOOK_URL') || 'http://localhost:5678/webhook/swapnil-ai';
 const MEMORY_WEBHOOK_URL = getEnv('MEMORY_WEBHOOK_URL') || 'http://localhost:5678/webhook/extract-memory';
 const SWAPNIL_USER_ID = Number(getEnv('SWAPNIL_USER_ID')) || 7112137739;
-const IS_RENDER_CLOUD = Boolean(process.env.RENDER || process.env.RENDER_SERVICE_ID || process.env.IS_CLOUD || process.env.IS_RENDER_CLOUD);
+const IS_LOCAL_PC = os.hostname() === 'Swapnil-PC' && !process.env.FORCE_CLOUD;
+const IS_RENDER_CLOUD = !IS_LOCAL_PC;
 
 let lastUpdateId = 0;
 let isPolling = false;

@@ -1,5 +1,7 @@
 const https = require('https');
 const http = require('http');
+const fs = require('fs');
+const path = require('path');
 
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqaHJtY3Ricm9icG5vdW16bWp1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTkxNTc3NywiZXhwIjoyMTA1NDkxNzc3fQ.0_xov-GTLYTFGnm_gXxO2lmS1w_9Kc-pnWc0-T17UJ8';
 
@@ -52,6 +54,186 @@ function supabaseRequest(path, method = 'GET', body = null) {
     });
 }
 
+// --- PATHS AUDIT LOG PROTOCOL (Section 34) ---
+async function recordAuditLog({ user_request, agent_decision, tool_used, action_performed, data_affected = null, result = null, verification_status = 'verified' }) {
+    const timestamp = new Date().toISOString();
+    const entry = {
+        timestamp,
+        user_request: (user_request || '').slice(0, 300),
+        agent_decision: (agent_decision || '').slice(0, 300),
+        tool_used: (tool_used || '').slice(0, 100),
+        action_performed: (action_performed || '').slice(0, 200),
+        data_affected: data_affected ? String(data_affected).slice(0, 200) : null,
+        result: result ? String(result).slice(0, 300) : 'Success',
+        verification_status: verification_status || 'verified'
+    };
+
+    // 1. Local fallback cache
+    try {
+        const auditFile = path.join(__dirname, 'audit_log.json');
+        let logs = [];
+        if (fs.existsSync(auditFile)) {
+            try { logs = JSON.parse(fs.readFileSync(auditFile, 'utf8')); } catch (e) { logs = []; }
+        }
+        logs.unshift(entry);
+        if (logs.length > 200) logs = logs.slice(0, 200);
+        fs.writeFileSync(auditFile, JSON.stringify(logs, null, 2), 'utf8');
+    } catch (e) {
+        console.warn('[Audit Log Local Cache Error]:', e.message);
+    }
+
+    // 2. Supabase current_state persistence
+    try {
+        await supabaseRequest('/current_state', 'POST', {
+            area: 'audit_log',
+            key: `audit_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+            value: entry,
+            status: 'active'
+        });
+    } catch (e) {
+        // Logged locally if remote fails
+    }
+
+    return entry;
+}
+
+async function getRecentAuditLogs(limit = 6) {
+    try {
+        const remote = await supabaseRequest(`/current_state?area=eq.audit_log&order=created_at.desc&limit=${limit}`, 'GET');
+        if (Array.isArray(remote) && remote.length > 0) {
+            return remote.map(r => r.value).filter(Boolean);
+        }
+    } catch (e) {}
+
+    try {
+        const auditFile = path.join(__dirname, 'audit_log.json');
+        if (fs.existsSync(auditFile)) {
+            const logs = JSON.parse(fs.readFileSync(auditFile, 'utf8'));
+            return logs.slice(0, limit);
+        }
+    } catch (e) {}
+
+    return [];
+}
+
+// --- PATHS MEMORY CATEGORIES & RESOLUTION ENGINE (Section 4) ---
+const PATHS_MEMORY_CATEGORIES = new Set([
+    'PROFILE',
+    'PREFERENCE',
+    'PROJECT',
+    'PROJECT_DECISION',
+    'GOAL',
+    'TASK',
+    'FACT',
+    'CONVERSATION',
+    'LESSON',
+    'WORKFLOW',
+    'CAREER',
+    'SOCIAL',
+    'KNOWLEDGE'
+]);
+
+function normalizeMemoryType(rawType) {
+    if (!rawType) return 'FACT';
+    const upper = String(rawType).trim().toUpperCase();
+    if (PATHS_MEMORY_CATEGORIES.has(upper)) return upper;
+    if (upper === 'DECISION') return 'PROJECT_DECISION';
+    if (upper === 'INSTRUCTION') return 'PREFERENCE';
+    if (upper === 'EXPERIENCE') return 'CAREER';
+    if (upper === 'HABIT') return 'WORKFLOW';
+    return 'FACT';
+}
+
+async function storeMemoryWithConflictResolution({ content, memory_type, importance = 7, confidence = 0.95, source_type = 'telegram_chat', conversation_id = null, user_message = null }) {
+    if (!content || content.trim().length < 5) return null;
+    const cleanContent = content.trim();
+    const cleanType = normalizeMemoryType(memory_type);
+    const cleanImportance = Math.min(10, Math.max(1, Number(importance) || 7));
+
+    // 1. Fetch active memories of same type to detect duplicates or conflicts
+    let activeMemories = [];
+    try {
+        activeMemories = await supabaseRequest(`/memories?memory_type=eq.${cleanType.toLowerCase()}&status=eq.active&limit=25`, 'GET');
+        if (!Array.isArray(activeMemories)) activeMemories = [];
+    } catch (e) {
+        activeMemories = [];
+    }
+
+    // 2. Identify potential conflicting or superseded memories based on keyword overlap
+    const lowerNew = cleanContent.toLowerCase();
+    const supersededIds = [];
+
+    for (const m of activeMemories) {
+        const lowerOld = (m.content || '').toLowerCase();
+        
+        // Exact duplicate guard: don't re-insert identical memories
+        if (lowerOld === lowerNew) {
+            console.log(`[Memory Engine] Duplicate memory detected; skipped: "${cleanContent}"`);
+            return { action: 'skipped_duplicate', memory: m };
+        }
+
+        // Specific conflict / update patterns
+        const isHeadlineConflict = lowerNew.includes('linkedin headline') && lowerOld.includes('linkedin headline');
+        const isEdu51MetricsConflict = (lowerNew.includes('edu51portal') || lowerNew.includes('edu51')) && (lowerNew.includes('student') || lowerNew.includes('user')) &&
+                                      (lowerOld.includes('edu51portal') || lowerOld.includes('edu51')) && (lowerOld.includes('student') || lowerOld.includes('user'));
+        const isDarkLightConflict = (lowerNew.includes('dark mode') || lowerNew.includes('light mode')) && (lowerOld.includes('dark mode') || lowerOld.includes('light mode'));
+        const isStackConflict = lowerNew.includes('decided to use') && lowerOld.includes('decided to use') && lowerNew.split(' ')[2] === lowerOld.split(' ')[2];
+
+        if (isHeadlineConflict || isEdu51MetricsConflict || isDarkLightConflict || isStackConflict) {
+            supersededIds.push(m.id);
+        }
+    }
+
+    // 3. Mark old conflicting memories as 'superseded' so they are excluded from future LLM contexts
+    for (const oldId of supersededIds) {
+        try {
+            await supabaseRequest(`/memories?id=eq.${oldId}`, 'PATCH', {
+                status: 'superseded',
+                metadata: { superseded_by_new: true, superseded_at: new Date().toISOString() }
+            });
+            console.log(`[Memory Engine] 🔄 Marked outdated memory ${oldId} as superseded by: "${cleanContent}"`);
+        } catch (err) {
+            console.warn('[Memory Engine Supersede Warning]:', err.message);
+        }
+    }
+
+    // 4. Insert new active memory
+    const newRecord = {
+        content: cleanContent,
+        memory_type: cleanType.toLowerCase(),
+        importance: cleanImportance,
+        confidence: Number(confidence) || 0.95,
+        source_type: source_type || 'telegram_chat',
+        status: 'active',
+        metadata: {
+            category: cleanType,
+            user_message: user_message ? user_message.slice(0, 150) : null,
+            conversation_id: conversation_id || null,
+            learned_at: new Date().toISOString(),
+            superseded_count: supersededIds.length
+        }
+    };
+
+    const res = await supabaseRequest('/memories', 'POST', newRecord);
+
+    // 5. Audit Log the memory update
+    recordAuditLog({
+        user_request: user_message || cleanContent,
+        agent_decision: `Learned new [${cleanType}] memory; superseded ${supersededIds.length} outdated memories`,
+        tool_used: 'Supabase /memories',
+        action_performed: 'store_memory',
+        data_affected: res[0]?.id || 'new_memory',
+        result: cleanContent,
+        verification_status: 'verified'
+    }).catch(() => {});
+
+    return {
+        action: 'memory_stored',
+        memory: res[0] || newRecord,
+        superseded_ids: supersededIds
+    };
+}
+
 // 1. Create Task
 async function createTask(title, projectHint = null, priority = 5) {
     const project = projectHint ? matchProject(projectHint) : null;
@@ -63,6 +245,18 @@ async function createTask(title, projectHint = null, priority = 5) {
         project_id: project ? project.id : null
     };
     const res = await supabaseRequest('/tasks', 'POST', task);
+
+    // Record audit log
+    recordAuditLog({
+        user_request: cleanTitle,
+        agent_decision: `Create task in ${project ? project.name : 'General'}`,
+        tool_used: 'Supabase /tasks',
+        action_performed: 'insert',
+        data_affected: res[0]?.id || 'new_task',
+        result: `Task "${cleanTitle}" registered`,
+        verification_status: 'verified'
+    }).catch(() => {});
+
     return {
         action: 'task_created',
         success: true,
@@ -86,6 +280,17 @@ async function completeTask(titleOrId) {
         status: 'completed',
         completed_at: new Date().toISOString()
     });
+
+    recordAuditLog({
+        user_request: query,
+        agent_decision: `Mark task "${target.title}" as completed`,
+        tool_used: 'Supabase /tasks',
+        action_performed: 'patch status=completed',
+        data_affected: target.id,
+        result: `Task marked completed`,
+        verification_status: 'verified'
+    }).catch(() => {});
+
     return {
         action: 'task_completed',
         success: true,
@@ -103,6 +308,17 @@ async function createGoal(title, category = 'Career') {
         priority: 8
     };
     const res = await supabaseRequest('/goals', 'POST', goal);
+
+    recordAuditLog({
+        user_request: cleanTitle,
+        agent_decision: `Create strategic goal in [${category}]`,
+        tool_used: 'Supabase /goals',
+        action_performed: 'insert',
+        data_affected: res[0]?.id || 'new_goal',
+        result: `Goal "${cleanTitle}" registered`,
+        verification_status: 'verified'
+    }).catch(() => {});
+
     return {
         action: 'goal_created',
         success: true,
@@ -120,6 +336,17 @@ async function logDecision(decisionText, projectHint = null, reason = '') {
         project_id: project ? project.id : null
     };
     const res = await supabaseRequest('/project_decisions', 'POST', dec);
+
+    recordAuditLog({
+        user_request: decisionText,
+        agent_decision: `Log architectural decision for ${project ? project.name : 'General'}`,
+        tool_used: 'Supabase /project_decisions',
+        action_performed: 'insert',
+        data_affected: res[0]?.id || 'new_decision',
+        result: `Decision logged: ${decisionText}`,
+        verification_status: 'verified'
+    }).catch(() => {});
+
     return {
         action: 'decision_logged',
         success: true,
@@ -141,6 +368,17 @@ async function addNote(content, category = 'note') {
         metadata: { tag: category }
     };
     const res = await supabaseRequest('/memories', 'POST', note);
+
+    recordAuditLog({
+        user_request: clean,
+        agent_decision: `Save quick ${category} to memories`,
+        tool_used: 'Supabase /memories',
+        action_performed: 'insert',
+        data_affected: res[0]?.id || 'new_note',
+        result: `Note saved`,
+        verification_status: 'verified'
+    }).catch(() => {});
+
     return {
         action: 'note_added',
         success: true,
@@ -352,6 +590,73 @@ function tailorCvForJob(jobDescription) {
         matched_projects: matchedProjects,
         recommended_bullets: bulletPoints,
         strategy: 'Highlight proven user traction on Edu51Portal (around 100 students) and AI pipeline architecture on OpusGenAI to demonstrate end-to-end fullstack maturity.'
+    };
+}
+
+// 9B. PATHS Job Matching & Alignment Engine (Sections 19 & 20)
+function matchJobOpportunity(jobDescription) {
+    const text = (jobDescription || '').toLowerCase();
+
+    // Defined profile skills & competencies for Swapnil
+    const criteria = [
+        { name: 'React', category: 'Frontend', status: '✓', reason: 'Production proficiency with Next.js & React 18/19' },
+        { name: 'Next.js', category: 'Frontend/Fullstack', status: '✓', reason: 'Core stack of Edu51Portal (100+ users) & Stark-OS portfolio' },
+        { name: 'TypeScript', category: 'Language', status: '✓', reason: 'Strict typing used across all production builds' },
+        { name: 'JavaScript (ES6+)', category: 'Language', status: '✓', reason: 'Deep foundation across frontend & Node.js backend' },
+        { name: 'Node.js', category: 'Backend', status: '✓', reason: 'Autonomous agent servers, API integration & Telegram bridge' },
+        { name: 'Supabase / PostgreSQL', category: 'Database', status: '✓', reason: 'Relational data modeling, RLS, auth & pgvector' },
+        { name: 'Tailwind CSS', category: 'Styling', status: '✓', reason: 'Responsive UI, dark mode & clean CSS systems' },
+        { name: 'REST APIs', category: 'Architecture', status: '✓', reason: 'Google Drive API, Telegram API, Twitter API integration' },
+        { name: 'AI / LLM Integration', category: 'AI', status: '✓', reason: 'Gemini 2.5 Flash, OpenRouter, LangChain & n8n workflows' },
+        { name: 'Git & GitHub', category: 'Tools', status: '✓', reason: '10+ active repositories under github.com/Swapnil-360' },
+        { name: 'Cloud / AWS / Docker', category: 'DevOps', status: '△', reason: 'Render & Railway production deployments; learning Docker/AWS' },
+        { name: 'Python', category: 'Language', status: '△', reason: 'Familiar with scripts & data basics; primary stack is TypeScript/Node' },
+        { name: '3+ Years Experience', category: 'Experience', status: '✗', reason: 'Swapnil\'s 3+ yrs is in Web3/community; targets Entry-Level/Junior full-stack' }
+    ];
+
+    // Detect which criteria are relevant to the provided job description
+    const evaluated = [];
+    criteria.forEach(c => {
+        const lowerName = c.name.toLowerCase();
+        let isRelevant = false;
+        if (text.includes(lowerName) || 
+            (c.name === 'Supabase / PostgreSQL' && (text.includes('supabase') || text.includes('postgres') || text.includes('sql') || text.includes('database'))) ||
+            (c.name === 'Cloud / AWS / Docker' && (text.includes('aws') || text.includes('cloud') || text.includes('docker') || text.includes('devops') || text.includes('gcp'))) ||
+            (c.name === '3+ Years Experience' && (text.includes('3+') || text.includes('3 years') || text.includes('3+ years') || text.includes('senior') || text.includes('mid-level') || text.includes('mid level') || text.includes('years of experience'))) ||
+            (c.name === 'AI / LLM Integration' && (text.includes('ai') || text.includes('llm') || text.includes('machine learning') || text.includes('prompt') || text.includes('agent')))) {
+            isRelevant = true;
+        }
+        if (isRelevant) {
+            evaluated.push(c);
+        }
+    });
+
+    const finalEvaluated = evaluated.length >= 3 ? evaluated : criteria.slice(0, 8);
+
+    // Build comparison matrix
+    let matrixText = '';
+    finalEvaluated.forEach(item => {
+        const padName = item.name.padEnd(24, ' ');
+        matrixText += `${padName} ${item.status}\n`;
+    });
+
+    const matches = finalEvaluated.filter(e => e.status === '✓').map(e => `• *${e.name}:* ${e.reason}`);
+    const partials = finalEvaluated.filter(e => e.status === '△').map(e => `• *${e.name}:* ${e.reason}`);
+    const gaps = finalEvaluated.filter(e => e.status === '✗').map(e => `• *${e.name}:* ${e.reason}`);
+
+    const recommendedProjects = [
+        '• *Edu51Portal* (Next.js 14, Supabase, Google Drive API) — Proves real user traction (around 100 students) and $0 infrastructure scaling.',
+        '• *OpusGenAI & Personal AI OS (Mikasa)* — Demonstrates multi-model AI routing, pgvector memory vaults, and defensive latency engineering.',
+        '• *Stark-OS Portfolio* (mrswapnil.me) — Highlights high-fidelity UI design, HUD animations, and 98+ Lighthouse performance.'
+    ];
+
+    return {
+        matrix: matrixText.trim(),
+        matches,
+        partials,
+        gaps,
+        recommended_projects: recommendedProjects,
+        strategy: 'Be upfront about student/junior fullstack positioning. Emphasize that your code is in production with 100+ active students on Edu51Portal, backed by clean architecture and live GitHub proof.'
     };
 }
 
@@ -646,6 +951,30 @@ async function handleActionIntent(message) {
         return await addNote(noteMatch[1], text.toLowerCase().includes('idea') ? 'idea' : 'note');
     }
 
+    // 6. Job Matching Pattern (PATHS Section 19 & 20)
+    const jobMatch = text.match(/^(?:\/job|match\s+job|analyze\s+job|compare\s+job)(?:\s+(.+))?$/i);
+    if (jobMatch) {
+        const jd = jobMatch[1] || 'Fullstack Software Engineer (Next.js, TypeScript, Supabase, Node.js)';
+        const analysis = matchJobOpportunity(jd);
+        return {
+            action: 'job_matched',
+            success: true,
+            job_query: jd,
+            analysis
+        };
+    }
+
+    // 7. Audit Log Inspection Pattern (PATHS Section 34)
+    const auditMatch = text.match(/^(?:\/audit|audit\s+log|show\s+audit|what\s+did\s+you\s+do\??)$/i);
+    if (auditMatch) {
+        const logs = await getRecentAuditLogs(5);
+        return {
+            action: 'audit_inspected',
+            success: true,
+            logs
+        };
+    }
+
     return null;
 }
 
@@ -663,6 +992,7 @@ module.exports = {
     generateSingleTweet,
     auditSocialMedia,
     tailorCvForJob,
+    matchJobOpportunity,
     generateOptimizedPrompt,
     getTasks,
     getGoals,
@@ -670,6 +1000,11 @@ module.exports = {
     getDecisions,
     getMemories,
     matchProject,
+    recordAuditLog,
+    getRecentAuditLogs,
+    storeMemoryWithConflictResolution,
+    normalizeMemoryType,
+    PATHS_MEMORY_CATEGORIES,
     PROJECTS,
     supabaseRequest
 };

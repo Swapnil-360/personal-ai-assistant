@@ -13,6 +13,7 @@ const {
     fetchGitHubRepos,
     generateLinkedInDraft,
     tailorCvForJob,
+    matchJobOpportunity,
     generateOptimizedPrompt,
     generateTwitterThread,
     generateSingleTweet,
@@ -23,6 +24,9 @@ const {
     getDecisions,
     getMemories,
     matchProject,
+    recordAuditLog,
+    getRecentAuditLogs,
+    storeMemoryWithConflictResolution,
     supabaseRequest
 } = require('./actions_handler');
 const {
@@ -101,6 +105,8 @@ function registerBotCommands() {
         { command: 'github', description: 'Inspect GitHub builds & repos' },
         { command: 'linkedin', description: 'Generate LinkedIn post draft' },
         { command: 'cv', description: 'Tailor CV & portfolio for a job' },
+        { command: 'job', description: 'Match job description with matrix: /job [text]' },
+        { command: 'audit', description: 'Inspect audit trail of actions & verifications' },
         { command: 'prompt', description: 'Generate master prompt for AI/Image' },
         { command: 'goals', description: 'Briefing on strategic goals' },
         { command: 'projects', description: 'Briefing on active projects' },
@@ -325,7 +331,7 @@ async function buildMikasaSystemPrompt(userContext, conversationId) {
             supabaseRequest('/rpc/get_active_goals', 'POST'),
             supabaseRequest('/projects?select=*&order=created_at.desc', 'GET'),
             supabaseRequest('/project_decisions?select=*&order=created_at.desc', 'GET'),
-            supabaseRequest('/memories?select=content,memory_type,importance&order=created_at.desc&limit=15', 'GET'),
+            supabaseRequest('/memories?status=eq.active&select=content,memory_type,importance&order=importance.desc,created_at.desc&limit=25', 'GET'),
             supabaseRequest(`/messages?conversation_id=eq.${conversationId}&order=timestamp.desc&limit=12`, 'GET')
         ]);
 
@@ -357,7 +363,7 @@ async function buildMikasaSystemPrompt(userContext, conversationId) {
         }
 
         if (memRes.status === 'fulfilled' && Array.isArray(memRes.value)) {
-            memoriesStr = memRes.value.map(m => `- [${(m.memory_type || 'FACT').toUpperCase()} | Prio ${m.importance || 5}]: ${m.content}`).join('\n');
+            memoriesStr = memRes.value.map(m => `• [${(m.memory_type || 'FACT').toUpperCase()}] (Importance: ${m.importance || 5}/10): ${m.content}`).join('\n');
         }
 
         if (msgRes.status === 'fulfilled' && Array.isArray(msgRes.value)) {
@@ -872,26 +878,36 @@ async function triggerMemoryExtraction(userMessage, assistantReply, conversation
         return;
     }
 
-    // 1. In-process Autonomous LLM Memory Extractor
+    // 1. In-process Autonomous LLM Memory Extractor (PATHS Section 4)
     try {
-        const systemPrompt = `You are the autonomous memory and continuous learning engine of Mikasa (Swapnil's personal AI).
+        const systemPrompt = `You are PATHS, the autonomous memory and continuous learning engine for Swapnil's personal AI operating layer.
 Interaction to evaluate:
 Swapnil (User): "${userMessage.replace(/"/g, "'")}"
-Mikasa (Assistant): "${(assistantReply || '').replace(/"/g, "'").slice(0, 300)}"
+Assistant: "${(assistantReply || '').replace(/"/g, "'").slice(0, 300)}"
 
-Task: Extract any new facts, account updates, profile changes, user preferences, completed actions, or instructions Swapnil expressed.
-Examples:
-- "I have updated Headline...": Extract { "content": "Swapnil updated his LinkedIn headline (features Edu51Portal around 100 students & BUBT CSE). Currently optimizing his About section.", "memory_type": "fact", "importance": 9 }
-- "I prefer Next.js": Extract { "content": "Swapnil prefers Next.js over other frameworks", "memory_type": "preference", "importance": 8 }
-- "Don't do X, do Y": Extract { "content": "Swapnil instructed Mikasa: do Y instead of X", "memory_type": "instruction", "importance": 9 }
+Task: Extract any new facts, account updates, profile changes, user preferences, technical decisions, habits, goals, or instructions Swapnil expressed.
 
-Allowed memory_types strictly: "fact", "preference", "instruction", "decision", "workflow", "experience".
+Official PATHS Memory Categories:
+- PROFILE (Education, degree, semester, contact, location)
+- PREFERENCE (Explicit likes, dislikes, UI choices, conversational style, Banglish triggers)
+- PROJECT (Features, milestones, architecture, metrics for Edu51Portal, OpusGenAI, etc.)
+- PROJECT_DECISION (Explicit architectural choices: e.g. Supabase, FFmpeg, Next.js, Google Drive API)
+- GOAL (Strategic targets, career aspirations)
+- TASK (Action items)
+- FACT (Verified truths, metrics: e.g. Edu51Portal serves around 100 students)
+- CONVERSATION (Key takeaways from important discussions)
+- LESSON (Engineering learnings, retrospective takeaways)
+- WORKFLOW (Procedural habits, how to explain concepts)
+- CAREER (Roles, target tech stack, experience clarifications)
+- SOCIAL (Social links, handles, branding strategy)
+- KNOWLEDGE (Reusable technical domain insights)
+
 If no meaningful new facts or updates, return: []
 If there are, return ONLY a valid JSON array of objects:
 [
   {
-    "content": "Precise statement in 3rd person about Swapnil or his projects",
-    "memory_type": "fact" | "preference" | "instruction" | "decision" | "workflow" | "experience",
+    "content": "Precise standalone statement in 3rd person about Swapnil or his projects",
+    "memory_type": "PROFILE" | "PREFERENCE" | "PROJECT" | "PROJECT_DECISION" | "GOAL" | "TASK" | "FACT" | "CONVERSATION" | "LESSON" | "WORKFLOW" | "CAREER" | "SOCIAL" | "KNOWLEDGE",
     "importance": 1 to 10
   }
 ]
@@ -906,26 +922,20 @@ Output strictly raw JSON array. No markdown code blocks, no backticks, no extra 
             try {
                 const items = JSON.parse(jsonStr);
                 if (Array.isArray(items) && items.length > 0) {
-                    const ALLOWED_TYPES = new Set(['preference', 'fact', 'workflow', 'instruction', 'experience', 'decision']);
                     for (const item of items) {
                         if (!item.content || item.content.length < 5) continue;
-                        const cleanType = ALLOWED_TYPES.has(item.memory_type) ? item.memory_type : 'fact';
-                        const importance = Number(item.importance) || 7;
-
-                        await supabaseRequest('/memories', 'POST', {
+                        const res = await storeMemoryWithConflictResolution({
                             content: item.content,
-                            memory_type: cleanType,
-                            importance: Math.min(10, Math.max(1, importance)),
+                            memory_type: item.memory_type,
+                            importance: item.importance || 7,
                             confidence: 0.95,
                             source_type: 'telegram_chat',
-                            status: 'active',
-                            metadata: {
-                                user_message: userMessage.slice(0, 150),
-                                conversation_id: conversationId,
-                                learned_at: new Date().toISOString()
-                            }
+                            conversation_id: conversationId,
+                            user_message: userMessage
                         });
-                        console.log(`[Autonomous Memory Engine] 🧠 Learned & Stored in Supabase: "${item.content}" (${cleanType})`);
+                        if (res && res.action === 'memory_stored') {
+                            console.log(`[Autonomous Memory Engine] 🧠 Learned & Stored in Supabase: "${item.content}" [${item.memory_type}] (Superseded: ${res.superseded_ids?.length || 0})`);
+                        }
                     }
                 }
             } catch (parseErr) {
@@ -1784,6 +1794,8 @@ async function processUpdate(update) {
             "• `/linkedin [project]` — Draft viral tech post with 1-click Telegram approval",
             "• `/twitter [topic]` — Draft viral X thread with 1-click Telegram approval",
             "• `/cv [job title or description]` — Tailor resume bullets based on your actual builds",
+            "• `/job [job description]` — Compare skills & get PATHS match matrix (✓ △ ✗)",
+            "• `/audit` — Review audit trail of actions & tool executions",
             "• `/prompt [goal]` — Generate master prompts for Midjourney/FLUX/Claude",
             "",
             "🎯 *Strategic Big Picture:*",
@@ -1966,6 +1978,41 @@ async function processUpdate(update) {
                 reply = `📐 *Architectural decision logged.*\n\nRecorded: *"${actionResult.decision.decision}"* for *${actionResult.project_name}*. It's locked into our constraints table.`;
             } else if (actionResult.action === 'note_added') {
                 reply = `📝 *Note recorded, Swapnil.*\n\nSaved to your database: *"${actionResult.note.content}"*.`;
+            } else if (actionResult.action === 'job_matched') {
+                const a = actionResult.analysis;
+                reply = [
+                    "🎯 *PATHS — Job Opportunity Matching Matrix (Section 20)*",
+                    "",
+                    `📋 *Target / Query:* _${actionResult.job_query}_`,
+                    "",
+                    "```text",
+                    a.matrix,
+                    "```",
+                    "",
+                    "✅ *Verified Strengths:*",
+                    ...a.matches.map(m => `${m}`),
+                    "",
+                    a.partials.length > 0 ? "⚠️ *Partial / Learning:*\n" + a.partials.join('\n') + "\n" : "",
+                    a.gaps.length > 0 ? "❌ *Documented Gaps (Honest Positioning):*\n" + a.gaps.join('\n') + "\n" : "",
+                    "🚀 *Recommended Builds to Feature:*",
+                    ...a.recommended_projects,
+                    "",
+                    `💡 *Application Strategy:*\n_${a.strategy}_`
+                ].filter(Boolean).join('\n');
+            } else if (actionResult.action === 'audit_inspected') {
+                const logs = actionResult.logs;
+                if (!logs || logs.length === 0) {
+                    reply = "📜 *PATHS Audit Trail:* No actions recorded yet in this session.";
+                } else {
+                    reply = "📜 *PATHS Audit Trail (Section 34)*\n\nRecent verified autonomous actions:\n\n";
+                    logs.forEach((l, i) => {
+                        const time = l.timestamp ? new Date(l.timestamp).toLocaleTimeString() : 'Recent';
+                        reply += `${i + 1}. *[${time}] ${l.action_performed}* via \`${l.tool_used}\`\n`;
+                        reply += `   • *Decision:* ${l.agent_decision}\n`;
+                        reply += `   • *Result:* ${l.result} (Status: ${l.verification_status} ✅)\n\n`;
+                    });
+                    reply += "_Complete audit trails are permanently preserved in Supabase `current_state` and local cache._";
+                }
             }
 
             if (reply) {

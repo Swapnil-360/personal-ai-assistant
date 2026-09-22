@@ -223,7 +223,7 @@ function generateLinkedInDraft(topicOrProject = 'Edu51Portal') {
     if (lower.includes('edu51') || lower.includes('edu51portal')) {
         return {
             topic: 'Edu51Portal',
-            title: 'Scaling an Academic Platform for 500+ Engineering Students',
+            title: 'Scaling an Academic Platform for 100+ Engineering Students',
             content: 
 `Building software that real people use every day changes how you think about architecture. 🚀
 
@@ -235,7 +235,7 @@ Instead of over-engineering from day one, we focused on practical delivery:
 2️⃣ Supabase for secure authentication and instant relational queries.
 3️⃣ Google Drive API integration to host heavy PDF resources with zero monthly cloud storage bills.
 
-The result? Over 500+ CSE students now access centralized academic resources daily with sub-second page loads.
+The result? Around 100+ CSE students now access centralized academic resources daily with sub-second page loads.
 
 The biggest engineering lesson?
 You don't need a multi-million-dollar infrastructure to solve real user friction. You need clean domain modeling, low latency, and relentless empathy for your end-users.
@@ -327,7 +327,7 @@ function tailorCvForJob(jobDescription) {
     // Build tailored STAR bullets
     if (isFrontend || isBackend) {
         matchedProjects.push('Edu51Portal (Fullstack Academic Platform)');
-        bulletPoints.push('• Developed Edu51Portal using Next.js, TypeScript, and Supabase, serving 500+ active BUBT university students with sub-second page performance.');
+        bulletPoints.push('• Developed Edu51Portal using Next.js, TypeScript, and Supabase, serving around 100 active BUBT university students with sub-second page performance.');
         bulletPoints.push('• Architected responsive UI components and integrated Google Drive API to securely distribute 1,000+ academic resources with 0 storage infrastructure overhead.');
     }
 
@@ -351,7 +351,7 @@ function tailorCvForJob(jobDescription) {
     return {
         matched_projects: matchedProjects,
         recommended_bullets: bulletPoints,
-        strategy: 'Highlight proven user traction on Edu51Portal (500+ users) and AI pipeline architecture on OpusGenAI to demonstrate end-to-end fullstack maturity.'
+        strategy: 'Highlight proven user traction on Edu51Portal (around 100 students) and AI pipeline architecture on OpusGenAI to demonstrate end-to-end fullstack maturity.'
     };
 }
 
@@ -408,9 +408,9 @@ function generateTwitterThread(topicOrProject = 'Edu51Portal') {
     if (lower.includes('edu51') || lower.includes('edu51portal')) {
         return {
             topic: 'Edu51Portal',
-            title: 'How we scaled Edu51Portal to 500+ active students with $0 server cost',
+            title: 'How we scaled Edu51Portal to 100+ active students with $0 server cost',
             tweets: [
-                "1/ How we built and scaled Edu51Portal to 500+ active university students with $0 cloud storage bills 🧵👇",
+                "1/ How we built and scaled Edu51Portal to 100+ active university students with $0 cloud storage bills 🧵👇",
                 "2/ The Problem:\nUniversity WhatsApp and Messenger groups are where study notes and past exam questions go to die.\nStudents were wasting hours searching for critical resources before exams.",
                 "3/ The Architecture:\n⚡ Next.js 14 + TypeScript for instantaneous page loads & clean routing\n🗄️ Supabase PostgreSQL for row-level security & user profiles\n📁 Google Drive API integration to stream heavy academic PDFs without costly S3 storage fees",
                 "4/ The biggest engineering takeaway?\nYou don't need complex distributed systems to ship value. Solve the immediate friction, keep latency under 200ms, and your users will do the marketing for you.",
@@ -460,8 +460,8 @@ function generateSingleTweet(topicOrProject = 'Mikasa') {
     if (lower.includes('edu51') || lower.includes('edu51portal')) {
         return {
             topic: 'Edu51Portal',
-            title: 'Scaling Edu51Portal to 500+ Active Students',
-            tweet: "Scaled Edu51Portal to 500+ active university students with $0 cloud storage bills! 🚀\n\nStack:\n• Next.js 14 + TypeScript for sub-second UI\n• Supabase PostgreSQL for auth & RLS\n• Google Drive API for free PDF delivery\n\nCheck it out: mrswapnil.me\n\n#BuildInPublic #NextJS #FullStack"
+            title: 'Scaling Edu51Portal to 100+ Active Students',
+            tweet: "Scaled Edu51Portal to 100+ active university students with $0 cloud storage bills! 🚀\n\nStack:\n• Next.js 14 + TypeScript for sub-second UI\n• Supabase PostgreSQL for auth & RLS\n• Google Drive API for free PDF delivery\n\nCheck it out: mrswapnil.me\n\n#BuildInPublic #NextJS #FullStack"
         };
     }
 
@@ -499,18 +499,18 @@ function auditSocialMedia(platform = null) {
             academics: "Final Semester CSE @ Bangladesh University of Business and Technology (BUBT)",
             flagship_site: "https://www.mrswapnil.me/ (Cinematic Stark-OS HUD)",
             github: "https://github.com/Swapnil-360 (10 active repositories)",
-            summary: "Strong engineering foundation with 500+ daily active users on Edu51Portal and multi-agent AI architecture. Online brand can be elevated by aligning bio headlines across all channels and establishing consistent weekly build logs."
+            summary: "Strong engineering foundation with around 100 daily active users on Edu51Portal and multi-agent AI architecture. Online brand can be elevated by aligning bio headlines across all channels and establishing consistent weekly build logs."
         },
         platforms: {
             linkedin: {
                 platform: "LinkedIn",
                 url: "https://www.linkedin.com/in/mr-swapnil/",
                 handle: "mr-swapnil",
-                current_focus: "Full-Stack Developer & AI Systems Engineer (Creator of Edu51Portal, 500+ Users)",
-                headline_recommendation: "Full-Stack Developer & AI Systems Builder | Next.js, TypeScript, Supabase | Creator of Edu51Portal (500+ Users) | BUBT CSE (Active ✅)",
+                current_focus: "Full-Stack Developer & AI Systems Engineer (Creator of Edu51Portal, 100+ Students)",
+                headline_recommendation: "Full-Stack Developer & AI Systems Builder | Next.js, TypeScript, Supabase | Creator of Edu51Portal (100+ Students) | BUBT CSE (Active ✅)",
                 audit_score: "9.2/10",
                 strengths: [
-                    "High-impact headline featuring Edu51Portal (500+ Users) and BUBT CSE",
+                    "High-impact headline featuring Edu51Portal (100+ Students) and BUBT CSE",
                     "Strong project proof-of-work (Edu51Portal, Stark-OS Portfolio, OpusGenAI, Mikasa-OS)",
                     "Clean visual branding linking directly to GitHub and personal portfolio",
                     "Clear niche in AI integration (Gemini 2.5, OpenRouter, n8n, Supabase)"

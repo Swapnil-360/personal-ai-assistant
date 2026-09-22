@@ -469,7 +469,7 @@ AUTONOMOUS ADAPTATION, MEMORY & PROGRESSIVE STRATEGY
      • Act as his sharpest personal branding and software architecture mentor.
      • Never output static, canned, or repetitive templates. Speak dynamically and conversationally like a true LLM.
      • If his headline is already updated (featuring Edu51Portal and BUBT CSE), guide him through the NEXT milestone:
-       1) The About / Summary Section: Provide high-impact, authentic 1st-person copy highlighting real engineering proof (Creator of Edu51Portal serving 500+ active engineering students, Next.js, Supabase, autonomous AI).
+       1) The About / Summary Section: Provide high-impact, authentic 1st-person copy highlighting real engineering proof (Creator of Edu51Portal serving around 100 active engineering students, Next.js, Supabase, autonomous AI).
        2) Featured Links: Recommend featuring live links to https://www.mrswapnil.me/ and Edu51Portal.
        3) Experience & Projects: Provide punchy, metric-driven bullet points for Edu51Portal, OpusGenAI, and personal AI systems.
      • When he asks for copy or guidance, give him ready-to-paste, polished text formatted beautifully for mobile.
@@ -881,7 +881,7 @@ Mikasa (Assistant): "${(assistantReply || '').replace(/"/g, "'").slice(0, 300)}"
 
 Task: Extract any new facts, account updates, profile changes, user preferences, completed actions, or instructions Swapnil expressed.
 Examples:
-- "I have updated Headline...": Extract { "content": "Swapnil updated his LinkedIn headline (features Edu51Portal 500+ users & BUBT CSE). Currently optimizing his About section.", "memory_type": "fact", "importance": 9 }
+- "I have updated Headline...": Extract { "content": "Swapnil updated his LinkedIn headline (features Edu51Portal around 100 students & BUBT CSE). Currently optimizing his About section.", "memory_type": "fact", "importance": 9 }
 - "I prefer Next.js": Extract { "content": "Swapnil prefers Next.js over other frameworks", "memory_type": "preference", "importance": 8 }
 - "Don't do X, do Y": Extract { "content": "Swapnil instructed Mikasa: do Y instead of X", "memory_type": "instruction", "importance": 9 }
 
@@ -1545,8 +1545,7 @@ async function processUpdate(update) {
             "I have your verified accounts linked and saved in my memory core:",
             "",
             "💼 *LinkedIn:* [mr-swapnil](https://www.linkedin.com/in/mr-swapnil/)",
-            "• *Status:* Full-Stack & AI Systems Builder",
-            "• *Headline Upgrade:* _\"Full-Stack Developer & AI Systems Builder | Next.js, TypeScript, Supabase | Creator of Edu51Portal (500+ Users)\"_",
+            "• *Headline:* _\"Full-Stack Developer & AI Systems Builder | Next.js, TypeScript, Supabase | Creator of Edu51Portal (100+ Students) | BUBT CSE\"_ ✅",
             "",
             "🐦 *X / Twitter:* [@thomascryptoxx](https://x.com/thomascryptoxx)",
             "• *Niche:* Web3, Crypto, AI Build-in-Public",

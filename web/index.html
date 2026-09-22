@@ -364,7 +364,21 @@
             align-items: center;
             gap: 14px;
             flex-wrap: wrap;
-            margin-bottom: 50px;
+            margin-bottom: 46px;
+        }
+
+        .hero-secondary-row {
+            display: contents;
+        }
+
+        .btn-text-desktop,
+        .val-desktop {
+            display: inline;
+        }
+
+        .btn-text-mobile,
+        .val-mobile {
+            display: none;
         }
 
         .btn-primary {
@@ -417,7 +431,7 @@
             background: var(--bg-surface);
             border: 1px solid var(--border-subtle);
             border-radius: var(--radius-md);
-            padding: 18px 24px;
+            padding: 16px 22px;
             max-width: 1000px;
             margin: 0 auto;
             text-align: left;
@@ -1119,10 +1133,83 @@
             .btn-label-mobile {
                 display: inline;
             }
-            .hero-title { font-size: 32px; letter-spacing: -0.6px; line-height: 1.18; }
+            .hero-section { padding: 40px 0 26px; }
+            .hero-pill { margin-bottom: 16px; font-size: 11px; padding: 5px 13px; }
+            .hero-title { font-size: 32px; letter-spacing: -0.6px; line-height: 1.18; margin-bottom: 14px; }
             .hero-title .title-sub { font-size: 24px; margin-top: 6px; letter-spacing: -0.4px; }
-            .hero-lead { font-size: 16px; }
-            .hero-section { padding: 48px 0 40px; }
+            .hero-lead { font-size: 15px; line-height: 1.6; margin-bottom: 22px; max-width: 92%; }
+
+            /* Compact CTA on Mobile */
+            .hero-cta-group {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+                width: 100%;
+                max-width: 380px;
+                margin: 0 auto 24px;
+            }
+            .hero-cta-group .btn-primary {
+                width: 100%;
+                justify-content: center;
+                padding: 10px 16px;
+                font-size: 14px;
+            }
+            .hero-secondary-row {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 8px;
+                width: 100%;
+            }
+            .hero-secondary-row .btn-secondary {
+                width: 100%;
+                justify-content: center;
+                padding: 9px 8px;
+                font-size: 12px;
+                gap: 4px;
+            }
+            .btn-text-desktop {
+                display: none;
+            }
+            .btn-text-mobile {
+                display: inline;
+            }
+
+            /* Compact 2x2 Specs Dashboard on Mobile */
+            .specs-strip {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 8px;
+                padding: 10px;
+                max-width: 400px;
+                border-radius: 12px;
+            }
+            .spec-item {
+                border-right: none;
+                border-bottom: none;
+                padding: 8px 10px;
+                background: rgba(255, 255, 255, 0.02);
+                border: 1px solid rgba(255, 255, 255, 0.05);
+                border-radius: 8px;
+                gap: 3px;
+            }
+            .spec-label {
+                font-size: 9.5px;
+                letter-spacing: 0.5px;
+            }
+            .spec-value {
+                font-size: 12px;
+                gap: 5px;
+            }
+            .spec-value .dot-cyan {
+                width: 5px;
+                height: 5px;
+            }
+            .val-desktop {
+                display: none;
+            }
+            .val-mobile {
+                display: inline;
+            }
+
             .lore-panel { padding: 28px 20px; }
             .lore-grid { grid-template-columns: 1fr; gap: 28px; }
             .lore-portrait { height: 320px; }
@@ -1131,9 +1218,6 @@
             .builds-grid { grid-template-columns: 1fr; }
             .arch-steps { grid-template-columns: 1fr; }
             .connect-grid { grid-template-columns: 1fr; }
-            .specs-strip { grid-template-columns: 1fr; gap: 14px; }
-            .spec-item { border-right: none; border-bottom: 1px solid var(--border-subtle); padding-bottom: 10px; }
-            .spec-item:last-child { border-bottom: none; padding-bottom: 0; }
             .footer-inner { flex-direction: column; text-align: center; }
         }
 
@@ -1179,8 +1263,15 @@
                 font-size: 11.5px;
                 gap: 4px;
             }
-            .hero-title { font-size: 26px; letter-spacing: -0.4px; line-height: 1.22; }
-            .hero-title .title-sub { font-size: 20px; margin-top: 4px; }
+            .hero-section { padding: 30px 0 20px; }
+            .hero-title { font-size: 25px; letter-spacing: -0.4px; line-height: 1.2; margin-bottom: 12px; }
+            .hero-title .title-sub { font-size: 19px; margin-top: 3px; }
+            .hero-lead { font-size: 14px; line-height: 1.55; margin-bottom: 16px; }
+            .hero-cta-group { max-width: 330px; margin-bottom: 18px; }
+            .specs-strip { max-width: 330px; padding: 8px; gap: 6px; }
+            .spec-item { padding: 6px 8px; }
+            .spec-label { font-size: 9px; }
+            .spec-value { font-size: 11px; }
         }
 
         @media (max-width: 360px) {
@@ -1273,37 +1364,57 @@
                     </svg>
                     Message on Telegram
                 </a>
-                <a href="#why-mikasa" class="btn-secondary">
-                    Why Mikasa Serves Me
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity: 0.7;">
-                        <path d="M7 13l5 5 5-5M12 4v14"/>
-                    </svg>
-                </a>
-                <a href="https://www.mrswapnil.me/" target="_blank" class="btn-secondary">
-                    Visit Portfolio (mrswapnil.me)
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity: 0.7;">
-                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/>
-                    </svg>
-                </a>
+                <div class="hero-secondary-row">
+                    <a href="#why-mikasa" class="btn-secondary">
+                        <span class="btn-text-desktop">Why Mikasa Serves Me</span>
+                        <span class="btn-text-mobile">Why Mikasa</span>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity: 0.7;">
+                            <path d="M7 13l5 5 5-5M12 4v14"/>
+                        </svg>
+                    </a>
+                    <a href="https://www.mrswapnil.me/" target="_blank" class="btn-secondary">
+                        <span class="btn-text-desktop">Visit Portfolio (mrswapnil.me)</span>
+                        <span class="btn-text-mobile">Portfolio</span>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="opacity: 0.7;">
+                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3"/>
+                        </svg>
+                    </a>
+                </div>
             </div>
 
             <!-- Live Specs Strip -->
             <div class="specs-strip">
                 <div class="spec-item">
                     <span class="spec-label">Primary AI Engine</span>
-                    <span class="spec-value"><span class="dot-cyan"></span> Google Gemini 2.5 Flash</span>
+                    <span class="spec-value">
+                        <span class="dot-cyan"></span>
+                        <span class="val-desktop">Google Gemini 2.5 Flash</span>
+                        <span class="val-mobile">Gemini 2.5 Flash</span>
+                    </span>
                 </div>
                 <div class="spec-item">
                     <span class="spec-label">Instant Failover</span>
-                    <span class="spec-value"><span class="dot-cyan"></span> OpenRouter (GPT-4o-mini)</span>
+                    <span class="spec-value">
+                        <span class="dot-cyan"></span>
+                        <span class="val-desktop">OpenRouter (GPT-4o-mini)</span>
+                        <span class="val-mobile">GPT-4o-mini</span>
+                    </span>
                 </div>
                 <div class="spec-item">
                     <span class="spec-label">Memory Vault</span>
-                    <span class="spec-value"><span class="dot-cyan"></span> Supabase PostgreSQL</span>
+                    <span class="spec-value">
+                        <span class="dot-cyan"></span>
+                        <span class="val-desktop">Supabase PostgreSQL</span>
+                        <span class="val-mobile">Supabase PG</span>
+                    </span>
                 </div>
                 <div class="spec-item">
                     <span class="spec-label">Coordinator</span>
-                    <span class="spec-value"><span class="dot-cyan"></span> Distributed Node.js Core</span>
+                    <span class="spec-value">
+                        <span class="dot-cyan"></span>
+                        <span class="val-desktop">Distributed Node.js Core</span>
+                        <span class="val-mobile">Node.js Core</span>
+                    </span>
                 </div>
             </div>
         </div>

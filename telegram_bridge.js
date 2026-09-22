@@ -325,8 +325,8 @@ async function buildMikasaSystemPrompt(userContext, conversationId) {
             supabaseRequest('/rpc/get_active_goals', 'POST'),
             supabaseRequest('/projects?select=*&order=created_at.desc', 'GET'),
             supabaseRequest('/project_decisions?select=*&order=created_at.desc', 'GET'),
-            supabaseRequest('/memories?select=content,memory_type,importance&order=created_at.desc&limit=8', 'GET'),
-            supabaseRequest(`/messages?conversation_id=eq.${conversationId}&order=timestamp.desc&limit=8`, 'GET')
+            supabaseRequest('/memories?select=content,memory_type,importance&order=created_at.desc&limit=15', 'GET'),
+            supabaseRequest(`/messages?conversation_id=eq.${conversationId}&order=timestamp.desc&limit=12`, 'GET')
         ]);
 
         if (profRes.status === 'fulfilled' && profRes.value) {
@@ -357,7 +357,7 @@ async function buildMikasaSystemPrompt(userContext, conversationId) {
         }
 
         if (memRes.status === 'fulfilled' && Array.isArray(memRes.value)) {
-            memoriesStr = memRes.value.map(m => `- [Memory]: ${m.content}`).join('\n');
+            memoriesStr = memRes.value.map(m => `- [${(m.memory_type || 'FACT').toUpperCase()} | Prio ${m.importance || 5}]: ${m.content}`).join('\n');
         }
 
         if (msgRes.status === 'fulfilled' && Array.isArray(msgRes.value)) {
@@ -446,7 +446,7 @@ Swapnil has connected his official social profiles directly to your memory core:
 - Live Portfolio: https://www.mrswapnil.me/ (Cinematic Iron Man HUD Interface)
 
 ==============================
-RELEVANT RETRIEVED MEMORIES
+RELEVANT RETRIEVED MEMORIES (CONTINUOUS LEARNING CORE)
 ==============================
 ${memoriesStr || 'No matching memories found'}
 
@@ -454,6 +454,25 @@ ${memoriesStr || 'No matching memories found'}
 RECENT CONVERSATION HISTORY
 ==============================
 ${recentMsgsStr || 'No previous messages in this session.'}
+
+==============================
+AUTONOMOUS ADAPTATION, MEMORY & PROGRESSIVE STRATEGY
+==============================
+1. CONTINUOUS CONTEXTUAL REASONING:
+   - Check the RELEVANT RETRIEVED MEMORIES and RECENT CONVERSATION HISTORY carefully.
+   - If Swapnil tells you or has previously noted that he updated something (e.g., updated his LinkedIn headline, changed code, completed a task, or set a preference), TREAT IT AS AN ACCOMPLISHED FACT.
+   - NEVER repeat past recommendations that Swapnil already finished!
+   - Always validate his momentum and guide him forward on the NEXT progressive step.
+
+2. PROGRESSIVE PROFILE & CAREER GUIDANCE (LINKEDIN, X, PORTFOLIO):
+   - When Swapnil asks to review, audit, check, or guide his LinkedIn, Twitter, GitHub, or portfolio:
+     • Act as his sharpest personal branding and software architecture mentor.
+     • Never output static, canned, or repetitive templates. Speak dynamically and conversationally like a true LLM.
+     • If his headline is already updated (featuring Edu51Portal and BUBT CSE), guide him through the NEXT milestone:
+       1) The About / Summary Section: Provide high-impact, authentic 1st-person copy highlighting real engineering proof (Creator of Edu51Portal serving 500+ active engineering students, Next.js, Supabase, autonomous AI).
+       2) Featured Links: Recommend featuring live links to https://www.mrswapnil.me/ and Edu51Portal.
+       3) Experience & Projects: Provide punchy, metric-driven bullet points for Edu51Portal, OpusGenAI, and personal AI systems.
+     • When he asks for copy or guidance, give him ready-to-paste, polished text formatted beautifully for mobile.
 
 ==============================
 CRITICAL FORMATTING & CONCISENESS RULES (TELEGRAM MOBILE)
@@ -712,11 +731,22 @@ function callN8nAgent(message, conversationId, userContext, url) {
             let data = '';
             res.on('data', chunk => data += chunk);
             res.on('end', () => {
+                if (res.statusCode < 200 || res.statusCode >= 300) {
+                    return reject(new Error(`n8n HTTP ${res.statusCode}: ${data}`));
+                }
                 try {
                     const parsed = JSON.parse(data);
-                    resolve(parsed);
+                    if (parsed && (parsed.reply || parsed.text || parsed.output)) {
+                        resolve(parsed);
+                    } else {
+                        reject(new Error('n8n returned payload without reply field: ' + data));
+                    }
                 } catch (e) {
-                    resolve({ reply: data || 'Received empty response from Mikasa.' });
+                    if (data && data.trim().length > 0) {
+                        resolve({ reply: data });
+                    } else {
+                        reject(new Error('n8n returned empty response'));
+                    }
                 }
             });
         });
@@ -806,39 +836,124 @@ async function callMikasaAgent(message, conversationId, userContext) {
     };
 }
 
-// Asynchronous background memory extraction trigger (fire-and-forget)
-function triggerMemoryExtraction(userMessage, assistantReply, conversationId) {
+// Lightweight LLM helper for autonomous background extraction
+async function callLlmFast(systemPrompt, userMessage) {
+    const geminiKey = getEnv('GEMINI_API_KEY') || getEnv('GOOGLE_API_KEY');
+    const openrouterKey = getEnv('OPENROUTER_API_KEY');
+
+    // 1. Try Gemini first if not in cooldown
+    if (geminiKey) {
+        const q = getGeminiQuotaStatus();
+        if (!q.is_cooldown && q.remaining_this_minute > 2) {
+            try {
+                const res = await callGeminiApi(systemPrompt, userMessage, geminiKey);
+                if (res) return res;
+            } catch (e) {}
+        }
+    }
+
+    // 2. Try OpenRouter as instant fallback
+    if (openrouterKey) {
+        try {
+            const res = await callOpenRouterApi(systemPrompt, userMessage, openrouterKey);
+            if (res) return res;
+        } catch (e) {}
+    }
+
+    return null;
+}
+
+// Asynchronous background autonomous memory extraction & self-improvement
+async function triggerMemoryExtraction(userMessage, assistantReply, conversationId) {
+    if (!userMessage || userMessage.trim().length < 5) return;
+    const trimmed = userMessage.trim();
+    // Skip single-word bot commands that don't contain personal knowledge
+    if (trimmed.startsWith('/') && !trimmed.startsWith('/task') && !trimmed.startsWith('/goal')) {
+        return;
+    }
+
+    // 1. In-process Autonomous LLM Memory Extractor
     try {
-        const payload = JSON.stringify({
-            user_message: userMessage,
-            assistant_reply: assistantReply,
-            conversation_id: conversationId
-        });
+        const systemPrompt = `You are the autonomous memory and continuous learning engine of Mikasa (Swapnil's personal AI).
+Interaction to evaluate:
+Swapnil (User): "${userMessage.replace(/"/g, "'")}"
+Mikasa (Assistant): "${(assistantReply || '').replace(/"/g, "'").slice(0, 300)}"
 
-        const req = http.request(MEMORY_WEBHOOK_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Content-Length': Buffer.byteLength(payload)
+Task: Extract any new facts, account updates, profile changes, user preferences, completed actions, or instructions Swapnil expressed.
+Examples:
+- "I have updated Headline...": Extract { "content": "Swapnil updated his LinkedIn headline (features Edu51Portal 500+ users & BUBT CSE). Currently optimizing his About section.", "memory_type": "fact", "importance": 9 }
+- "I prefer Next.js": Extract { "content": "Swapnil prefers Next.js over other frameworks", "memory_type": "preference", "importance": 8 }
+- "Don't do X, do Y": Extract { "content": "Swapnil instructed Mikasa: do Y instead of X", "memory_type": "instruction", "importance": 9 }
+
+Allowed memory_types strictly: "fact", "preference", "instruction", "decision", "workflow", "experience".
+If no meaningful new facts or updates, return: []
+If there are, return ONLY a valid JSON array of objects:
+[
+  {
+    "content": "Precise statement in 3rd person about Swapnil or his projects",
+    "memory_type": "fact" | "preference" | "instruction" | "decision" | "workflow" | "experience",
+    "importance": 1 to 10
+  }
+]
+Output strictly raw JSON array. No markdown code blocks, no backticks, no extra text.`;
+
+        const raw = await callLlmFast(systemPrompt, `Extract memory from user message: "${userMessage.replace(/"/g, "'")}"`);
+        if (raw) {
+            let jsonStr = raw.trim();
+            if (jsonStr.startsWith('```')) {
+                jsonStr = jsonStr.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
             }
-        }, (res) => {
-            let data = '';
-            res.on('data', chunk => data += chunk);
-            res.on('end', () => {
-                if (res.statusCode === 200) {
-                    console.log('[Auto-Memory Extractor] Result:', data);
+            try {
+                const items = JSON.parse(jsonStr);
+                if (Array.isArray(items) && items.length > 0) {
+                    const ALLOWED_TYPES = new Set(['preference', 'fact', 'workflow', 'instruction', 'experience', 'decision']);
+                    for (const item of items) {
+                        if (!item.content || item.content.length < 5) continue;
+                        const cleanType = ALLOWED_TYPES.has(item.memory_type) ? item.memory_type : 'fact';
+                        const importance = Number(item.importance) || 7;
+
+                        await supabaseRequest('/memories', 'POST', {
+                            content: item.content,
+                            memory_type: cleanType,
+                            importance: Math.min(10, Math.max(1, importance)),
+                            confidence: 0.95,
+                            source_type: 'telegram_chat',
+                            status: 'active',
+                            metadata: {
+                                user_message: userMessage.slice(0, 150),
+                                conversation_id: conversationId,
+                                learned_at: new Date().toISOString()
+                            }
+                        });
+                        console.log(`[Autonomous Memory Engine] 🧠 Learned & Stored in Supabase: "${item.content}" (${cleanType})`);
+                    }
                 }
+            } catch (parseErr) {
+                console.warn('[Autonomous Memory Parse Warning]:', parseErr.message);
+            }
+        }
+    } catch (llmMemErr) {
+        console.warn('[Autonomous Memory LLM Warning]:', llmMemErr.message);
+    }
+
+    // 2. Also forward to n8n memory webhook if reachable
+    if (MEMORY_WEBHOOK_URL && (!MEMORY_WEBHOOK_URL.includes('localhost') || !IS_RENDER_CLOUD)) {
+        try {
+            const payload = JSON.stringify({
+                user_message: userMessage,
+                assistant_reply: assistantReply,
+                conversation_id: conversationId
             });
-        });
-
-        req.on('error', (err) => {
-            console.warn('[Auto-Memory Extractor Warning]', err.message);
-        });
-
-        req.write(payload);
-        req.end();
-    } catch (e) {
-        console.warn('[Auto-Memory Trigger Error]', e.message);
+            const req = http.request(MEMORY_WEBHOOK_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) }
+            }, (res) => {
+                let d = ''; res.on('data', c => d += c);
+            });
+            req.on('error', () => {});
+            req.write(payload);
+            req.end();
+        } catch (e) {}
     }
 }
 
@@ -1299,10 +1414,10 @@ async function processUpdate(update) {
         return;
     }
 
-    // 4C. Handle Social Media Audit Intent ("checkout my social media", "check my socials", "review my twitter", etc.)
-    const isSocialAudit = text.match(/^\/(?:socials?|socialmedia|audit)\b/i) || 
-                          ((text.match(/social|socials|social media|online presence|brand|profile|profiles|linkedin|twitter|\bx\b|facebook|fb|instagram|insta|ig/i)) && 
-                           (text.match(/check|checkout|review|audit|see|view|inspect|look|status|examine/i)));
+    // 4C. Handle Explicit /socials or /audit Commands
+    // Natural conversational queries ("check my LinkedIn and guide me", "review my twitter", etc.)
+    // flow dynamically to callMikasaAgent (LLM) so Mikasa reasons, checks, and guides progressively!
+    const isSocialAudit = text.match(/^\/(?:socials?|socialmedia|audit)\b/i);
 
     if (isSocialAudit) {
         await sendChatAction(chatId, 'typing');
@@ -2053,7 +2168,9 @@ async function startPolling() {
     }
 }
 
-startPolling();
+if (require.main === module) {
+    startPolling();
+}
 
 module.exports = {
     callMikasaAgent,
@@ -2061,5 +2178,6 @@ module.exports = {
     callN8nAgent,
     startPolling,
     getGeminiQuotaStatus,
-    setGeminiCooldown
+    setGeminiCooldown,
+    triggerMemoryExtraction
 };

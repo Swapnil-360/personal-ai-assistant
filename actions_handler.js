@@ -506,18 +506,19 @@ function auditSocialMedia(platform = null) {
                 platform: "LinkedIn",
                 url: "https://www.linkedin.com/in/mr-swapnil/",
                 handle: "mr-swapnil",
-                current_focus: "Full-Stack Developer & AI Systems Engineer",
-                headline_recommendation: "Full-Stack Developer & AI Systems Builder | Next.js, TypeScript, Supabase | Creator of Edu51Portal (500+ Users) | BUBT CSE",
-                audit_score: "8.5/10",
+                current_focus: "Full-Stack Developer & AI Systems Engineer (Creator of Edu51Portal, 500+ Users)",
+                headline_recommendation: "Full-Stack Developer & AI Systems Builder | Next.js, TypeScript, Supabase | Creator of Edu51Portal (500+ Users) | BUBT CSE (Active ✅)",
+                audit_score: "9.2/10",
                 strengths: [
-                    "Strong project proof-of-work (Edu51Portal, Stark-OS Portfolio, OpusGenAI)",
+                    "High-impact headline featuring Edu51Portal (500+ Users) and BUBT CSE",
+                    "Strong project proof-of-work (Edu51Portal, Stark-OS Portfolio, OpusGenAI, Mikasa-OS)",
                     "Clean visual branding linking directly to GitHub and personal portfolio",
                     "Clear niche in AI integration (Gemini 2.5, OpenRouter, n8n, Supabase)"
                 ],
                 action_items: [
-                    "Update headline to explicitly feature 'Edu51Portal (500+ Users)' for instant recruiter proof",
-                    "Publish 1-2 architectural case studies weekly (use /linkedin Edu51Portal or /linkedin OpusGenAI)",
-                    "Feature live demo link to mrswapnil.me in the Featured section"
+                    "Craft story-driven About Section featuring engineering impact and full-stack architecture",
+                    "Feature live demo link to mrswapnil.me and Edu51Portal in the Featured Section",
+                    "Publish 1-2 architectural case studies weekly (use /linkedin Edu51Portal or /linkedin OpusGenAI)"
                 ]
             },
             twitter: {

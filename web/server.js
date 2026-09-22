@@ -36,7 +36,7 @@ const {
     createTwitterIntentUrl
 } = require('../social_publisher');
 
-const COMMANDER_EMAIL = 'miftahurr503@gmail.com';
+const COMMANDER_EMAIL = process.env.COMMANDER_EMAIL || 'miftahurr503@gmail.com';
 const COMMANDER_PASSKEY = process.env.COMMANDER_PASSKEY || 'MikasaCommander360!';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqaHJtY3Ricm9icG5vdW16bWp1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTkxNTc3NywiZXhwIjoyMTA1NDkxNzc3fQ.0_xov-GTLYTFGnm_gXxO2lmS1w_9Kc-pnWc0-T17UJ8';
 
@@ -45,7 +45,7 @@ function getSessionUuid(id = 'web_commander') {
     return [h.slice(0, 8), h.slice(8, 12), h.slice(12, 16), h.slice(16, 20), h.slice(20, 32)].join('-');
 }
 
-// Verify if the incoming HTTP request is authenticated as Commander (miftahurr503@gmail.com)
+// Verify if the incoming HTTP request is authenticated as Commander
 async function verifyCommanderRequest(req) {
     let token = null;
     const authHeader = req.headers['authorization'];
@@ -180,7 +180,7 @@ const server = http.createServer(async (req, res) => {
             if (!auth.isCommander) {
                 sendJson(res, 403, {
                     success: false,
-                    error: "Observer Mode: Only verified commander (miftahurr503@gmail.com) can execute actions or modify state.",
+                    error: "Observer Mode: Only authorized Commander can execute actions or modify state.",
                     public_observer: true
                 });
                 return false;
@@ -199,7 +199,7 @@ const server = http.createServer(async (req, res) => {
             if (email !== COMMANDER_EMAIL.toLowerCase()) {
                 return sendJson(res, 403, {
                     success: false,
-                    error: "Access restricted. Only verified commander (miftahurr503@gmail.com) can log in."
+                    error: "Access restricted. Invalid commander credentials."
                 });
             }
 
@@ -541,10 +541,10 @@ const server = http.createServer(async (req, res) => {
 
         // --- STATIC FILE & PAGE ROUTING ---
         let targetFile = '';
-        if (pathname === '/' || pathname === '/index.html') {
-            targetFile = 'public.html';
-        } else if (pathname === '/app' || pathname === '/commander' || pathname === '/hud') {
+        if (pathname === '/' || pathname === '/index.html' || pathname === '/app' || pathname === '/commander' || pathname === '/hud') {
             targetFile = 'index.html';
+        } else if (pathname === '/landing') {
+            targetFile = 'public.html';
         } else if (pathname === '/privacy') {
             targetFile = 'privacy.html';
         } else if (pathname === '/terms') {
@@ -558,7 +558,7 @@ const server = http.createServer(async (req, res) => {
         if (!fs.existsSync(filePath)) {
             // SPA fallback or 404
             if (!path.extname(pathname)) {
-                filePath = path.join(__dirname, 'public.html');
+                filePath = path.join(__dirname, 'index.html');
             } else {
                 res.writeHead(404, { 'Content-Type': 'text/plain' });
                 return res.end('404 Not Found');

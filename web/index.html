@@ -59,7 +59,7 @@
             </button>
             <div class="commander-pill" id="badge-commander" style="display: none;">
                 <span class="pulse-green"></span>
-                <span>Commander (miftahurr503@gmail.com)</span>
+                <span>Verified Commander</span>
                 <button class="btn-logout" id="btn-commander-logout" title="Exit Commander Mode">Logout</button>
             </div>
         </div>
@@ -88,7 +88,7 @@
         <div class="banner-inner">
             <span class="banner-icon">👁️</span>
             <div class="banner-text">
-                <strong>Public Observer Mode:</strong> You are viewing live telemetry of how Mikasa OS serves and performs for Swapnil. Actions & chat mutations are restricted to verified Commander (<strong>miftahurr503@gmail.com</strong>).
+                <strong>Public Observer Mode:</strong> You are viewing live telemetry of how Mikasa OS serves and performs for Commander Swapnil. Actions & direct commands are restricted to authorized Commander.
             </div>
             <button class="btn-banner-login" id="btn-banner-login">Commander Login</button>
         </div>
@@ -589,17 +589,17 @@
             </div>
             <div style="padding: 16px 0;">
                 <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 16px;">
-                    Public visitors have read-only access to live telemetry. To unlock task creation, chat, reminders, and system control, verify as <strong>miftahurr503@gmail.com</strong>.
+                    Public visitors have read-only access to live telemetry. To unlock task creation, chat, reminders, and system control, enter verified Commander credentials.
                 </p>
 
                 <form id="form-commander-login">
                     <div class="form-group" style="margin-bottom: 14px;">
-                        <label for="login-input-email">Verified Commander Email</label>
-                        <input type="email" id="login-input-email" value="miftahurr503@gmail.com" readonly style="background: rgba(0, 242, 254, 0.06); border-color: rgba(0, 242, 254, 0.25); color: #00f2fe; cursor: not-allowed;">
+                        <label for="login-input-email">Commander Email</label>
+                        <input type="email" id="login-input-email" placeholder="Enter commander email" required autocomplete="username">
                     </div>
                     <div class="form-group" style="margin-bottom: 16px;">
                         <label for="login-input-password">Commander Passkey / Password</label>
-                        <input type="password" id="login-input-password" placeholder="Enter your passkey" required autocomplete="current-password">
+                        <input type="password" id="login-input-password" placeholder="Enter passkey or password" required autocomplete="current-password">
                     </div>
                     <div id="login-error-msg" style="display: none; color: #ff4d6d; font-size: 0.82rem; margin-bottom: 12px; background: rgba(255, 77, 109, 0.1); padding: 8px 12px; border-radius: 6px;"></div>
                     <div style="display: flex; gap: 10px; justify-content: flex-end;">

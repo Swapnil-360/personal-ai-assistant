@@ -251,6 +251,10 @@ header.command-header {
     border-radius: var(--radius-md);
     border: 1px solid var(--border-subtle);
     backdrop-filter: blur(12px);
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
 }
 
 .tab-btn {
@@ -267,6 +271,8 @@ header.command-header {
     display: flex;
     align-items: center;
     gap: 8px;
+    flex-shrink: 0;
+    white-space: nowrap;
 }
 
 .tab-btn:hover {
@@ -921,16 +927,7 @@ header.command-header {
     40% { transform: translateY(-6px); opacity: 1; }
 }
 
-/* RESPONSIVE */
-@media (max-width: 1080px) {
-    .dashboard-container {
-        grid-template-columns: 1fr;
-    }
-    .companion-panel {
-        height: 520px;
-        position: static;
-    }
-}
+
 
 /* MIKASA BRAND & AVATAR STYLES */
 .brand-avatar-img {
@@ -1181,5 +1178,285 @@ body.observer-mode .btn-send:disabled {
     opacity: 0.35;
     cursor: not-allowed;
     filter: grayscale(1);
+}
+
+/* ==========================================================================
+   RESPONSIVE DESIGN & ADAPTIVE LAYOUTS
+   Supports: Large Desktop, Laptops (<=1200px), Tablets (<=992px),
+             Mobile Landscape (<=768px), and Mobile Phones (<=480px)
+   ========================================================================== */
+
+/* 1. Large Tablets & Narrow Desktop Screens (<= 1200px) */
+@media (max-width: 1200px) {
+    .dashboard-container {
+        grid-template-columns: 1fr 380px;
+        gap: 20px;
+        padding: 20px 24px;
+    }
+
+    header.command-header {
+        padding: 0 20px;
+        gap: 16px;
+    }
+
+    .header-actions {
+        gap: 8px;
+    }
+
+    .btn {
+        padding: 7px 12px;
+        font-size: 0.8rem;
+    }
+}
+
+/* 2. Medium Tablets & Laptops (<= 992px) */
+@media (max-width: 992px) {
+    header.command-header {
+        height: auto;
+        min-height: 64px;
+        padding: 12px 20px;
+        flex-wrap: wrap;
+        gap: 12px;
+        justify-content: space-between;
+    }
+
+    .brand-section {
+        flex: 1 1 auto;
+    }
+
+    .auth-pill-wrapper {
+        order: 2;
+        margin-left: auto;
+    }
+
+    .header-actions {
+        order: 3;
+        width: 100%;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: flex-start;
+        padding-top: 10px;
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .dashboard-container {
+        grid-template-columns: 1fr;
+        gap: 24px;
+        padding: 18px 20px;
+    }
+
+    .companion-panel {
+        height: 560px;
+        max-height: 80vh;
+        position: static;
+        width: 100%;
+    }
+
+    .goals-grid,
+    .projects-grid,
+    .quotas-grid {
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+    }
+}
+
+/* 3. Small Tablets & Phablets (<= 768px) */
+@media (max-width: 768px) {
+    header.command-header {
+        padding: 10px 16px;
+    }
+
+    .brand-subtitle {
+        display: none;
+    }
+
+    .brand-text h1 {
+        font-size: 1.12rem;
+    }
+
+    .header-actions {
+        gap: 6px;
+    }
+
+    .header-actions .btn {
+        padding: 6px 10px;
+        font-size: 0.76rem;
+        flex: 1 1 auto;
+        justify-content: center;
+    }
+
+    .observer-mode-banner {
+        padding: 10px 16px;
+    }
+
+    .banner-inner {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .btn-banner-login {
+        align-self: flex-start;
+    }
+
+    .dashboard-container {
+        padding: 14px 14px;
+        gap: 18px;
+    }
+
+    .glass-card {
+        padding: 18px 16px;
+    }
+
+    .card-header {
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .companion-panel {
+        height: 500px;
+    }
+
+    .modal-content {
+        width: 94%;
+        padding: 20px 16px;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+
+    .toast-container {
+        left: 16px;
+        right: 16px;
+        bottom: 16px;
+    }
+
+    .toast-msg {
+        width: 100%;
+        box-sizing: border-box;
+    }
+}
+
+/* 4. Mobile Phones (<= 480px) */
+@media (max-width: 480px) {
+    header.command-header {
+        padding: 8px 12px;
+    }
+
+    .avatar-wrapper {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+    }
+
+    .brand-avatar-img {
+        width: 32px;
+        height: 32px;
+    }
+
+    .brand-text h1 {
+        font-size: 1rem;
+        gap: 6px;
+    }
+
+    .brand-badge {
+        font-size: 0.58rem;
+        padding: 2px 6px;
+    }
+
+    .auth-pill-wrapper {
+        gap: 6px;
+    }
+
+    .observer-pill {
+        padding: 4px 8px;
+        font-size: 0.68rem;
+    }
+
+    .btn-commander-login {
+        padding: 5px 10px;
+        font-size: 0.72rem;
+    }
+
+    .commander-pill {
+        padding: 4px 10px;
+        font-size: 0.72rem;
+    }
+
+    .header-actions {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 6px;
+    }
+
+    .header-actions .btn-primary {
+        grid-column: span 2;
+    }
+
+    .header-actions .btn {
+        padding: 7px 8px;
+        font-size: 0.74rem;
+        justify-content: center;
+    }
+
+    .nav-tabs {
+        padding: 4px;
+        gap: 4px;
+    }
+
+    .tab-btn {
+        padding: 6px 12px;
+        font-size: 0.78rem;
+        gap: 6px;
+    }
+
+    .dashboard-container {
+        padding: 10px 8px;
+        gap: 14px;
+    }
+
+    .glass-card {
+        padding: 14px 12px;
+        border-radius: var(--radius-md);
+    }
+
+    .card-title {
+        font-size: 1.02rem;
+    }
+
+    .companion-panel {
+        height: 480px;
+    }
+
+    .chat-bubble {
+        max-width: 94%;
+        font-size: 0.82rem;
+        padding: 10px 12px;
+    }
+
+    .chat-input-area {
+        padding: 10px;
+        gap: 8px;
+    }
+
+    .chat-input {
+        padding: 8px 10px;
+        font-size: 0.82rem;
+    }
+
+    .btn-send {
+        width: 38px;
+        height: 38px;
+        flex-shrink: 0;
+    }
+
+    .modal-content {
+        width: 95%;
+        padding: 16px 12px;
+        border-radius: var(--radius-md);
+    }
+
+    .modal-header h3 {
+        font-size: 1.05rem;
+    }
 }
 

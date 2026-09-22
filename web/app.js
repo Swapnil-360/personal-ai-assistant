@@ -108,7 +108,7 @@ function applyObserverMode() {
     const btnSend = document.getElementById('btn-send-chat');
     if (chatInput) {
         chatInput.setAttribute('disabled', 'true');
-        chatInput.placeholder = "🔒 Public Observer Mode: Commands reserved for Commander Swapnil (miftahurr503@gmail.com)";
+        chatInput.placeholder = "🔒 Public Observer Mode: Commands reserved for Commander Swapnil";
     }
     if (btnSend) btnSend.setAttribute('disabled', 'true');
 
@@ -128,6 +128,7 @@ function initAuthHandlers() {
 
     document.getElementById('form-commander-login')?.addEventListener('submit', async (e) => {
         e.preventDefault();
+        const email = (document.getElementById('login-input-email')?.value || '').trim();
         const password = document.getElementById('login-input-password').value;
         const submitBtn = document.getElementById('btn-submit-login');
         const errorEl = document.getElementById('login-error-msg');
@@ -139,7 +140,7 @@ function initAuthHandlers() {
             const res = await fetch('/api/auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: 'miftahurr503@gmail.com', password })
+                body: JSON.stringify({ email, password })
             });
             const data = await res.json();
             if (data.success && data.access_token) {
@@ -262,7 +263,7 @@ function initModals() {
         return (e) => {
             if (!isCommander) {
                 if (e) e.preventDefault();
-                showToast("🔒 Observer Mode: Only verified Commander (miftahurr503@gmail.com) can modify state.", "warning");
+                showToast("🔒 Observer Mode: Only verified Commander can modify state.", "warning");
                 openModal('modal-commander-login');
                 return;
             }
@@ -328,7 +329,7 @@ function initModals() {
     document.getElementById('form-new-task')?.addEventListener('submit', async (e) => {
         e.preventDefault();
         if (!isCommander) {
-            showToast("🔒 Observer Mode: Only verified Commander (miftahurr503@gmail.com) can create tasks.", "warning");
+            showToast("🔒 Observer Mode: Only verified Commander can create tasks.", "warning");
             openModal('modal-commander-login');
             return;
         }
@@ -362,7 +363,7 @@ function initModals() {
     document.getElementById('form-new-reminder')?.addEventListener('submit', async (e) => {
         e.preventDefault();
         if (!isCommander) {
-            showToast("🔒 Observer Mode: Only verified Commander (miftahurr503@gmail.com) can set reminders.", "warning");
+            showToast("🔒 Observer Mode: Only verified Commander can set reminders.", "warning");
             openModal('modal-commander-login');
             return;
         }
@@ -395,7 +396,7 @@ function initModals() {
     document.getElementById('form-new-goal')?.addEventListener('submit', async (e) => {
         e.preventDefault();
         if (!isCommander) {
-            showToast("🔒 Observer Mode: Only verified Commander (miftahurr503@gmail.com) can add goals.", "warning");
+            showToast("🔒 Observer Mode: Only verified Commander can add goals.", "warning");
             openModal('modal-commander-login');
             return;
         }
@@ -428,7 +429,7 @@ function initModals() {
     document.getElementById('form-new-decision')?.addEventListener('submit', async (e) => {
         e.preventDefault();
         if (!isCommander) {
-            showToast("🔒 Observer Mode: Only verified Commander (miftahurr503@gmail.com) can record decisions.", "warning");
+            showToast("🔒 Observer Mode: Only verified Commander can record decisions.", "warning");
             openModal('modal-commander-login');
             return;
         }
@@ -544,7 +545,7 @@ function renderTasks() {
 
 async function toggleTaskStatus(taskId, isChecked) {
     if (!isCommander) {
-        showToast("🔒 Observer Mode: Only verified Commander (miftahurr503@gmail.com) can update tasks.", "warning");
+        showToast("🔒 Observer Mode: Only verified Commander can update tasks.", "warning");
         openModal('modal-commander-login');
         renderTasks();
         return;
@@ -739,7 +740,7 @@ async function loadGitHub() {
 
 function draftLinkedInForRepo(repoName) {
     if (!isCommander) {
-        showToast("🔒 Observer Mode: Post drafting is reserved for Commander Swapnil (miftahurr503@gmail.com).", "warning");
+        showToast("🔒 Observer Mode: Post drafting is reserved for Commander Swapnil.", "warning");
         openModal('modal-commander-login');
         return;
     }
@@ -977,7 +978,7 @@ function initChat() {
     form?.addEventListener('submit', async (e) => {
         e.preventDefault();
         if (!isCommander) {
-            showToast("🔒 Observer Mode: Live commands are reserved for Commander Swapnil (miftahurr503@gmail.com).", "warning");
+            showToast("🔒 Observer Mode: Live commands are reserved for Commander Swapnil.", "warning");
             openModal('modal-commander-login');
             return;
         }
@@ -991,7 +992,7 @@ function initChat() {
     chips.forEach(chip => {
         chip.addEventListener('click', () => {
             if (!isCommander) {
-                showToast("🔒 Observer Mode: Direct commands are reserved for Commander Swapnil (miftahurr503@gmail.com).", "warning");
+                showToast("🔒 Observer Mode: Direct commands are reserved for Commander Swapnil.", "warning");
                 openModal('modal-commander-login');
                 return;
             }
@@ -1039,7 +1040,7 @@ async function sendMessageToMikasa(text) {
 
         if (res.status === 403) {
             typingBubble.remove();
-            appendMikasaChatMessage("🔒 *Public Observer Mode.* Direct command dispatch and state alterations are reserved for Commander Swapnil (<miftahurr503@gmail.com>). You are observing Mikasa's live telemetry and performance.");
+            appendMikasaChatMessage("🔒 *Public Observer Mode.* Direct command dispatch and state alterations are reserved for Commander Swapnil. You are observing Mikasa's live telemetry and performance.");
             showToast("🔒 Observer Mode: Only verified Commander can dispatch commands.", "warning");
             return;
         }

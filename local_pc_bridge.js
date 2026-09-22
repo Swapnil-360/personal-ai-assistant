@@ -6,6 +6,19 @@ const http = require('http');
 const { exec, execSync } = require('child_process');
 const { recordAuditLog } = require('./actions_handler');
 
+function getEnv(key, fallback = null) {
+    if (process.env[key]) return process.env[key];
+    try {
+        const envPath = path.join(__dirname, '.env');
+        if (fs.existsSync(envPath)) {
+            const content = fs.readFileSync(envPath, 'utf8');
+            const match = content.match(new RegExp(`^${key}=([^\\r\\n]+)`, 'm'));
+            if (match) return match[1].trim();
+        }
+    } catch (e) {}
+    return fallback;
+}
+
 // 1. ALLOWED DIRECTORY SYSTEM & SENSITIVE PATH SAFEGUARDS
 const ALLOWED_DIRECTORIES = [
     'D:\\Projects',
@@ -188,7 +201,7 @@ async function sendTelegramDocument(chatId, filePath, caption = '') {
         throw new Error(`File not found: ${filePath}`);
     }
 
-    const token = process.env.TELEGRAM_BOT_TOKEN;
+    const token = getEnv('TELEGRAM_BOT_TOKEN', '8896311503:AAEuL6P-6yvnkjs1_v9L3buyck-pwZuT_9M');
     if (!token) throw new Error('TELEGRAM_BOT_TOKEN is not configured.');
 
     const boundary = '----WebKitFormBoundary' + Math.random().toString(16).slice(2);

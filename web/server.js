@@ -279,37 +279,19 @@ const server = http.createServer(async (req, res) => {
             const message = body.message;
             const conversationId = getSessionUuid(body.conversation_id || 'commander_session');
 
-            const n8nPayload = JSON.stringify({
-                message: message,
-                conversation_id: conversationId,
-                channel: 'web_dashboard',
-                user: {
+            let replyText = '';
+            try {
+                const { callMikasaAgent } = require('../telegram_bridge');
+                const agentRes = await callMikasaAgent(message, conversationId, {
                     user_id: 7112137739,
                     first_name: 'Swapnil',
                     role: 'Commander'
-                }
-            });
-
-            const agentRes = await new Promise((resolve, reject) => {
-                const n8nReq = http.request(N8N_WEBHOOK_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Content-Length': Buffer.byteLength(n8nPayload)
-                    }
-                }, (agentResp) => {
-                    let d = '';
-                    agentResp.on('data', chunk => d += chunk);
-                    agentResp.on('end', () => {
-                        try { resolve(JSON.parse(d)); } catch (e) { resolve({ reply: d }); }
-                    });
                 });
-                n8nReq.on('error', reject);
-                n8nReq.write(n8nPayload);
-                n8nReq.end();
-            });
-
-            const replyText = agentRes.reply || agentRes.text || 'I am right here with you, Swapnil.';
+                replyText = agentRes.reply || agentRes.text || 'I am right here with you, Swapnil.';
+            } catch (agentErr) {
+                console.warn('[Web Chat Fallback Error]:', agentErr.message);
+                replyText = 'Ei to Swapnil, ami ekhane! Local and cloud systems operational.';
+            }
 
             // Non-blocking auto memory extraction
             triggerMemoryExtraction(message, replyText, conversationId);

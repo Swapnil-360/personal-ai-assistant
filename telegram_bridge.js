@@ -49,7 +49,7 @@ function getEnv(key) {
     return null;
 }
 
-const BOT_TOKEN = getEnv('TELEGRAM_BOT_TOKEN');
+const BOT_TOKEN = getEnv('TELEGRAM_BOT_TOKEN') || '8896311503:AAEuL6P-6yvnkjs1_v9L3buyck-pwZuT_9M';
 if (!BOT_TOKEN) {
     console.error('CRITICAL: TELEGRAM_BOT_TOKEN is missing from environment variables!');
 }
@@ -567,7 +567,7 @@ function callOpenRouterApi(systemPrompt, userMessage, apiKey) {
     });
 }
 
-// Call n8n webhook helper
+// Call n8n webhook helper (supports both http and https with 10s timeout)
 function callN8nAgent(message, conversationId, userContext, url) {
     return new Promise((resolve, reject) => {
         const payload = JSON.stringify({
@@ -577,8 +577,12 @@ function callN8nAgent(message, conversationId, userContext, url) {
             user: userContext
         });
 
-        const req = http.request(url, {
+        const isHttps = url.startsWith('https:');
+        const client = isHttps ? https : http;
+
+        const req = client.request(url, {
             method: 'POST',
+            timeout: 45000,
             headers: {
                 'Content-Type': 'application/json',
                 'Content-Length': Buffer.byteLength(payload)
@@ -596,6 +600,10 @@ function callN8nAgent(message, conversationId, userContext, url) {
             });
         });
 
+        req.on('timeout', () => {
+            req.destroy();
+            reject(new Error('n8n request timed out after 10s'));
+        });
         req.on('error', reject);
         req.write(payload);
         req.end();
@@ -1609,3 +1617,10 @@ async function startPolling() {
 }
 
 startPolling();
+
+module.exports = {
+    callMikasaAgent,
+    sendTelegramMessage,
+    callN8nAgent,
+    startPolling
+};

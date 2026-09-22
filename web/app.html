@@ -34,6 +34,14 @@
         </div>
 
         <div class="status-pills">
+            <div class="status-pill" id="pill-pc">
+                <div class="dot pulse-green" id="dot-pc"></div>
+                <span id="text-pc">PC: Swapnil-PC (Online)</span>
+            </div>
+            <div class="status-pill" id="pill-n8n">
+                <div class="dot pulse-green" id="dot-n8n"></div>
+                <span id="text-n8n">n8n: :5678 (Running)</span>
+            </div>
             <div class="status-pill" id="pill-tg">
                 <div class="dot"></div>
                 <span>Telegram: @mikasa_360_bot</span>
@@ -105,6 +113,9 @@
                 <button class="tab-btn active" data-tab="tab-tasks" id="tab-btn-tasks">
                     <span>📋</span> Tasks
                 </button>
+                <button class="tab-btn" data-tab="tab-pc" id="tab-btn-pc">
+                    <span>💻</span> JARVIS & PC Control
+                </button>
                 <button class="tab-btn" data-tab="tab-copilot" id="tab-btn-copilot">
                     <span>💼</span> Career & Copilot Hub
                 </button>
@@ -142,6 +153,219 @@
                         <div class="loading-state">Loading tasks from Supabase...</div>
                     </div>
                 </div>
+            </div>
+
+            <!-- TAB PC: JARVIS & LOCAL PC CONTROL (PATHS v2) -->
+            <div class="tab-content" id="tab-pc">
+                
+                <!-- 1. JARVIS VOICE & EXECUTIVE STATUS BANNER -->
+                <div class="glass-card" style="border: 1px solid rgba(14, 165, 233, 0.35); background: linear-gradient(135deg, rgba(14, 165, 233, 0.08) 0%, rgba(15, 23, 42, 0.85) 100%);">
+                    <div class="card-header">
+                        <div class="card-title" style="color: #38bdf8;">
+                            <span>🎙️</span> MIKASA Personal Agent OS — JARVIS Operating Layer
+                        </div>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <button class="btn btn-secondary" id="btn-toggle-voice-synth" style="font-size: 0.75rem; padding: 4px 10px;">
+                                🔊 Voice Audio: <span id="label-voice-synth-status">ON</span>
+                            </button>
+                            <button class="btn btn-secondary" id="btn-refresh-pc-status" style="font-size: 0.75rem; padding: 4px 10px;">
+                                🔄 Refresh Telemetry
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Voice Command Trigger -->
+                    <div style="text-align: center; padding: 18px 10px;">
+                        <button id="btn-jarvis-voice" style="background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); border: 2px solid #38bdf8; border-radius: 50px; padding: 14px 28px; color: #fff; font-size: 1.05rem; font-weight: 700; cursor: pointer; box-shadow: 0 0 20px rgba(56, 189, 248, 0.4); display: inline-flex; align-items: center; gap: 12px; transition: all 0.25s;">
+                            <span id="voice-icon" style="font-size: 1.4rem;">🎙️</span>
+                            <span id="voice-label">Speak Command ("Hey Mikasa...")</span>
+                        </button>
+                        <div id="voice-feedback" style="margin-top: 10px; font-size: 0.85rem; color: #94a3b8; font-style: italic; min-height: 20px;">
+                            Click to activate push-to-talk voice interface. Mikasa will respond both visually and through voice.
+                        </div>
+                    </div>
+
+                    <!-- Live System Matrix Pills -->
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-top: 10px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.08);">
+                        <div style="background: rgba(15, 23, 42, 0.6); padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.06); text-align: center;">
+                            <div style="font-size: 0.7rem; color: #94a3b8;">PC BRIDGE</div>
+                            <div style="font-size: 0.82rem; font-weight: 700; color: #34d399; margin-top: 2px;">● ONLINE</div>
+                        </div>
+                        <div style="background: rgba(15, 23, 42, 0.6); padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.06); text-align: center;">
+                            <div style="font-size: 0.7rem; color: #94a3b8;">MEMORY VAULT</div>
+                            <div style="font-size: 0.82rem; font-weight: 700; color: #34d399; margin-top: 2px;">● ONLINE</div>
+                        </div>
+                        <div style="background: rgba(15, 23, 42, 0.6); padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.06); text-align: center;">
+                            <div style="font-size: 0.7rem; color: #94a3b8;">LOCAL n8n</div>
+                            <div style="font-size: 0.82rem; font-weight: 700; color: #34d399; margin-top: 2px;" id="badge-n8n-live">● RUNNING</div>
+                        </div>
+                        <div style="background: rgba(15, 23, 42, 0.6); padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.06); text-align: center;">
+                            <div style="font-size: 0.7rem; color: #94a3b8;">GITHUB API</div>
+                            <div style="font-size: 0.82rem; font-weight: 700; color: #34d399; margin-top: 2px;">● CONNECTED</div>
+                        </div>
+                        <div style="background: rgba(15, 23, 42, 0.6); padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.06); text-align: center;">
+                            <div style="font-size: 0.7rem; color: #94a3b8;">BROWSER</div>
+                            <div style="font-size: 0.82rem; font-weight: 700; color: #38bdf8; margin-top: 2px;">● READY</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. LOCAL PC HARDWARE & TELEMETRY GAUGES -->
+                <div class="glass-card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <span>💻</span> Hardware & Resource Telemetry
+                        </div>
+                        <span style="font-size: 0.75rem; color: #94a3b8;" id="pc-hostname-tag">Swapnil-PC</span>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px;">
+                        <!-- CPU -->
+                        <div style="background: rgba(15, 23, 42, 0.5); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 14px;">
+                            <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: #94a3b8;">
+                                <span>⚡ CPU Usage</span>
+                                <span id="gauge-cpu-load" style="font-weight: 700; color: #38bdf8;">-- %</span>
+                            </div>
+                            <div style="font-size: 0.85rem; font-weight: 600; color: #f1f5f9; margin: 6px 0;" id="gauge-cpu-model">Loading CPU...</div>
+                            <div style="background: rgba(255,255,255,0.1); border-radius: 4px; height: 6px; overflow: hidden;">
+                                <div id="bar-cpu-load" style="width: 0%; height: 100%; background: #38bdf8; transition: width 0.4s;"></div>
+                            </div>
+                        </div>
+
+                        <!-- RAM -->
+                        <div style="background: rgba(15, 23, 42, 0.5); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 14px;">
+                            <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: #94a3b8;">
+                                <span>🧠 RAM Usage</span>
+                                <span id="gauge-ram-pct" style="font-weight: 700; color: #34d399;">-- %</span>
+                            </div>
+                            <div style="font-size: 0.85rem; font-weight: 600; color: #f1f5f9; margin: 6px 0;" id="gauge-ram-details">Loading RAM...</div>
+                            <div style="background: rgba(255,255,255,0.1); border-radius: 4px; height: 6px; overflow: hidden;">
+                                <div id="bar-ram-load" style="width: 0%; height: 100%; background: #34d399; transition: width 0.4s;"></div>
+                            </div>
+                        </div>
+
+                        <!-- DISKS -->
+                        <div style="background: rgba(15, 23, 42, 0.5); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 14px;">
+                            <div style="display: flex; justify-content: space-between; font-size: 0.8rem; color: #94a3b8;">
+                                <span>💾 Disks (C: & D:)</span>
+                                <span style="font-weight: 700; color: #a78bfa;" id="gauge-uptime">Uptime: --</span>
+                            </div>
+                            <div id="gauge-disks-list" style="font-size: 0.78rem; color: #cbd5e1; margin-top: 6px; line-height: 1.5;">
+                                Scanning drives...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. AGENT OPERATING MODES (Section 26) -->
+                <div class="glass-card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <span>🎭</span> Operating Mode Architecture (Section 26)
+                        </div>
+                        <span style="font-size: 0.75rem; color: #38bdf8;" id="current-mode-badge">Active: PC Mode</span>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px;" id="mode-buttons-container">
+                        <button class="btn-mode active" data-mode="PC">💻 PC</button>
+                        <button class="btn-mode" data-mode="Developer">🛠️ Developer</button>
+                        <button class="btn-mode" data-mode="Conversation">💬 Chat</button>
+                        <button class="btn-mode" data-mode="Research">🔍 Research</button>
+                        <button class="btn-mode" data-mode="Browser">🌐 Browser</button>
+                        <button class="btn-mode" data-mode="Automation">⚡ Automate</button>
+                        <button class="btn-mode" data-mode="Career">💼 Career</button>
+                        <button class="btn-mode" data-mode="Social">📱 Social</button>
+                        <button class="btn-mode" data-mode="Monitor">📡 Monitor</button>
+                        <button class="btn-mode" data-mode="Command">⚔️ Command</button>
+                    </div>
+                </div>
+
+                <!-- 4. PRIVACY CONTROLS MATRIX (Section 33) -->
+                <div class="glass-card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <span>🛡️</span> Security & Privacy Controls Matrix (Section 33)
+                        </div>
+                        <span style="font-size: 0.72rem; color: #94a3b8;">Toggle permissions in real-time</span>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;">
+                        <div style="background: rgba(15, 23, 42, 0.5); padding: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid rgba(255,255,255,0.06);">
+                            <span style="font-size: 0.8rem; color: #cbd5e1;">🎤 Microphone</span>
+                            <button class="privacy-toggle active" data-perm="microphone" id="toggle-microphone">ON</button>
+                        </div>
+                        <div style="background: rgba(15, 23, 42, 0.5); padding: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid rgba(255,255,255,0.06);">
+                            <span style="font-size: 0.8rem; color: #cbd5e1;">📷 Camera</span>
+                            <button class="privacy-toggle" data-perm="camera" id="toggle-camera">OFF</button>
+                        </div>
+                        <div style="background: rgba(15, 23, 42, 0.5); padding: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid rgba(255,255,255,0.06);">
+                            <span style="font-size: 0.8rem; color: #cbd5e1;">🖥️ Screen Capture</span>
+                            <button class="privacy-toggle" data-perm="screen" id="toggle-screen">OFF</button>
+                        </div>
+                        <div style="background: rgba(15, 23, 42, 0.5); padding: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid rgba(255,255,255,0.06);">
+                            <span style="font-size: 0.8rem; color: #cbd5e1;">🔌 PC Access</span>
+                            <button class="privacy-toggle active" data-perm="pc_access" id="toggle-pc_access">ON</button>
+                        </div>
+                        <div style="background: rgba(15, 23, 42, 0.5); padding: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid rgba(255,255,255,0.06);">
+                            <span style="font-size: 0.8rem; color: #cbd5e1;">🌐 Browser Control</span>
+                            <button class="privacy-toggle active" data-perm="browser" id="toggle-browser">ON</button>
+                        </div>
+                        <div style="background: rgba(15, 23, 42, 0.5); padding: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; border: 1px solid rgba(255,255,255,0.06);">
+                            <span style="font-size: 0.8rem; color: #cbd5e1;">⚡ Terminal</span>
+                            <button class="privacy-toggle active" data-perm="terminal" id="toggle-terminal" style="background: #eab308; color: #000;">RESTRICTED</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 5. LOCAL FILE SYSTEM INTELLIGENCE & REMOTE RETRIEVAL (Section 4 & 5) -->
+                <div class="glass-card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <span>📁</span> Allowed Directory File Intelligence (Section 4 & 5)
+                        </div>
+                        <span style="font-size: 0.72rem; color: #94a3b8;">D:\Projects, D:\Documents, D:\Downloads\PATHS</span>
+                    </div>
+                    <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+                        <input type="text" id="input-search-files" placeholder="Search files by natural language or keyword (e.g. Edu51, CV, README, spec)..." style="flex: 1; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; padding: 8px 12px; color: #f1f5f9; font-size: 0.85rem;">
+                        <button class="btn btn-primary" id="btn-search-files" style="padding: 8px 16px;">Search Files</button>
+                    </div>
+                    <div id="files-results-container" style="max-height: 250px; overflow-y: auto;">
+                        <div style="font-size: 0.82rem; color: #94a3b8; text-align: center; padding: 15px;">
+                            Enter a search query to inspect allowed local files.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 6. CONTROLLED TERMINAL EXECUTION (Section 7 & 27) -->
+                <div class="glass-card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <span>⚡</span> Controlled Terminal Agent (Permission Matrix Enforced)
+                        </div>
+                        <span style="font-size: 0.72rem; color: #34d399;" id="terminal-perm-badge">Level: READ / APPROVED EXECUTE</span>
+                    </div>
+                    <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+                        <input type="text" id="input-terminal-cmd" placeholder="Run approved command (e.g. git status, tasklist, npm test, dir)..." style="flex: 1; font-family: monospace; background: #020617; border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; padding: 8px 12px; color: #38bdf8; font-size: 0.85rem;">
+                        <button class="btn btn-secondary action-restricted" id="btn-run-terminal">Execute</button>
+                    </div>
+                    <pre id="terminal-output-console" style="background: #020617; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 12px; font-size: 0.78rem; color: #94a3b8; font-family: 'Courier New', Courier, monospace; max-height: 200px; overflow-y: auto; white-space: pre-wrap;">[Terminal Ready] Type an approved command or test 'git status'.</pre>
+                </div>
+
+                <!-- 7. WEBSITE & SERVICE HEALTH RADAR (Section 19) -->
+                <div class="glass-card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <span>🌐</span> Proactive Website & Infrastructure Monitors (Section 19)
+                        </div>
+                        <button class="btn btn-secondary" id="btn-refresh-monitors" style="font-size: 0.75rem; padding: 4px 10px;">
+                            ⚡ Ping All Services
+                        </button>
+                    </div>
+                    <div id="monitors-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;">
+                        <div style="font-size: 0.82rem; color: #94a3b8; text-align: center; padding: 15px; grid-column: 1/-1;">
+                            Pinging monitored services...
+                        </div>
+                    </div>
+                </div>
+
             </div>
 
             <!-- TAB 2: CAREER & COPILOT HUB (GITHUB, LINKEDIN, CV, PROMPTS, REMINDERS) -->

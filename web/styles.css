@@ -1417,7 +1417,78 @@ body.observer-mode .btn-send:disabled {
     .companion-panel { height: 400px; }
 
     .modal-content { width: 98%; padding: 14px 10px; }
+/* ── PATHS V2: JARVIS & LOCAL PC CONTROL HUB STYLES ── */
+.btn-mode {
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 6px;
+    padding: 8px 6px;
+    color: var(--text-secondary);
+    font-size: 0.76rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
 }
+
+.btn-mode:hover {
+    border-color: rgba(56, 189, 248, 0.4);
+    color: #f1f5f9;
+    background: rgba(56, 189, 248, 0.1);
+}
+
+.btn-mode.active {
+    background: linear-gradient(135deg, rgba(2, 132, 199, 0.35) 0%, rgba(14, 165, 233, 0.2) 100%);
+    border-color: #38bdf8;
+    color: #38bdf8;
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.25);
+}
+
+.privacy-toggle {
+    border: none;
+    border-radius: 4px;
+    padding: 4px 10px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: rgba(255, 255, 255, 0.08);
+    color: #94a3b8;
+}
+
+.privacy-toggle.active {
+    background: rgba(16, 185, 129, 0.2);
+    color: #34d399;
+    border: 1px solid rgba(52, 211, 153, 0.4);
+}
+
+.privacy-toggle.restricted {
+    background: rgba(234, 179, 8, 0.2);
+    color: #facc15;
+    border: 1px solid rgba(250, 204, 21, 0.4);
+}
+
+.pulse-green {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #34d399;
+    box-shadow: 0 0 8px #34d399;
+    animation: pulseGlow 2s infinite ease-in-out;
+}
+
+@keyframes pulseGlow {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(1.2); }
+}
+
+#btn-jarvis-voice.listening {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
+    border-color: #f87171 !important;
+    box-shadow: 0 0 25px rgba(239, 68, 68, 0.6) !important;
+    animation: pulseGlow 1s infinite alternate;
+}
+
 
 
 

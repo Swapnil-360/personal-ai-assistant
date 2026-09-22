@@ -14,6 +14,7 @@ const {
     generateLinkedInDraft,
     tailorCvForJob,
     matchJobOpportunity,
+    generateLinkedInJobRadar,
     generateOptimizedPrompt,
     generateTwitterThread,
     generateSingleTweet,
@@ -38,6 +39,17 @@ const {
     fitTweetForFreeTier,
     createTwitterIntentUrl
 } = require('./social_publisher');
+const {
+    getSystemInfo,
+    searchAllowedFiles,
+    sendTelegramDocument,
+    executeControlledTerminal,
+    checkServiceMonitors,
+    privacyControls,
+    updatePrivacyControls,
+    currentAgentMode,
+    setAgentMode
+} = require('./local_pc_bridge');
 
 const fs = require('fs');
 const path = require('path');
@@ -112,6 +124,11 @@ function registerBotCommands() {
         { command: 'projects', description: 'Briefing on active projects' },
         { command: 'decisions', description: 'Confirmed architectural decisions' },
         { command: 'memories', description: 'View memory vault items' },
+        { command: 'pc', description: 'Inspect PC status, RAM, CPU, n8n & storage' },
+        { command: 'file', description: 'Search allowed PC files & send: /file [name]' },
+        { command: 'run', description: 'Run approved terminal command: /run [command]' },
+        { command: 'monitor', description: 'Live check on websites & local services' },
+        { command: 'mode', description: 'Switch agent mode: /mode [mode]' },
         { command: 'dashboard', description: 'Link to Web Command Center' },
         { command: 'login', description: '1-click verified login for Web App' },
         { command: 'quota', description: 'View Gemini quota & rate limit status' },
@@ -1898,6 +1915,133 @@ async function processUpdate(update) {
         ];
 
         await sendTelegramMessage(chatId, lines.join('\n'), msg.message_id);
+        return;
+    }
+
+    // 11C. PATHS v2: Local PC Agent & Telemetry (/pc)
+    if (text === '/pc' || text === '/system' || text.match(/^(?:is\s+my\s+pc\s+online|pc\s+status|pc\s+online|system\s+status)\??$/i)) {
+        await sendChatAction(chatId, 'typing');
+        try {
+            const info = await getSystemInfo();
+            const cpuLoad = info.cpu.loadPct;
+            const mem = info.memory;
+            const lines = [
+                "💻 *MIKASA LOCAL PC TELEMETRY (PATHS v2)*",
+                "━━━━━━━━━━━━━━━━━━━━",
+                `🖥️ *Host:* \`${info.hostname}\` (Windows PC)`,
+                `⚡ *CPU:* ${info.cpu.model.trim()} — *${cpuLoad}% Load*`,
+                `🧠 *RAM:* *${mem.usedGb} GB* / ${mem.totalGb} GB (${mem.usagePct}% used)`,
+                `⏱️ *Uptime:* ${info.uptimeFormatted}`,
+                "",
+                "💾 *Disks & Storage:*",
+                ...info.disks.map(d => `• Drive \`${d.drive}\` ${d.freeGb} GB free / ${d.totalGb} GB (${d.freePct}% free)`),
+                "",
+                "⚙️ *Services & Bridges:*",
+                `• n8n Engine: ${info.n8n.running ? '🟢 ONLINE (port 5678)' : '🔴 OFFLINE'}`,
+                `• Web HUD: 🟢 ONLINE (port 3000)`,
+                `• Agent Mode: *${info.mode}*`,
+                `• Terminal Policy: *${info.privacy.terminal}*`,
+                "",
+                "_Need to retrieve a file from this PC? Use `/file [name]`!_"
+            ];
+            await sendTelegramMessage(chatId, lines.join('\n'), msg.message_id);
+        } catch (err) {
+            await sendTelegramMessage(chatId, `⚠️ Error reading PC telemetry: ${err.message}`, msg.message_id);
+        }
+        return;
+    }
+
+    // 11D. PATHS v2: Remote File Retrieval (/file)
+    if (text.startsWith('/file') || text.match(/^(?:send|fetch|get)\s+(?:me\s+)?(?:the\s+)?(.+?)\s+(?:from\s+my\s+pc|from\s+pc)\??$/i)) {
+        let query = '';
+        if (text.startsWith('/file')) {
+            query = text.slice(5).trim();
+        } else {
+            const m = text.match(/^(?:send|fetch|get)\s+(?:me\s+)?(?:the\s+)?(.+?)\s+(?:from\s+my\s+pc|from\s+pc)\??$/i);
+            query = m ? m[1].trim() : '';
+        }
+
+        if (!query) {
+            await sendTelegramMessage(chatId, "📁 *Remote PC File Retrieval*\n\nPlease specify a file name or search keyword.\nExample: `/file presentation` or `/file README`", msg.message_id);
+            return;
+        }
+
+        await sendChatAction(chatId, 'upload_document');
+        try {
+            const files = await searchAllowedFiles(query, 5);
+            if (files.length === 0) {
+                await sendTelegramMessage(chatId, `⚠️ No files found matching "*${query}*" in allowed PC folders (\`D:\\Projects\`, \`D:\\Documents\`, \`D:\\Downloads\\PATHS\`).`, msg.message_id);
+                return;
+            }
+
+            const top = files[0];
+            await sendTelegramMessage(chatId, `📤 *Found file:* \`${top.name}\` (${top.sizeFormatted})\n📍 Path: \`${top.path}\`\n\n_Transmitting file to Telegram now..._`, msg.message_id);
+            await sendTelegramDocument(chatId, top.path, `PATHS Remote Retrieval: ${top.name}`);
+        } catch (err) {
+            await sendTelegramMessage(chatId, `❌ Remote file retrieval failed: ${err.message}`, msg.message_id);
+        }
+        return;
+    }
+
+    // 11E. PATHS v2: Controlled Terminal Execution (/run)
+    if (text.startsWith('/run ')) {
+        const command = text.slice(5).trim();
+        await sendChatAction(chatId, 'typing');
+        try {
+            const res = await executeControlledTerminal(command, 'READ', false);
+            if (res.status === 'confirmation_required') {
+                await sendTelegramMessage(chatId, `🛡️ *Controlled Terminal — Confirmation Required*\n\nCommand: \`${command}\`\nPermission Level: *${res.permission_level}*\n\n${res.message}`, msg.message_id);
+            } else {
+                const outPreview = res.output ? res.output.slice(0, 3500) : '[No output]';
+                const reply = [
+                    `⚡ *Terminal Execution Result* (${res.permission_level})`,
+                    `Command: \`${res.command}\``,
+                    `Status: ${res.success ? '✅ SUCCESS' : '❌ FAILED'} (Exit Code: ${res.exit_code})`,
+                    `Duration: ${res.duration_ms}ms`,
+                    "",
+                    "```text",
+                    outPreview,
+                    "```"
+                ].join('\n');
+                await sendTelegramMessage(chatId, reply, msg.message_id);
+            }
+        } catch (err) {
+            await sendTelegramMessage(chatId, `❌ Terminal Security Error: ${err.message}`, msg.message_id);
+        }
+        return;
+    }
+
+    // 11F. PATHS v2: Website & Service Health Monitors (/monitor)
+    if (text === '/monitor' || text === '/health' || text.match(/^(?:check\s+my\s+websites|check\s+websites|is\s+my\s+portfolio\s+up)\??$/i)) {
+        await sendChatAction(chatId, 'typing');
+        try {
+            const monitors = await checkServiceMonitors();
+            let reply = "🌐 *PATHS Live Service & Website Monitors (Section 19)*\n━━━━━━━━━━━━━━━━━━━━\n\n";
+            monitors.forEach(m => {
+                const badge = m.status === 'UP' ? '🟢 UP' : (m.status === 'DEGRADED' ? '🟡 DEGRADED' : '🔴 DOWN');
+                reply += `• *${m.name}*\n  Status: ${badge} | Latency: \`${m.latencyMs}ms\`\n  URL: ${m.url}\n\n`;
+            });
+            reply += `_Monitored continuously by Mikasa PC Bridge._`;
+            await sendTelegramMessage(chatId, reply, msg.message_id);
+        } catch (err) {
+            await sendTelegramMessage(chatId, `⚠️ Error running monitors: ${err.message}`, msg.message_id);
+        }
+        return;
+    }
+
+    // 11G. PATHS v2: Agent Mode Switcher (/mode)
+    if (text.startsWith('/mode')) {
+        const modeArg = text.slice(5).trim();
+        if (!modeArg) {
+            await sendTelegramMessage(chatId, `🛡️ *Mikasa Agent Mode*\n\nCurrent Mode: *${currentAgentMode()}*\n\nAvailable modes:\n• \`Conversation\`\n• \`Research\`\n• \`Developer\`\n• \`PC\`\n• \`Browser\`\n• \`Automation\`\n• \`Career\`\n• \`Social\`\n• \`Monitor\`\n• \`Command\`\n\nUsage: \`/mode Developer\``, msg.message_id);
+            return;
+        }
+        const res = setAgentMode(modeArg);
+        if (res.success) {
+            await sendTelegramMessage(chatId, `✅ *Agent Mode switched to:* \`${res.mode}\`\nMikasa tool priorities adjusted.`, msg.message_id);
+        } else {
+            await sendTelegramMessage(chatId, `⚠️ ${res.error}`, msg.message_id);
+        }
         return;
     }
 

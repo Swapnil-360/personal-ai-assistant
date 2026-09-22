@@ -219,6 +219,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initChat();
     initCopilotHub();
     initQuotaClick();
+    initPCHub();
 
     // Verify authentication status
     checkCommanderAuth();
@@ -1100,3 +1101,361 @@ function escapeHtml(str) {
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#039;');
 }
+
+// ── PATHS V2: JARVIS & LOCAL PC CONTROL HUB ──
+let speechSynthEnabled = true;
+let isVoiceListening = false;
+let speechRecognitionInstance = null;
+
+function initPCHub() {
+    // 1. Refresh buttons
+    const btnRefreshStatus = document.getElementById('btn-refresh-pc-status');
+    if (btnRefreshStatus) btnRefreshStatus.addEventListener('click', loadPCTelemetry);
+
+    const btnRefreshMonitors = document.getElementById('btn-refresh-monitors');
+    if (btnRefreshMonitors) btnRefreshMonitors.addEventListener('click', loadServiceMonitors);
+
+    // 2. Toggle Voice Audio Synthesis
+    const btnToggleVoice = document.getElementById('btn-toggle-voice-synth');
+    const labelVoiceStatus = document.getElementById('label-voice-synth-status');
+    if (btnToggleVoice) {
+        btnToggleVoice.addEventListener('click', () => {
+            speechSynthEnabled = !speechSynthEnabled;
+            if (labelVoiceStatus) labelVoiceStatus.textContent = speechSynthEnabled ? 'ON' : 'OFF';
+            showToast(`Voice audio synthesis ${speechSynthEnabled ? 'enabled' : 'muted'}`, 'info');
+        });
+    }
+
+    // 3. JARVIS Voice Recognition
+    initJarvisVoice();
+
+    // 4. Mode Buttons
+    const modeBtns = document.querySelectorAll('.btn-mode');
+    modeBtns.forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const mode = btn.getAttribute('data-mode');
+            if (!isCommander) {
+                showToast("🔒 Switching agent modes requires verified Commander authentication.", "warning");
+                return;
+            }
+            try {
+                const res = await authFetch('/api/pc/modes', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mode })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    modeBtns.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    const badge = document.getElementById('current-mode-badge');
+                    if (badge) badge.textContent = `Active: ${data.mode} Mode`;
+                    showToast(`Agent mode switched to: ${data.mode}`, 'success');
+                }
+            } catch (e) {
+                showToast("Failed to switch mode: " + e.message, "warning");
+            }
+        });
+    });
+
+    // 5. Privacy Toggles
+    const privacyToggles = document.querySelectorAll('.privacy-toggle');
+    privacyToggles.forEach(toggle => {
+        toggle.addEventListener('click', async () => {
+            const perm = toggle.getAttribute('data-perm');
+            if (!isCommander) {
+                showToast("🔒 Updating security/privacy matrix requires Commander passkey.", "warning");
+                return;
+            }
+            const currentVal = toggle.classList.contains('active');
+            let nextVal = !currentVal;
+            if (perm === 'terminal') {
+                nextVal = toggle.textContent === 'RESTRICTED' ? 'disabled' : 'restricted';
+            }
+            try {
+                const res = await authFetch('/api/pc/privacy', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ [perm]: nextVal })
+                });
+                const updated = await res.json();
+                renderPrivacyControls(updated);
+                showToast(`Updated ${perm} policy: ${nextVal}`, 'info');
+            } catch (e) {
+                showToast("Failed to update privacy policy", "warning");
+            }
+        });
+    });
+
+    // 6. Allowed File Search
+    const btnSearchFiles = document.getElementById('btn-search-files');
+    const inputSearchFiles = document.getElementById('input-search-files');
+    if (btnSearchFiles && inputSearchFiles) {
+        btnSearchFiles.addEventListener('click', () => runFileSearch(inputSearchFiles.value));
+        inputSearchFiles.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') runFileSearch(inputSearchFiles.value);
+        });
+    }
+
+    // 7. Controlled Terminal Execution
+    const btnRunTerminal = document.getElementById('btn-run-terminal');
+    const inputTerminalCmd = document.getElementById('input-terminal-cmd');
+    if (btnRunTerminal && inputTerminalCmd) {
+        btnRunTerminal.addEventListener('click', () => runControlledTerminal(inputTerminalCmd.value));
+        inputTerminalCmd.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') runControlledTerminal(inputTerminalCmd.value);
+        });
+    }
+
+    // Initial Telemetry & Monitors Load
+    loadPCTelemetry();
+    loadServiceMonitors();
+    // Poll PC telemetry every 30s
+    setInterval(loadPCTelemetry, 30000);
+}
+
+function initJarvisVoice() {
+    const btnVoice = document.getElementById('btn-jarvis-voice');
+    const voiceLabel = document.getElementById('voice-label');
+    const voiceFeedback = document.getElementById('voice-feedback');
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+        if (voiceFeedback) voiceFeedback.textContent = "Web Speech API not supported in this browser. Use chat input.";
+        return;
+    }
+
+    speechRecognitionInstance = new SpeechRecognition();
+    speechRecognitionInstance.continuous = false;
+    speechRecognitionInstance.interimResults = true;
+    speechRecognitionInstance.lang = 'en-US';
+
+    speechRecognitionInstance.onstart = () => {
+        isVoiceListening = true;
+        if (btnVoice) btnVoice.classList.add('listening');
+        if (voiceLabel) voiceLabel.textContent = "Listening... Speak now";
+        if (voiceFeedback) voiceFeedback.textContent = "Mikasa is listening to your microphone...";
+    };
+
+    speechRecognitionInstance.onresult = (event) => {
+        let transcript = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+            transcript += event.results[i][0].transcript;
+        }
+        if (voiceFeedback) voiceFeedback.textContent = `"${transcript}"`;
+
+        if (event.results[0].isFinal) {
+            handleVoiceCommand(transcript);
+        }
+    };
+
+    speechRecognitionInstance.onerror = (event) => {
+        console.warn('Speech recognition error:', event.error);
+        isVoiceListening = false;
+        if (btnVoice) btnVoice.classList.remove('listening');
+        if (voiceLabel) voiceLabel.textContent = 'Speak Command ("Hey Mikasa...")';
+        if (voiceFeedback) voiceFeedback.textContent = `Voice recognition error: ${event.error}`;
+    };
+
+    speechRecognitionInstance.onend = () => {
+        isVoiceListening = false;
+        if (btnVoice) btnVoice.classList.remove('listening');
+        if (voiceLabel) voiceLabel.textContent = 'Speak Command ("Hey Mikasa...")';
+    };
+
+    if (btnVoice) {
+        btnVoice.addEventListener('click', () => {
+            if (isVoiceListening) {
+                speechRecognitionInstance.stop();
+            } else {
+                try {
+                    speechRecognitionInstance.start();
+                } catch (e) {
+                    console.warn(e);
+                }
+            }
+        });
+    }
+}
+
+async function handleVoiceCommand(spokenText) {
+    if (!spokenText || !spokenText.trim()) return;
+    const voiceFeedback = document.getElementById('voice-feedback');
+    if (voiceFeedback) voiceFeedback.textContent = `Processing: "${spokenText}"...`;
+
+    const chatInput = document.getElementById('chat-input');
+    if (chatInput) chatInput.value = spokenText;
+
+    await sendMessageToMikasa(spokenText);
+
+    if (speechSynthEnabled && window.speechSynthesis) {
+        setTimeout(() => {
+            const bubbles = document.querySelectorAll('.chat-bubble.bubble-mikasa');
+            const lastBubble = bubbles[bubbles.length - 1];
+            if (lastBubble) {
+                const cleanVoiceText = lastBubble.textContent.replace(/[*_#`~\[\]\(\)]/g, ' ').replace(/\s+/g, ' ').trim();
+                const utterance = new SpeechSynthesisUtterance(cleanVoiceText.slice(0, 280));
+                utterance.rate = 1.05;
+                window.speechSynthesis.speak(utterance);
+            }
+        }, 1200);
+    }
+}
+
+async function loadPCTelemetry() {
+    try {
+        const res = await fetch('/api/pc/status');
+        const data = await res.json();
+        if (!data || !data.hostname) return;
+
+        // Header status pills
+        const textPc = document.getElementById('text-pc');
+        if (textPc) textPc.textContent = `PC: ${data.hostname} (Online)`;
+
+        const textN8n = document.getElementById('text-n8n');
+        if (textN8n) textN8n.textContent = `n8n: :${data.n8n.port} (${data.n8n.running ? 'Running' : 'Offline'})`;
+
+        // Telemetry cards
+        const tagHost = document.getElementById('pc-hostname-tag');
+        if (tagHost) tagHost.textContent = `${data.hostname} (${data.platform})`;
+
+        const gaugeCpuLoad = document.getElementById('gauge-cpu-load');
+        const gaugeCpuModel = document.getElementById('gauge-cpu-model');
+        const barCpuLoad = document.getElementById('bar-cpu-load');
+        if (gaugeCpuLoad) gaugeCpuLoad.textContent = `${data.cpu.loadPct}%`;
+        if (gaugeCpuModel) gaugeCpuModel.textContent = `${data.cpu.model.trim()} (${data.cpu.cores} Cores)`;
+        if (barCpuLoad) barCpuLoad.style.width = `${Math.min(100, data.cpu.loadPct)}%`;
+
+        const gaugeRamPct = document.getElementById('gauge-ram-pct');
+        const gaugeRamDetails = document.getElementById('gauge-ram-details');
+        const barRamLoad = document.getElementById('bar-ram-load');
+        if (gaugeRamPct) gaugeRamPct.textContent = `${data.memory.usagePct}%`;
+        if (gaugeRamDetails) gaugeRamDetails.textContent = `${data.memory.usedGb} GB / ${data.memory.totalGb} GB (${data.memory.freeGb} GB free)`;
+        if (barRamLoad) barRamLoad.style.width = `${Math.min(100, parseFloat(data.memory.usagePct))}%`;
+
+        const gaugeUptime = document.getElementById('gauge-uptime');
+        if (gaugeUptime) gaugeUptime.textContent = `Uptime: ${data.uptimeFormatted}`;
+
+        const disksContainer = document.getElementById('gauge-disks-list');
+        if (disksContainer && data.disks) {
+            disksContainer.innerHTML = data.disks.map(d => `
+                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                    <span><strong>Drive ${d.drive}</strong> (${d.totalGb} GB)</span>
+                    <span style="color: ${parseFloat(d.freePct) < 15 ? '#f87171' : '#34d399'};">${d.freeGb} GB free (${d.freePct}%)</span>
+                </div>
+            `).join('');
+        }
+
+        const badgeN8nLive = document.getElementById('badge-n8n-live');
+        if (badgeN8nLive) {
+            badgeN8nLive.textContent = data.n8n.running ? '● RUNNING' : '○ OFFLINE';
+            badgeN8nLive.style.color = data.n8n.running ? '#34d399' : '#f87171';
+        }
+
+        // Mode badge & Privacy controls
+        const modeBadge = document.getElementById('current-mode-badge');
+        if (modeBadge && data.mode) modeBadge.textContent = `Active: ${data.mode} Mode`;
+
+        if (data.privacy) renderPrivacyControls(data.privacy);
+
+    } catch (e) {
+        console.warn('Failed to load PC telemetry:', e);
+    }
+}
+
+function renderPrivacyControls(privacy) {
+    for (const [key, val] of Object.entries(privacy)) {
+        const toggle = document.getElementById(`toggle-${key}`);
+        if (!toggle) continue;
+        if (key === 'terminal') {
+            toggle.textContent = val.toUpperCase();
+            toggle.className = `privacy-toggle ${val === 'restricted' ? 'restricted' : (val === 'disabled' ? '' : 'active')}`;
+        } else {
+            toggle.textContent = val ? 'ON' : 'OFF';
+            toggle.className = `privacy-toggle ${val ? 'active' : ''}`;
+        }
+    }
+}
+
+async function runFileSearch(query) {
+    const container = document.getElementById('files-results-container');
+    if (!container) return;
+    container.innerHTML = '<div style="padding: 12px; text-align: center; color: #94a3b8;">Searching allowed directories...</div>';
+    try {
+        const res = await fetch(`/api/pc/files?q=${encodeURIComponent(query || '')}`);
+        const data = await res.json();
+        if (!data.files || data.files.length === 0) {
+            container.innerHTML = '<div style="padding: 12px; text-align: center; color: #94a3b8;">No matching files found in allowed directories.</div>';
+            return;
+        }
+        container.innerHTML = data.files.map(f => `
+            <div style="background: rgba(15, 23, 42, 0.4); border: 1px solid rgba(255,255,255,0.06); border-radius: 6px; padding: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <div style="font-weight: 600; color: #f1f5f9; font-size: 0.85rem;">📄 ${escapeHtml(f.name)}</div>
+                    <div style="font-size: 0.72rem; color: #94a3b8; margin-top: 2px;">${escapeHtml(f.path)} • ${f.sizeFormatted} • Modified: ${new Date(f.modifiedAt).toLocaleDateString()}</div>
+                </div>
+                <div style="font-size: 0.75rem; background: rgba(56, 189, 248, 0.15); color: #38bdf8; padding: 3px 8px; border-radius: 4px;">
+                    Allowed
+                </div>
+            </div>
+        `).join('');
+    } catch (e) {
+        container.innerHTML = `<div style="padding: 12px; color: #f87171;">Search error: ${escapeHtml(e.message)}</div>`;
+    }
+}
+
+async function runControlledTerminal(cmd) {
+    const consoleEl = document.getElementById('terminal-output-console');
+    if (!consoleEl) return;
+    if (!isCommander) {
+        showToast("🔒 Controlled Terminal requires verified Commander authentication.", "warning");
+        return;
+    }
+    consoleEl.textContent = `[Executing]: ${cmd}\nPermission check & security filtering in progress...\n`;
+    try {
+        const res = await authFetch('/api/pc/terminal', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ command: cmd, confirmed: false })
+        });
+        const data = await res.json();
+        if (data.status === 'confirmation_required') {
+            consoleEl.textContent = `⚠️ CONFIRMATION REQUIRED (${data.permission_level})\n${data.message}`;
+            showToast("Command requires confirmation", "warning");
+        } else {
+            consoleEl.textContent = `⚡ [COMPLETED - Level: ${data.permission_level}] Duration: ${data.duration_ms}ms | Exit: ${data.exit_code}\n\n${data.output}`;
+        }
+    } catch (e) {
+        consoleEl.textContent = `❌ Execution Error: ${e.message}`;
+    }
+}
+
+async function loadServiceMonitors() {
+    const grid = document.getElementById('monitors-grid');
+    if (!grid) return;
+    grid.innerHTML = '<div style="padding: 12px; text-align: center; color: #94a3b8; grid-column: 1/-1;">Pinging monitored services...</div>';
+    try {
+        const res = await fetch('/api/pc/monitors');
+        const list = await res.json();
+        grid.innerHTML = list.map(m => {
+            const isUp = m.status === 'UP';
+            const color = isUp ? '#34d399' : (m.status === 'DEGRADED' ? '#fbbf24' : '#f87171');
+            return `
+                <div style="background: rgba(15, 23, 42, 0.5); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 12px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <span style="font-size: 0.82rem; font-weight: 700; color: #f1f5f9;">${escapeHtml(m.name)}</span>
+                        <span style="font-size: 0.7rem; font-weight: 700; color: ${color}; background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 4px;">● ${m.status}</span>
+                    </div>
+                    <div style="font-size: 0.72rem; color: #94a3b8; word-break: break-all;">${escapeHtml(m.url)}</div>
+                    <div style="margin-top: 8px; display: flex; justify-content: space-between; font-size: 0.72rem; color: #cbd5e1;">
+                        <span>Latency: <strong>${m.latencyMs}ms</strong></span>
+                        <span>SSL: <strong>${m.ssl}</strong></span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    } catch (e) {
+        grid.innerHTML = `<div style="padding: 12px; color: #f87171; grid-column: 1/-1;">Monitoring error: ${escapeHtml(e.message)}</div>`;
+    }
+}
+

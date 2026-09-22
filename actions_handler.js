@@ -1004,8 +1004,8 @@ async function handleActionIntent(message) {
     }
 
     // 6B. Job Search & Opportunity Radar Pattern (PATHS Section 19 & 26)
-    const isJobSearch = text.match(/^(?:\/jobs|search\s+(?:for\s+)?jobs?|find\s+jobs?|linkedin\s+jobs?|search\s+job\s+for\s+me|can\s+you\s+search\s+job)(?:\s+(?:from|on|in)?\s*(.+))?$/i) ||
-                        ((text.match(/\bjobs?\b/i) || text.match(/linkedin/i)) && (text.match(/search\s+job|find\s+job|looking\s+for\s+job|job\s+hunt|search\s+for\s+me/i)));
+    const isJobSearch = text.match(/^(?:\/jobs|search\s+(?:for\s+)?(?:some\s+)?jobs?|find\s+(?:for\s+)?(?:some\s+)?jobs?|linkedin\s+jobs?|job\s+radar|opportunities|give\s+me\s+link\s+to\s+apply|where\s+can\s+i\s+apply)(?:\s+(?:from|on|in|for)?\s*(.+))?$/i) ||
+                        ((text.match(/\bjobs?\b/i) || text.match(/linkedin/i) || text.match(/apply/i)) && (text.match(/search|find|looking\s+for|hunt|give\s+me\s+link/i)));
     if (isJobSearch) {
         const queryMatch = text.match(/(?:for|about|on|in)\s+([a-zA-Z0-9_\s\-]+)/i);
         const query = queryMatch ? queryMatch[1].trim() : 'Next.js & Frontend Developer';

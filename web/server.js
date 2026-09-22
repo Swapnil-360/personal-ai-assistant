@@ -35,6 +35,16 @@ const {
     fitTweetForFreeTier,
     createTwitterIntentUrl
 } = require('../social_publisher');
+const {
+    getSystemInfo,
+    searchAllowedFiles,
+    executeControlledTerminal,
+    checkServiceMonitors,
+    privacyControls,
+    updatePrivacyControls,
+    currentAgentMode,
+    setAgentMode
+} = require('../local_pc_bridge');
 
 const COMMANDER_EMAIL = process.env.COMMANDER_EMAIL || 'miftahurr503@gmail.com';
 const COMMANDER_PASSKEY = process.env.COMMANDER_PASSKEY || 'MikasaCommander360!';
@@ -537,6 +547,58 @@ const server = http.createServer(async (req, res) => {
             } catch (e) {
                 return sendJson(res, 200, { status: 'operational', uptime: process.uptime() });
             }
+        }
+
+        // --- PATHS V2: LOCAL PC AGENT & JARVIS LAYER APIS ---
+
+        // PC Telemetry & System Information
+        if (pathname === '/api/pc/status' && req.method === 'GET') {
+            const info = await getSystemInfo();
+            return sendJson(res, 200, info);
+        }
+
+        // Allowed File Search & Retrieval
+        if (pathname === '/api/pc/files' && req.method === 'GET') {
+            const q = parsedUrl.searchParams.get('q') || '';
+            const limit = parseInt(parsedUrl.searchParams.get('limit'), 10) || 10;
+            const files = await searchAllowedFiles(q, limit);
+            return sendJson(res, 200, { query: q, count: files.length, files });
+        }
+
+        // Controlled Terminal Execution (Commander Only)
+        if (pathname === '/api/pc/terminal' && req.method === 'POST') {
+            if (!await requireCommander()) return;
+            const body = await parseBody(req);
+            const cmdResult = await executeControlledTerminal(body.command, body.permission_level || 'READ', body.confirmed || false);
+            return sendJson(res, 200, cmdResult);
+        }
+
+        // Live Service & Website Monitors
+        if (pathname === '/api/pc/monitors' && req.method === 'GET') {
+            const monitors = await checkServiceMonitors();
+            return sendJson(res, 200, monitors);
+        }
+
+        // Privacy Controls
+        if (pathname === '/api/pc/privacy' && req.method === 'GET') {
+            return sendJson(res, 200, privacyControls);
+        }
+        if (pathname === '/api/pc/privacy' && req.method === 'POST') {
+            if (!await requireCommander()) return;
+            const body = await parseBody(req);
+            const updated = updatePrivacyControls(body);
+            return sendJson(res, 200, updated);
+        }
+
+        // Agent Modes
+        if (pathname === '/api/pc/modes' && req.method === 'GET') {
+            return sendJson(res, 200, { mode: currentAgentMode() });
+        }
+        if (pathname === '/api/pc/modes' && req.method === 'POST') {
+            if (!await requireCommander()) return;
+            const body = await parseBody(req);
+            const modeResult = setAgentMode(body.mode);
+            return sendJson(res, modeResult.success ? 200 : 400, modeResult);
         }
 
         // --- STATIC FILE & PAGE ROUTING ---

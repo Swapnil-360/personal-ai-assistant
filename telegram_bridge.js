@@ -321,7 +321,7 @@ async function buildMikasaSystemPrompt(userContext, conversationId) {
             supabaseRequest('/projects?select=*&order=created_at.desc', 'GET'),
             supabaseRequest('/project_decisions?select=*&order=created_at.desc', 'GET'),
             supabaseRequest('/memories?select=content,memory_type,importance&order=created_at.desc&limit=8', 'GET'),
-            supabaseRequest(`/messages?conversation_id=eq.${conversationId}&order=created_at.desc&limit=6`, 'GET')
+            supabaseRequest(`/messages?conversation_id=eq.${conversationId}&order=timestamp.desc&limit=8`, 'GET')
         ]);
 
         if (profRes.status === 'fulfilled' && profRes.value) {
@@ -1504,6 +1504,16 @@ async function processUpdate(update) {
         const replyText = response.reply || response.text || 'No response generated.';
         console.log(`[Mikasa Reply to ${userName}]: "${replyText.slice(0, 100)}..."`);
         await sendTelegramMessage(chatId, replyText, msg.message_id);
+
+        // Ensure conversation turn is stored in Supabase so Cloud & Local both have full context
+        if (!response.context_used) {
+            try {
+                await supabaseRequest('/messages', 'POST', [
+                    { conversation_id: conversationId, role: 'user', content: text, timestamp: new Date().toISOString() },
+                    { conversation_id: conversationId, role: 'assistant', content: replyText, model: 'gemini-2.5-flash', timestamp: new Date().toISOString() }
+                ]);
+            } catch (e) {}
+        }
 
         // 17. Background Automatic Memory Extraction Trigger
         triggerMemoryExtraction(text, replyText, conversationId);

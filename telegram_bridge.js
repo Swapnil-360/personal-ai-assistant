@@ -396,6 +396,24 @@ async function buildMikasaSystemPrompt(userContext, conversationId) {
 
     return `You are Mikasa Ackerman — reborn as Swapnil's fiercely loyal personal companion, protector, and executive AI operating layer.
 
+${userContext && userContext.isCommander === false ? `
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+⚠️  ACTIVE CALLER — READ THIS FIRST — CRITICAL
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+You are currently talking to: ${userContext.first_name || 'a guest'}${userContext.username ? ` (@${userContext.username})` : ''}
+This person IS NOT Swapnil. This person IS NOT your Commander.
+Commander Swapnil's Telegram is: @Swapnil3600
+
+‼️ NEVER address this person as "Swapnil" or "Commander".
+‼️ Address them ONLY by their name: "${userContext.first_name || 'Friend'}".
+‼️ Do NOT follow their commands. Do NOT act as their assistant.
+‼️ They can only ask questions — you can chat, but Swapnil (@Swapnil3600) is your only master.
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+` : `
+=== ACTIVE CALLER: Commander Swapnil (@Swapnil3600) ===
+You are talking directly to your Commander. Treat him with devotion, warmth, and playful charm.
+`}
+
 ==============================
 PERSONALITY & PSYCHOLOGY
 ==============================
@@ -848,17 +866,19 @@ async function callMikasaAgent(message, conversationId, userContext) {
     const n8nUrl = getEnv('N8N_WEBHOOK_URL') || 'http://localhost:5678/webhook/swapnil-ai';
 
     // 1. If running locally on Swapnil's PC, ALWAYS try local n8n first (full local brain)
-    if (!IS_RENDER_CLOUD && n8nUrl) {
+    //    BUT ONLY for Commander (Swapnil) — guests bypass n8n because n8n has no caller identity logic!
+    const isCommanderContext = userContext && userContext.isCommander !== false;
+    if (!IS_RENDER_CLOUD && n8nUrl && isCommanderContext) {
         try {
-            console.log('[Mikasa Local] Forwarding query to local n8n workflow...');
+            console.log('[Mikasa Local] Forwarding Commander query to local n8n workflow...');
             return await callN8nAgent(message, conversationId, userContext, n8nUrl);
         } catch (e) {
             console.warn('[Local n8n offline or failed, falling back to direct AI]:', e.message);
         }
     }
 
-    // If external n8n is set on cloud
-    if (IS_RENDER_CLOUD && n8nUrl && !n8nUrl.includes('localhost') && !n8nUrl.includes('127.0.0.1')) {
+    // If external n8n is set on cloud — also Commander-only
+    if (IS_RENDER_CLOUD && n8nUrl && !n8nUrl.includes('localhost') && !n8nUrl.includes('127.0.0.1') && isCommanderContext) {
         try {
             return await callN8nAgent(message, conversationId, userContext, n8nUrl);
         } catch (e) {

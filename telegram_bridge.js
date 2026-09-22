@@ -1477,11 +1477,61 @@ async function processUpdate(update) {
         return;
     }
 
+    // 10B. Handle /login or /web Command (Generate 1-Click Verified Commander Token)
+    if (text === '/login' || text === '/web' || text === '/auth') {
+        await sendChatAction(chatId, 'typing');
+        const tokenRes = await new Promise((resolve) => {
+            const payload = JSON.stringify({ email: 'miftahurr503@gmail.com', password: 'MikasaCommander360!' });
+            const r = https.request({
+                hostname: 'qjhrmctbrobpnoumzmju.supabase.co',
+                path: '/auth/v1/token?grant_type=password',
+                method: 'POST',
+                headers: {
+                    'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqaHJtY3Ricm9icG5vdW16bWp1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTkxNTc3NywiZXhwIjoyMTA1NDkxNzc3fQ.0_xov-GTLYTFGnm_gXxO2lmS1w_9Kc-pnWc0-T17UJ8',
+                    'Content-Type': 'application/json',
+                    'Content-Length': Buffer.byteLength(payload)
+                }
+            }, (res) => {
+                let d = ''; res.on('data', c => d += c);
+                res.on('end', () => {
+                    try { resolve(JSON.parse(d)); } catch (e) { resolve({}); }
+                });
+            });
+            r.on('error', () => resolve({}));
+            r.write(payload);
+            r.end();
+        });
+
+        const token = tokenRes.access_token || 'MikasaCommander360!';
+        const loginUrl = `https://mikasa.mrswapnil.me/app?token=${token}`;
+
+        const replyMarkup = {
+            inline_keyboard: [
+                [
+                    { text: "🚀 Open Web Dashboard (Verified)", url: loginUrl }
+                ]
+            ]
+        };
+
+        const loginMsg = [
+            "⚔️ *Commander Web Access Token Generated!*",
+            "",
+            "Swapnil, tap below to open the Web Command Center with full verified authority:",
+            `🔗 [👉 Click Here to Unlock Full Commander Access](${loginUrl})`,
+            "",
+            "🛡️ *Verified Identity:* `miftahurr503@gmail.com`",
+            "✨ *Status:* Observer Mode bypassed. You have full control over tasks, chat, reminders, and goals."
+        ].join('\n');
+
+        await sendTelegramMessage(chatId, loginMsg, msg.message_id, replyMarkup);
+        return;
+    }
+
     // 11. Handle /dashboard Command
     if (text === '/dashboard') {
         await sendTelegramMessage(
             chatId,
-            "🖥️ *Mikasa Executive Command Center Dashboard*\n\nYour private operational headquarters is running locally:\n🔗 `http://localhost:3000`\n\nFeatures available:\n• Real-time Live Chat with Mikasa\n• Interactive Strategic Goals Tracker\n• Real-time Task Board with Completion Toggles\n• Project Decisions & Constraints Matrix\n• Neural Memory Vault Viewer",
+            "🖥️ *Mikasa Executive Command Center Dashboard*\n\nYour operational headquarters is live 24/7:\n🔗 `https://mikasa.mrswapnil.me/app`\n(Local: `http://localhost:3000`)\n\nType `/login` anytime to get an instant 1-click token as verified `miftahurr503@gmail.com`!",
             msg.message_id
         );
         return;

@@ -48,24 +48,51 @@
             </div>
         </div>
 
+        <!-- AUTH & ACCESS CONTROL -->
+        <div class="auth-pill-wrapper" id="auth-pill-wrapper">
+            <div class="observer-pill" id="badge-observer">
+                <span class="pulse-amber"></span>
+                <span>Observer Mode</span>
+            </div>
+            <button class="btn btn-commander-login" id="btn-open-login-modal">
+                <span>🛡️</span> Commander Login
+            </button>
+            <div class="commander-pill" id="badge-commander" style="display: none;">
+                <span class="pulse-green"></span>
+                <span>Commander (miftahurr503@gmail.com)</span>
+                <button class="btn-logout" id="btn-commander-logout" title="Exit Commander Mode">Logout</button>
+            </div>
+        </div>
+
         <div class="header-actions">
-            <button class="btn btn-secondary" id="btn-clear-chat" title="Clear chat history in database">
+            <button class="btn btn-secondary action-restricted" id="btn-clear-chat" title="Clear chat history in database">
                 <span>🧹</span> Clear Chat
             </button>
-            <button class="btn btn-secondary" id="btn-open-remind-modal">
+            <button class="btn btn-secondary action-restricted" id="btn-open-remind-modal">
                 <span>⏰</span> Remind Me
             </button>
-            <button class="btn btn-secondary" id="btn-open-decision-modal">
+            <button class="btn btn-secondary action-restricted" id="btn-open-decision-modal">
                 <span>📐</span> Decision
             </button>
-            <button class="btn btn-secondary" id="btn-open-goal-modal">
+            <button class="btn btn-secondary action-restricted" id="btn-open-goal-modal">
                 <span>🎯</span> Goal
             </button>
-            <button class="btn btn-primary" id="btn-open-task-modal">
+            <button class="btn btn-primary action-restricted" id="btn-open-task-modal">
                 <span>⚡</span> Task
             </button>
         </div>
     </header>
+
+    <!-- OBSERVER MODE BANNER -->
+    <div class="observer-mode-banner" id="observer-mode-banner">
+        <div class="banner-inner">
+            <span class="banner-icon">👁️</span>
+            <div class="banner-text">
+                <strong>Public Observer Mode:</strong> You are viewing live telemetry of how Mikasa OS serves and performs for Swapnil. Actions & chat mutations are restricted to verified Commander (<strong>miftahurr503@gmail.com</strong>).
+            </div>
+            <button class="btn-banner-login" id="btn-banner-login">Commander Login</button>
+        </div>
+    </div>
 
     <!-- MAIN DASHBOARD CONTENT -->
     <main class="dashboard-container">
@@ -546,6 +573,50 @@
             </form>
         </div>
     </div>
+
+    <!-- MODAL: COMMANDER LOGIN -->
+    <div class="modal-overlay" id="modal-commander-login">
+        <div class="modal-content" style="max-width: 440px;">
+            <div class="modal-header">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 24px;">🛡️</span>
+                    <div>
+                        <h3 style="margin: 0; font-size: 1.15rem; color: #fff;">Commander Authentication</h3>
+                        <p style="margin: 2px 0 0 0; font-size: 0.78rem; color: var(--cyan);">Restricted to Md. Miftahur Rahman Swapnil</p>
+                    </div>
+                </div>
+                <button class="modal-close" data-close="modal-commander-login">&times;</button>
+            </div>
+            <div style="padding: 16px 0;">
+                <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: 16px;">
+                    Public visitors have read-only access to live telemetry. To unlock task creation, chat, reminders, and system control, verify as <strong>miftahurr503@gmail.com</strong>.
+                </p>
+
+                <form id="form-commander-login">
+                    <div class="form-group" style="margin-bottom: 14px;">
+                        <label for="login-input-email">Verified Commander Email</label>
+                        <input type="email" id="login-input-email" value="miftahurr503@gmail.com" readonly style="background: rgba(0, 242, 254, 0.06); border-color: rgba(0, 242, 254, 0.25); color: #00f2fe; cursor: not-allowed;">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label for="login-input-password">Commander Passkey / Password</label>
+                        <input type="password" id="login-input-password" placeholder="Enter your passkey" required autocomplete="current-password">
+                    </div>
+                    <div id="login-error-msg" style="display: none; color: #ff4d6d; font-size: 0.82rem; margin-bottom: 12px; background: rgba(255, 77, 109, 0.1); padding: 8px 12px; border-radius: 6px;"></div>
+                    <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                        <button type="button" class="btn btn-secondary modal-close" data-close="modal-commander-login">Cancel</button>
+                        <button type="submit" class="btn btn-primary" id="btn-submit-login">Verify & Unlock</button>
+                    </div>
+                </form>
+
+                <div style="margin-top: 18px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.08); font-size: 0.78rem; color: var(--text-muted); text-align: center;">
+                    ⚡ <em>Tip: You can also type <code>/login</code> in Telegram (@mikasa_360_bot) to get an instant 1-click token!</em>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST NOTIFICATION CONTAINER -->
+    <div id="toast-container" class="toast-container"></div>
 
     <script src="/app.js"></script>
 </body>

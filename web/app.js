@@ -1,11 +1,178 @@
 // MIKASA COMMAND CENTER — CLIENT LOGIC & REAL-TIME INTERACTION
 
+let isCommander = false;
+let commanderUser = null;
+
+function getAuthToken() {
+    return localStorage.getItem('mikasa_commander_token') || '';
+}
+
+function authFetch(url, options = {}) {
+    const token = getAuthToken();
+    const headers = { ...(options.headers || {}) };
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+    return fetch(url, { ...options, headers });
+}
+
+function showToast(message, type = 'info') {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+    const toast = document.createElement('div');
+    toast.className = `toast-msg toast-${type}`;
+    const icon = type === 'warning' ? '🔒' : (type === 'success' ? '✅' : 'ℹ️');
+    toast.innerHTML = `<span>${icon}</span><span>${escapeHtml(message)}</span>`;
+    container.appendChild(toast);
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(30px)';
+        toast.style.transition = 'all 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+    }, 4000);
+}
+
+function checkUrlToken() {
+    try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get('token');
+        if (token) {
+            localStorage.setItem('mikasa_commander_token', token);
+            window.history.replaceState({}, document.title, window.location.pathname);
+            showToast("⚔️ Verified Commander token loaded from link.", "success");
+        }
+    } catch (e) {}
+}
+
+async function checkCommanderAuth() {
+    try {
+        const res = await authFetch('/api/auth/verify');
+        const data = await res.json();
+        if (data.isCommander) {
+            isCommander = true;
+            commanderUser = data.user;
+            applyCommanderMode();
+        } else {
+            isCommander = false;
+            applyObserverMode();
+        }
+    } catch (e) {
+        isCommander = false;
+        applyObserverMode();
+    }
+}
+
+function applyCommanderMode() {
+    document.body.classList.remove('observer-mode');
+    document.body.classList.add('commander-mode');
+
+    const badgeObserver = document.getElementById('badge-observer');
+    const btnLogin = document.getElementById('btn-open-login-modal');
+    const badgeCommander = document.getElementById('badge-commander');
+    const observerBanner = document.getElementById('observer-mode-banner');
+
+    if (badgeObserver) badgeObserver.style.display = 'none';
+    if (btnLogin) btnLogin.style.display = 'none';
+    if (badgeCommander) badgeCommander.style.display = 'inline-flex';
+    if (observerBanner) observerBanner.style.display = 'none';
+
+    // Enable chat input
+    const chatInput = document.getElementById('chat-input');
+    const btnSend = document.getElementById('btn-send-chat');
+    if (chatInput) {
+        chatInput.removeAttribute('disabled');
+        chatInput.placeholder = "Talk to Mikasa (Commander Mode)...";
+    }
+    if (btnSend) btnSend.removeAttribute('disabled');
+
+    // Re-render tasks so checkboxes are interactive
+    renderTasks();
+}
+
+function applyObserverMode() {
+    document.body.classList.remove('commander-mode');
+    document.body.classList.add('observer-mode');
+
+    const badgeObserver = document.getElementById('badge-observer');
+    const btnLogin = document.getElementById('btn-open-login-modal');
+    const badgeCommander = document.getElementById('badge-commander');
+    const observerBanner = document.getElementById('observer-mode-banner');
+
+    if (badgeObserver) badgeObserver.style.display = 'inline-flex';
+    if (btnLogin) btnLogin.style.display = 'inline-flex';
+    if (badgeCommander) badgeCommander.style.display = 'none';
+    if (observerBanner) observerBanner.style.display = 'block';
+
+    // Lock chat input for public observers
+    const chatInput = document.getElementById('chat-input');
+    const btnSend = document.getElementById('btn-send-chat');
+    if (chatInput) {
+        chatInput.setAttribute('disabled', 'true');
+        chatInput.placeholder = "🔒 Public Observer Mode: Commands reserved for Commander Swapnil (miftahurr503@gmail.com)";
+    }
+    if (btnSend) btnSend.setAttribute('disabled', 'true');
+
+    // Re-render tasks so checkboxes are disabled
+    renderTasks();
+}
+
+function initAuthHandlers() {
+    document.getElementById('btn-open-login-modal')?.addEventListener('click', () => openModal('modal-commander-login'));
+    document.getElementById('btn-banner-login')?.addEventListener('click', () => openModal('modal-commander-login'));
+
+    document.getElementById('btn-commander-logout')?.addEventListener('click', () => {
+        localStorage.removeItem('mikasa_commander_token');
+        applyObserverMode();
+        showToast("Logged out of Commander Mode. Observer Mode active.", "info");
+    });
+
+    document.getElementById('form-commander-login')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const password = document.getElementById('login-input-password').value;
+        const submitBtn = document.getElementById('btn-submit-login');
+        const errorEl = document.getElementById('login-error-msg');
+        errorEl.style.display = 'none';
+        submitBtn.setAttribute('disabled', 'true');
+        submitBtn.textContent = 'Verifying...';
+
+        try {
+            const res = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: 'miftahurr503@gmail.com', password })
+            });
+            const data = await res.json();
+            if (data.success && data.access_token) {
+                localStorage.setItem('mikasa_commander_token', data.access_token);
+                closeModal('modal-commander-login');
+                document.getElementById('form-commander-login').reset();
+                await checkCommanderAuth();
+                showToast("⚔️ Welcome back, Commander Swapnil. Full authority restored.", "success");
+            } else {
+                errorEl.textContent = data.error || 'Authentication failed.';
+                errorEl.style.display = 'block';
+            }
+        } catch (err) {
+            errorEl.textContent = err.message;
+            errorEl.style.display = 'block';
+        } finally {
+            submitBtn.removeAttribute('disabled');
+            submitBtn.textContent = 'Verify & Unlock';
+        }
+    });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+    checkUrlToken();
+    initAuthHandlers();
     initTabs();
     initModals();
     initFilters();
     initChat();
     initCopilotHub();
+
+    // Verify authentication status
+    checkCommanderAuth();
 
     // Initial Data Fetch
     loadTasks();
@@ -39,22 +206,39 @@ function initTabs() {
 
 // --- MODALS & HEADER ACTIONS ---
 function initModals() {
-    // Open triggers
-    document.getElementById('btn-open-task-modal')?.addEventListener('click', () => openModal('modal-task'));
-    document.getElementById('btn-open-goal-modal')?.addEventListener('click', () => openModal('modal-goal'));
-    document.getElementById('btn-open-decision-modal')?.addEventListener('click', () => openModal('modal-decision'));
-    document.getElementById('btn-open-remind-modal')?.addEventListener('click', () => openModal('modal-reminder'));
-    document.getElementById('btn-open-remind-modal-2')?.addEventListener('click', () => openModal('modal-reminder'));
+    const restrictAction = (callback) => {
+        return (e) => {
+            if (!isCommander) {
+                if (e) e.preventDefault();
+                showToast("🔒 Observer Mode: Only verified Commander (miftahurr503@gmail.com) can modify state.", "warning");
+                openModal('modal-commander-login');
+                return;
+            }
+            callback(e);
+        };
+    };
 
-    // Clear Chat Button
-    document.getElementById('btn-clear-chat')?.addEventListener('click', async () => {
+    // Open triggers protected
+    document.getElementById('btn-open-task-modal')?.addEventListener('click', restrictAction(() => openModal('modal-task')));
+    document.getElementById('btn-open-goal-modal')?.addEventListener('click', restrictAction(() => openModal('modal-goal')));
+    document.getElementById('btn-open-decision-modal')?.addEventListener('click', restrictAction(() => openModal('modal-decision')));
+    document.getElementById('btn-open-remind-modal')?.addEventListener('click', restrictAction(() => openModal('modal-reminder')));
+    document.getElementById('btn-open-remind-modal-2')?.addEventListener('click', restrictAction(() => openModal('modal-reminder')));
+
+    // Clear Chat Button with protection
+    document.getElementById('btn-clear-chat')?.addEventListener('click', restrictAction(async () => {
         if (confirm('Clear chat history for this session?')) {
             try {
-                await fetch('/api/clear', {
+                const res = await authFetch('/api/clear', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ conversation_id: 'commander_session' })
                 });
+                if (res.status === 403) {
+                    showToast("🔒 Observer Mode: Only Commander can clear chat.", "warning");
+                    openModal('modal-commander-login');
+                    return;
+                }
                 const container = document.getElementById('chat-messages-container');
                 container.innerHTML = `
                     <div class="chat-bubble bubble-mikasa">
@@ -67,7 +251,7 @@ function initModals() {
                 alert('Error clearing chat: ' + e.message);
             }
         }
-    });
+    }));
 
     // Close buttons
     document.querySelectorAll('.modal-close').forEach(btn => {
@@ -91,16 +275,26 @@ function initModals() {
     // Form: New Task
     document.getElementById('form-new-task')?.addEventListener('submit', async (e) => {
         e.preventDefault();
+        if (!isCommander) {
+            showToast("🔒 Observer Mode: Only verified Commander (miftahurr503@gmail.com) can create tasks.", "warning");
+            openModal('modal-commander-login');
+            return;
+        }
         const title = document.getElementById('task-input-title').value.trim();
         const projectHint = document.getElementById('task-select-project').value;
         const priority = parseInt(document.getElementById('task-input-priority').value) || 5;
 
         try {
-            const res = await fetch('/api/tasks', {
+            const res = await authFetch('/api/tasks', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ title, project_hint: projectHint, priority })
             });
+            if (res.status === 403) {
+                showToast("🔒 Observer Mode: Task creation denied.", "warning");
+                openModal('modal-commander-login');
+                return;
+            }
             if (res.ok) {
                 closeModal('modal-task');
                 document.getElementById('form-new-task').reset();
@@ -115,15 +309,25 @@ function initModals() {
     // Form: New Reminder
     document.getElementById('form-new-reminder')?.addEventListener('submit', async (e) => {
         e.preventDefault();
+        if (!isCommander) {
+            showToast("🔒 Observer Mode: Only verified Commander (miftahurr503@gmail.com) can set reminders.", "warning");
+            openModal('modal-commander-login');
+            return;
+        }
         const text = document.getElementById('reminder-input-text').value.trim();
         const timeStr = document.getElementById('reminder-input-time').value.trim();
 
         try {
-            const res = await fetch('/api/reminders', {
+            const res = await authFetch('/api/reminders', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ text, time_str: timeStr })
             });
+            if (res.status === 403) {
+                showToast("🔒 Observer Mode: Reminder creation denied.", "warning");
+                openModal('modal-commander-login');
+                return;
+            }
             if (res.ok) {
                 closeModal('modal-reminder');
                 document.getElementById('form-new-reminder').reset();
@@ -138,15 +342,25 @@ function initModals() {
     // Form: New Goal
     document.getElementById('form-new-goal')?.addEventListener('submit', async (e) => {
         e.preventDefault();
+        if (!isCommander) {
+            showToast("🔒 Observer Mode: Only verified Commander (miftahurr503@gmail.com) can add goals.", "warning");
+            openModal('modal-commander-login');
+            return;
+        }
         const title = document.getElementById('goal-input-title').value.trim();
         const category = document.getElementById('goal-select-category').value;
 
         try {
-            const res = await fetch('/api/goals', {
+            const res = await authFetch('/api/goals', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ title, category })
             });
+            if (res.status === 403) {
+                showToast("🔒 Observer Mode: Goal creation denied.", "warning");
+                openModal('modal-commander-login');
+                return;
+            }
             if (res.ok) {
                 closeModal('modal-goal');
                 document.getElementById('form-new-goal').reset();
@@ -161,16 +375,26 @@ function initModals() {
     // Form: Log Decision
     document.getElementById('form-new-decision')?.addEventListener('submit', async (e) => {
         e.preventDefault();
+        if (!isCommander) {
+            showToast("🔒 Observer Mode: Only verified Commander (miftahurr503@gmail.com) can record decisions.", "warning");
+            openModal('modal-commander-login');
+            return;
+        }
         const decision = document.getElementById('decision-input-text').value.trim();
         const reason = document.getElementById('decision-input-reason').value.trim();
         const projectHint = document.getElementById('decision-select-project').value;
 
         try {
-            const res = await fetch('/api/decisions', {
+            const res = await authFetch('/api/decisions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ decision, reason, project_hint: projectHint })
             });
+            if (res.status === 403) {
+                showToast("🔒 Observer Mode: Decision logging denied.", "warning");
+                openModal('modal-commander-login');
+                return;
+            }
             if (res.ok) {
                 closeModal('modal-decision');
                 document.getElementById('form-new-decision').reset();
@@ -252,8 +476,9 @@ function renderTasks() {
                         type="checkbox" 
                         class="task-checkbox" 
                         ${isCompleted ? 'checked' : ''} 
+                        ${!isCommander ? 'disabled' : ''}
                         onchange="toggleTaskStatus('${t.id}', this.checked)"
-                        title="Toggle completion"
+                        title="${isCommander ? 'Toggle completion' : '🔒 Observer Mode (Read Only)'}"
                     />
                     <span class="task-title">${escapeHtml(t.title)}</span>
                 </div>
@@ -266,13 +491,25 @@ function renderTasks() {
 }
 
 async function toggleTaskStatus(taskId, isChecked) {
+    if (!isCommander) {
+        showToast("🔒 Observer Mode: Only verified Commander (miftahurr503@gmail.com) can update tasks.", "warning");
+        openModal('modal-commander-login');
+        renderTasks();
+        return;
+    }
     const newStatus = isChecked ? 'completed' : 'todo';
     try {
-        await fetch(`/api/tasks/${taskId}`, {
+        const res = await authFetch(`/api/tasks/${taskId}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status: newStatus })
         });
+        if (res.status === 403) {
+            showToast("🔒 Observer Mode: Task update denied.", "warning");
+            openModal('modal-commander-login');
+            renderTasks();
+            return;
+        }
         const task = cachedTasks.find(t => t.id === taskId);
         if (task) {
             task.status = newStatus;
@@ -449,6 +686,11 @@ async function loadGitHub() {
 }
 
 function draftLinkedInForRepo(repoName) {
+    if (!isCommander) {
+        showToast("🔒 Observer Mode: Post drafting is reserved for Commander Swapnil (miftahurr503@gmail.com).", "warning");
+        openModal('modal-commander-login');
+        return;
+    }
     const input = document.getElementById('linkedin-input-topic');
     if (input) {
         input.value = repoName;
@@ -493,7 +735,7 @@ function initCopilotHub() {
     // Refresh GitHub button
     document.getElementById('btn-refresh-github')?.addEventListener('click', loadGitHub);
 
-    // Run AI Social Audit button
+    // Run AI Social Audit button (Allowed in read-only observer mode to showcase telemetry)
     document.getElementById('btn-run-social-audit')?.addEventListener('click', async () => {
         const details = document.getElementById('social-audit-details');
         details.innerHTML = '<div style="color: var(--cyan);">Analyzing online brand & verified profiles...</div>';
@@ -521,6 +763,11 @@ function initCopilotHub() {
 
     // Quick draft buttons from Social Card
     document.getElementById('btn-quick-edu51-linkedin')?.addEventListener('click', () => {
+        if (!isCommander) {
+            showToast("🔒 Observer Mode: Post drafting is reserved for Commander Swapnil.", "warning");
+            openModal('modal-commander-login');
+            return;
+        }
         const input = document.getElementById('linkedin-input-topic');
         if (input) {
             input.value = 'Edu51Portal';
@@ -529,12 +776,22 @@ function initCopilotHub() {
     });
 
     document.getElementById('btn-quick-edu51-twitter')?.addEventListener('click', async () => {
+        if (!isCommander) {
+            showToast("🔒 Observer Mode: X thread generation is reserved for Commander Swapnil.", "warning");
+            openModal('modal-commander-login');
+            return;
+        }
         try {
-            const res = await fetch('/api/twitter/thread', {
+            const res = await authFetch('/api/twitter/thread', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ topic: 'Edu51Portal' })
             });
+            if (res.status === 403) {
+                showToast("🔒 Observer Mode: Generation denied.", "warning");
+                openModal('modal-commander-login');
+                return;
+            }
             const data = await res.json();
             const promptTitle = document.getElementById('prompt-result-type');
             const promptText = document.getElementById('prompt-result-text');
@@ -553,13 +810,23 @@ function initCopilotHub() {
     // LinkedIn Draft Form
     document.getElementById('form-linkedin-draft')?.addEventListener('submit', async (e) => {
         e.preventDefault();
+        if (!isCommander) {
+            showToast("🔒 Observer Mode: LinkedIn post generation is reserved for Commander Swapnil.", "warning");
+            openModal('modal-commander-login');
+            return;
+        }
         const topic = document.getElementById('linkedin-input-topic').value.trim();
         try {
-            const res = await fetch('/api/linkedin/draft', {
+            const res = await authFetch('/api/linkedin/draft', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ topic })
             });
+            if (res.status === 403) {
+                showToast("🔒 Observer Mode: Generation denied.", "warning");
+                openModal('modal-commander-login');
+                return;
+            }
             const data = await res.json();
             document.getElementById('linkedin-preview-title').textContent = data.title;
             document.getElementById('linkedin-preview-content').value = data.content;
@@ -573,19 +840,29 @@ function initCopilotHub() {
     document.getElementById('btn-copy-linkedin')?.addEventListener('click', () => {
         const text = document.getElementById('linkedin-preview-content').value;
         navigator.clipboard.writeText(text);
-        alert('LinkedIn post copied to clipboard!');
+        showToast("LinkedIn post copied to clipboard!", "success");
     });
 
     // CV Tailor Form
     document.getElementById('form-cv-tailor')?.addEventListener('submit', async (e) => {
         e.preventDefault();
+        if (!isCommander) {
+            showToast("🔒 Observer Mode: CV tailoring is reserved for Commander Swapnil.", "warning");
+            openModal('modal-commander-login');
+            return;
+        }
         const role = document.getElementById('cv-input-role').value.trim();
         try {
-            const res = await fetch('/api/cv/tailor', {
+            const res = await authFetch('/api/cv/tailor', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ job_description: role })
             });
+            if (res.status === 403) {
+                showToast("🔒 Observer Mode: Tailoring denied.", "warning");
+                openModal('modal-commander-login');
+                return;
+            }
             const data = await res.json();
             document.getElementById('cv-matches-header').textContent = `Matched Projects: ${data.matched_projects.join(', ')}`;
             document.getElementById('cv-bullets-list').innerHTML = data.recommended_bullets.map(b => `<div style="margin-bottom: 8px;">${escapeHtml(b)}</div>`).join('');
@@ -599,19 +876,29 @@ function initCopilotHub() {
     document.getElementById('btn-copy-cv')?.addEventListener('click', () => {
         const bullets = document.getElementById('cv-bullets-list').innerText;
         navigator.clipboard.writeText(bullets);
-        alert('Tailored CV bullet points copied to clipboard!');
+        showToast("Tailored CV bullet points copied to clipboard!", "success");
     });
 
     // Master Prompt Generator Form
     document.getElementById('form-prompt-gen')?.addEventListener('submit', async (e) => {
         e.preventDefault();
+        if (!isCommander) {
+            showToast("🔒 Observer Mode: Prompt generation is reserved for Commander Swapnil.", "warning");
+            openModal('modal-commander-login');
+            return;
+        }
         const goal = document.getElementById('prompt-input-goal').value.trim();
         try {
-            const res = await fetch('/api/prompt/generate', {
+            const res = await authFetch('/api/prompt/generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ goal })
             });
+            if (res.status === 403) {
+                showToast("🔒 Observer Mode: Prompt generation denied.", "warning");
+                openModal('modal-commander-login');
+                return;
+            }
             const data = await res.json();
             document.getElementById('prompt-result-type').textContent = data.type;
             document.getElementById('prompt-result-text').textContent = data.prompt;
@@ -625,7 +912,7 @@ function initCopilotHub() {
     document.getElementById('btn-copy-prompt')?.addEventListener('click', () => {
         const text = document.getElementById('prompt-result-text').textContent;
         navigator.clipboard.writeText(text);
-        alert('Master prompt copied to clipboard!');
+        showToast("Master prompt copied to clipboard!", "success");
     });
 }
 
@@ -637,6 +924,11 @@ function initChat() {
 
     form?.addEventListener('submit', async (e) => {
         e.preventDefault();
+        if (!isCommander) {
+            showToast("🔒 Observer Mode: Live commands are reserved for Commander Swapnil (miftahurr503@gmail.com).", "warning");
+            openModal('modal-commander-login');
+            return;
+        }
         const text = input.value.trim();
         if (!text) return;
 
@@ -646,6 +938,11 @@ function initChat() {
 
     chips.forEach(chip => {
         chip.addEventListener('click', () => {
+            if (!isCommander) {
+                showToast("🔒 Observer Mode: Direct commands are reserved for Commander Swapnil (miftahurr503@gmail.com).", "warning");
+                openModal('modal-commander-login');
+                return;
+            }
             const query = chip.getAttribute('data-query');
             if (query) {
                 sendMessageToMikasa(query);
@@ -679,7 +976,7 @@ async function sendMessageToMikasa(text) {
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
     try {
-        const res = await fetch('/api/chat', {
+        const res = await authFetch('/api/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -687,6 +984,13 @@ async function sendMessageToMikasa(text) {
                 conversation_id: 'commander_session'
             })
         });
+
+        if (res.status === 403) {
+            typingBubble.remove();
+            appendMikasaChatMessage("🔒 *Public Observer Mode.* Direct command dispatch and state alterations are reserved for Commander Swapnil (<miftahurr503@gmail.com>). You are observing Mikasa's live telemetry and performance.");
+            showToast("🔒 Observer Mode: Only verified Commander can dispatch commands.", "warning");
+            return;
+        }
 
         const data = await res.json();
         typingBubble.remove();

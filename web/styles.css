@@ -960,3 +960,226 @@ header.command-header {
     vertical-align: middle;
 }
 
+/* --- OBSERVER & COMMANDER AUTH STYLES --- */
+.auth-pill-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.observer-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    color: #fbbf24;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.76rem;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    box-shadow: 0 0 10px rgba(245, 158, 11, 0.15);
+}
+
+.pulse-amber {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #f59e0b;
+    box-shadow: 0 0 8px #f59e0b;
+    animation: pulseGlow 2s infinite ease-in-out;
+}
+
+.commander-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(16, 185, 129, 0.12);
+    border: 1px solid rgba(16, 185, 129, 0.4);
+    color: #34d399;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    box-shadow: 0 0 12px rgba(16, 185, 129, 0.2);
+}
+
+.pulse-green {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #10b981;
+    box-shadow: 0 0 8px #10b981;
+    animation: pulseGlow 2s infinite ease-in-out;
+}
+
+.btn-commander-login {
+    background: linear-gradient(135deg, rgba(0, 242, 254, 0.15), rgba(168, 85, 247, 0.15));
+    border: 1px solid rgba(0, 242, 254, 0.4);
+    color: #00f2fe;
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn-commander-login:hover {
+    background: linear-gradient(135deg, rgba(0, 242, 254, 0.25), rgba(168, 85, 247, 0.25));
+    border-color: #00f2fe;
+    box-shadow: 0 0 14px rgba(0, 242, 254, 0.3);
+    transform: translateY(-1px);
+}
+
+.btn-logout {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: var(--text-secondary);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    cursor: pointer;
+    margin-left: 6px;
+    transition: all 0.2s;
+}
+
+.btn-logout:hover {
+    background: rgba(255, 77, 109, 0.2);
+    border-color: #ff4d6d;
+    color: #ff4d6d;
+}
+
+.observer-mode-banner {
+    background: linear-gradient(90deg, rgba(245, 158, 11, 0.08), rgba(14, 18, 27, 0.95), rgba(245, 158, 11, 0.08));
+    border-bottom: 1px solid rgba(245, 158, 11, 0.25);
+    padding: 10px 24px;
+    position: relative;
+    z-index: 90;
+    transition: all 0.3s ease;
+}
+
+.banner-inner {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.82rem;
+    color: #cbd5e1;
+}
+
+.banner-icon {
+    font-size: 1.1rem;
+}
+
+.banner-text {
+    flex: 1;
+}
+
+.btn-banner-login {
+    background: rgba(245, 158, 11, 0.18);
+    border: 1px solid rgba(245, 158, 11, 0.45);
+    color: #fbbf24;
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 0.76rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.btn-banner-login:hover {
+    background: rgba(245, 158, 11, 0.3);
+    border-color: #fbbf24;
+}
+
+/* Toast Notifications */
+.toast-container {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: none;
+}
+
+.toast-msg {
+    pointer-events: auto;
+    background: rgba(14, 18, 27, 0.95);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+    border-radius: 10px;
+    padding: 12px 18px;
+    font-size: 0.84rem;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    animation: slideInRight 0.3s ease-out;
+}
+
+.toast-msg.toast-warning {
+    border-color: rgba(245, 158, 11, 0.4);
+    box-shadow: 0 0 20px rgba(245, 158, 11, 0.15);
+}
+
+.toast-msg.toast-success {
+    border-color: rgba(16, 185, 129, 0.4);
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.15);
+}
+
+@keyframes slideInRight {
+    from { transform: translateX(50px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes pulseGlow {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.85); }
+}
+
+/* Observer locked elements */
+body.observer-mode .action-restricted {
+    opacity: 0.7;
+    cursor: pointer;
+    position: relative;
+}
+
+body.observer-mode .task-checkbox {
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+
+body.observer-mode .chip {
+    cursor: pointer;
+    opacity: 0.75;
+    border-color: rgba(245, 158, 11, 0.25);
+}
+
+body.observer-mode .chip:hover {
+    border-color: rgba(245, 158, 11, 0.5);
+    background: rgba(245, 158, 11, 0.08);
+}
+
+body.observer-mode input.chat-input:disabled {
+    background: rgba(15, 23, 42, 0.5);
+    border-color: rgba(245, 158, 11, 0.2);
+    color: #94a3b8;
+    cursor: not-allowed;
+}
+
+body.observer-mode .btn-send:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    filter: grayscale(1);
+}
+

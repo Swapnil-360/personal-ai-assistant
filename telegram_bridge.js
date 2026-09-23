@@ -840,10 +840,11 @@ AUTONOMOUS ADAPTATION, MEMORY & PROGRESSIVE STRATEGY
          1) Remote or On-site?
          2) Local (Dhaka / Bangladesh) or Global (Worldwide / US)?
          3) Recency: Past 24 hours vs Past week vs All active?
-         4) Role focus: Full-Stack (Next.js/TypeScript/Supabase) or AI Systems Builder?
+         4) Role focus: Product Designer & UI/UX, Frontend (Next.js/React), AI & Automation, or Product Builder?
        - Or offer to run a fresh scan matching his connected LinkedIn profile.
      • If he specifies criteria or asks "based on my profile":
-       - Search for RECENT openings matching his profile (Full-Stack Developer & AI Systems Builder: Next.js, TypeScript, Supabase, Python AI).
+       - Search for RECENT openings matching his profile (Product Designer & Builder, Frontend Developer React/Next.js, AI & Automation).
+       - Remember: Swapnil is a final-year CSE student at BUBT; do NOT automatically call him a Full-Stack Developer.
        - Present actual specific job opportunities with company, title, location, posted recency, and direct apply link.
        - NEVER send the exact same canned search body again and again. Treat his connected LinkedIn profile as active intelligence.
 
@@ -1697,7 +1698,7 @@ async function processCallbackQuery(callbackQuery) {
                 "• 🌍 *Work Mode:* Remote, On-site, or Hybrid?",
                 "• 📍 *Scope:* Local (Dhaka / Bangladesh) or Global (Worldwide / US)?",
                 "• ⏱️ *Recency:* Past 24 hours, Past week, or All active?",
-                "• 🎯 *Role Focus:* Full-Stack (Next.js/TypeScript/Supabase) or AI Systems?",
+                "• 🎯 *Role Focus:* Product Designer & UI/UX, Frontend (Next.js/React), AI & Automation, or Product Builder?",
                 "",
                 "_Or pick a quick filter:_"
             ].join('\n');
@@ -1713,8 +1714,12 @@ async function processCallbackQuery(callbackQuery) {
                         { text: "🎯 Based on My Profile", callback_data: "job_query:profile_recent" }
                     ],
                     [
-                        { text: "🤖 AI Systems / Python", callback_data: "job_query:ai_recent" },
-                        { text: "💻 Full-Stack Next.js", callback_data: "job_query:nextjs_recent" }
+                        { text: "🎨 Product Design & UI/UX", callback_data: "job_query:design_recent" },
+                        { text: "💻 Frontend (Next.js / React)", callback_data: "job_query:frontend_recent" }
+                    ],
+                    [
+                        { text: "🤖 AI & Automation (n8n)", callback_data: "job_query:ai_recent" },
+                        { text: "🚀 Product Builder", callback_data: "job_query:builder_recent" }
                     ]
                 ]
             };
@@ -1724,7 +1729,7 @@ async function processCallbackQuery(callbackQuery) {
 
         await answerCallbackQuery(id, "🔍 Fetching fresh LinkedIn jobs...");
         let searchOpts = {
-            keywords: 'Full Stack Developer Next.js TypeScript',
+            keywords: 'Product Designer Frontend Next.js',
             location: 'United States',
             isRemote: true,
             timeFilter: 'week',
@@ -1732,17 +1737,21 @@ async function processCallbackQuery(callbackQuery) {
         };
 
         if (queryType === 'remote_24h') {
-            searchOpts = { keywords: 'Full Stack Developer Next.js', location: 'United States', isRemote: true, timeFilter: '24h', limit: 5 };
+            searchOpts = { keywords: 'Product Designer Frontend Next.js', location: 'United States', isRemote: true, timeFilter: '24h', limit: 5 };
         } else if (queryType === 'remote_week') {
-            searchOpts = { keywords: 'Full Stack Developer Next.js TypeScript', location: 'United States', isRemote: true, timeFilter: 'week', limit: 5 };
+            searchOpts = { keywords: 'Product Designer Frontend Next.js', location: 'United States', isRemote: true, timeFilter: 'week', limit: 5 };
         } else if (queryType === 'local_recent') {
-            searchOpts = { keywords: 'Full Stack Developer React Node.js', location: 'Bangladesh', isRemote: false, timeFilter: 'week', limit: 5 };
+            searchOpts = { keywords: 'Product Designer Frontend React', location: 'Bangladesh', isRemote: false, timeFilter: 'week', limit: 5 };
         } else if (queryType === 'profile_recent') {
-            searchOpts = { keywords: 'Full Stack Developer Next.js TypeScript Supabase', location: 'United States', isRemote: true, timeFilter: 'week', limit: 5 };
+            searchOpts = { keywords: 'Product Designer Frontend Next.js', location: 'United States', isRemote: true, timeFilter: 'week', limit: 5 };
+        } else if (queryType === 'design_recent') {
+            searchOpts = { keywords: 'Product Designer UI UX Web', location: 'United States', isRemote: true, timeFilter: 'week', limit: 5 };
+        } else if (queryType === 'frontend_recent') {
+            searchOpts = { keywords: 'Frontend Developer React Next.js TypeScript', location: 'United States', isRemote: true, timeFilter: 'week', limit: 5 };
+        } else if (queryType === 'builder_recent') {
+            searchOpts = { keywords: 'Product Builder Next.js TypeScript', location: 'United States', isRemote: true, timeFilter: 'week', limit: 5 };
         } else if (queryType === 'ai_recent') {
-            searchOpts = { keywords: 'AI Systems Engineer Python LLM', location: 'United States', isRemote: true, timeFilter: 'week', limit: 5 };
-        } else if (queryType === 'nextjs_recent') {
-            searchOpts = { keywords: 'Next.js TypeScript React Developer', location: 'United States', isRemote: true, timeFilter: 'week', limit: 5 };
+            searchOpts = { keywords: 'AI Product Engineer Automation Python', location: 'United States', isRemote: true, timeFilter: 'week', limit: 5 };
         }
 
         let jobs = await fetchLiveLinkedInJobs(searchOpts);
@@ -3199,7 +3208,7 @@ async function processUpdate(update) {
                     "• 🌍 *Work Mode:* Remote, On-site, or Hybrid?",
                     "• 📍 *Scope:* Local (Dhaka / Bangladesh) or Global (Worldwide / US)?",
                     "• ⏱️ *Recency:* Freshly posted (Past 24 hours / Past week), or All active?",
-                    "• 🎯 *Role Focus:* Full-Stack (Next.js/TypeScript/Supabase) or AI Systems Builder?",
+                    "• 🎯 *Role Focus:* Product Designer & UI/UX, Frontend (Next.js/React), AI & Automation, or Product Builder?",
                     "",
                     "_Or tap one of these quick filters to scan LinkedIn right now:_"
                 ].join('\n');
@@ -3215,8 +3224,12 @@ async function processUpdate(update) {
                             { text: "🎯 Based on My Profile", callback_data: "job_query:profile_recent" }
                         ],
                         [
-                            { text: "🤖 AI Systems / Python", callback_data: "job_query:ai_recent" },
-                            { text: "💻 Full-Stack Next.js", callback_data: "job_query:nextjs_recent" }
+                            { text: "🎨 Product Design & UI/UX", callback_data: "job_query:design_recent" },
+                            { text: "💻 Frontend (Next.js / React)", callback_data: "job_query:frontend_recent" }
+                        ],
+                        [
+                            { text: "🤖 AI & Automation (n8n)", callback_data: "job_query:ai_recent" },
+                            { text: "🚀 Product Builder", callback_data: "job_query:builder_recent" }
                         ]
                     ]
                 };

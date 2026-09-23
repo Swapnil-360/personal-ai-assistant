@@ -584,14 +584,14 @@ function tailorCvForJob(jobDescription) {
 
     if (matchedProjects.length === 0) {
         matchedProjects.push('Edu51Portal', 'OpusGenAI', 'Stark-OS Portfolio');
-        bulletPoints.push('• Fullstack Developer proficient in Next.js, TypeScript, Node.js, and Supabase with proven experience delivering production applications to active users.');
-        bulletPoints.push('• Experienced in architecting robust REST APIs, AI agent pipelines, and relational database schemas optimized for performance.');
+        bulletPoints.push('• Product Designer & Builder proficient in Next.js, React, TypeScript, and Supabase with hands-on experience turning real-world student needs into live digital products.');
+        bulletPoints.push('• Experienced in crafting clean interfaces, user flows, and connecting AI APIs and automated backend workflows.');
     }
 
     return {
         matched_projects: matchedProjects,
         recommended_bullets: bulletPoints,
-        strategy: 'Highlight proven user traction on Edu51Portal (around 100 students) and AI pipeline architecture on OpusGenAI to demonstrate end-to-end fullstack maturity.'
+        strategy: 'Position as a final-year CSE student and Product Designer & Builder who turns real-world problems into digital products. Emphasize that your product Edu51Portal serves ~100 active university students, backed by strong UI/UX, Next.js frontend, AI integrations, and live GitHub proof.'
     };
 }
 
@@ -599,13 +599,14 @@ function tailorCvForJob(jobDescription) {
 function matchJobOpportunity(jobDescription) {
     const text = (jobDescription || '').toLowerCase();
 
-    // Defined profile skills & competencies for Swapnil
+    // Defined profile skills & competencies for Swapnil (Product Designer & Builder)
     const criteria = [
+        { name: 'Product Design / UI-UX', category: 'Design', status: '✓', reason: 'High-fidelity UI implementation, user flows, responsive layouts & product prototyping' },
         { name: 'React', category: 'Frontend', status: '✓', reason: 'Production proficiency with Next.js & React 18/19' },
-        { name: 'Next.js', category: 'Frontend/Fullstack', status: '✓', reason: 'Core stack of Edu51Portal (100+ users) & Stark-OS portfolio' },
+        { name: 'Next.js', category: 'Frontend', status: '✓', reason: 'Core stack of Edu51Portal (100+ users) & Stark-OS portfolio' },
         { name: 'TypeScript', category: 'Language', status: '✓', reason: 'Strict typing used across all production builds' },
         { name: 'JavaScript (ES6+)', category: 'Language', status: '✓', reason: 'Deep foundation across frontend & Node.js backend' },
-        { name: 'Node.js', category: 'Backend', status: '✓', reason: 'Autonomous agent servers, API integration & Telegram bridge' },
+        { name: 'Automation & n8n', category: 'Automation', status: '✓', reason: 'Automated workflow orchestration, n8n webhook pipelines & service integrations' },
         { name: 'Supabase / PostgreSQL', category: 'Database', status: '✓', reason: 'Relational data modeling, RLS, auth & pgvector' },
         { name: 'Tailwind CSS', category: 'Styling', status: '✓', reason: 'Responsive UI, dark mode & clean CSS systems' },
         { name: 'REST APIs', category: 'Architecture', status: '✓', reason: 'Google Drive API, Telegram API, Twitter API integration' },
@@ -613,7 +614,7 @@ function matchJobOpportunity(jobDescription) {
         { name: 'Git & GitHub', category: 'Tools', status: '✓', reason: '10+ active repositories under github.com/Swapnil-360' },
         { name: 'Cloud / AWS / Docker', category: 'DevOps', status: '△', reason: 'Render & Railway production deployments; learning Docker/AWS' },
         { name: 'Python', category: 'Language', status: '△', reason: 'Familiar with scripts & data basics; primary stack is TypeScript/Node' },
-        { name: '3+ Years Experience', category: 'Experience', status: '✗', reason: 'Swapnil\'s 3+ yrs is in Web3/community; targets Entry-Level/Junior full-stack' }
+        { name: '3+ Years Experience', category: 'Experience', status: '✗', reason: 'Swapnil is a final-year CSE student at BUBT; targets Graduate, Junior, Associate or Entry-Level Product Designer / Frontend / Builder roles' }
     ];
 
     // Detect which criteria are relevant to the provided job description
@@ -622,6 +623,8 @@ function matchJobOpportunity(jobDescription) {
         const lowerName = c.name.toLowerCase();
         let isRelevant = false;
         if (text.includes(lowerName) || 
+            (c.name === 'Product Design / UI-UX' && (text.includes('design') || text.includes('ui') || text.includes('ux') || text.includes('product') || text.includes('wireframe') || text.includes('prototype'))) ||
+            (c.name === 'Automation & n8n' && (text.includes('automation') || text.includes('n8n') || text.includes('workflow') || text.includes('pipeline'))) ||
             (c.name === 'Supabase / PostgreSQL' && (text.includes('supabase') || text.includes('postgres') || text.includes('sql') || text.includes('database'))) ||
             (c.name === 'Cloud / AWS / Docker' && (text.includes('aws') || text.includes('cloud') || text.includes('docker') || text.includes('devops') || text.includes('gcp'))) ||
             (c.name === '3+ Years Experience' && (text.includes('3+') || text.includes('3 years') || text.includes('3+ years') || text.includes('senior') || text.includes('mid-level') || text.includes('mid level') || text.includes('years of experience'))) ||
@@ -647,9 +650,9 @@ function matchJobOpportunity(jobDescription) {
     const gaps = finalEvaluated.filter(e => e.status === '✗').map(e => `• *${e.name}:* ${e.reason}`);
 
     const recommendedProjects = [
-        '• *Edu51Portal* (Next.js 14, Supabase, Google Drive API) — Proves real user traction (around 100 students) and $0 infrastructure scaling.',
-        '• *OpusGenAI & Personal AI OS (Mikasa)* — Demonstrates multi-model AI routing, pgvector memory vaults, and defensive latency engineering.',
-        '• *Stark-OS Portfolio* (mrswapnil.me) — Highlights high-fidelity UI design, HUD animations, and 98+ Lighthouse performance.'
+        '• *Edu51Portal* (Next.js 14, Supabase, Google Drive API) — Proves real user traction (around 100 students) and turning a real student problem into a live product.',
+        '• *OpusGenAI & Personal AI OS (Mikasa)* — Demonstrates AI agent workflows, prompt routing, and automated context retrieval.',
+        '• *Stark-OS Portfolio* (mrswapnil.me) — Highlights high-fidelity UI design, HUD animations, and modern frontend craft.'
     ];
 
     return {
@@ -658,7 +661,7 @@ function matchJobOpportunity(jobDescription) {
         partials,
         gaps,
         recommended_projects: recommendedProjects,
-        strategy: 'Be upfront about student/junior fullstack positioning. Emphasize that your code is in production with 100+ active students on Edu51Portal, backed by clean architecture and live GitHub proof.'
+        strategy: 'Position as a final-year CSE student and Product Designer & Builder who turns real-world problems into digital products. Emphasize that your product Edu51Portal serves ~100 active university students, backed by strong UI/UX, Next.js frontend, AI integrations, and live GitHub proof.'
     };
 }
 
@@ -1538,7 +1541,7 @@ async function handleActionIntent(message, context = { isCommander: true }) {
         const hasOnsite = lower.includes('onsite') || lower.includes('on-site') || lower.includes('in-office') || lower.includes('office');
         const hasLocation = lower.includes('dhaka') || lower.includes('bangladesh') || lower.includes('usa') || lower.includes('us') || lower.includes('local');
         const hasRecency = lower.includes('recent') || lower.includes('latest') || lower.includes('today') || lower.includes('24h') || lower.includes('week') || lower.includes('new');
-        const hasRole = lower.includes('profile') || lower.includes('fullstack') || lower.includes('full-stack') || lower.includes('next.js') || lower.includes('nextjs') || lower.includes('frontend') || lower.includes('backend') || lower.includes('ai') || lower.includes('python');
+        const hasRole = lower.includes('profile') || lower.includes('product') || lower.includes('designer') || lower.includes('builder') || lower.includes('ui') || lower.includes('ux') || lower.includes('frontend') || lower.includes('next.js') || lower.includes('nextjs') || lower.includes('react') || lower.includes('automation') || lower.includes('n8n') || lower.includes('ai') || lower.includes('python');
 
         const isExplicitSearch = hasRemote || hasOnsite || hasLocation || hasRecency || hasRole || lower.includes('based on');
 
@@ -1563,15 +1566,18 @@ async function handleActionIntent(message, context = { isCommander: true }) {
             timeFilter = '24h';
         }
 
-        let query = 'Full Stack Developer Next.js TypeScript';
-        if (lower.includes('ai') || lower.includes('machine learning')) {
-            query = 'AI Systems Engineer Python';
-        } else if (lower.includes('frontend')) {
+        // Default query grounded in Swapnil's official identity: Product Designer & Builder (Frontend + AI)
+        let query = 'Product Designer Frontend Next.js';
+        if (lower.includes('product designer') || lower.includes('ui') || lower.includes('ux') || lower.includes('design')) {
+            query = 'Product Designer UI UX Web';
+        } else if (lower.includes('product builder') || lower.includes('builder')) {
+            query = 'Product Builder Next.js';
+        } else if (lower.includes('frontend') || lower.includes('react') || lower.includes('next.js') || lower.includes('nextjs')) {
             query = 'Frontend Developer React Next.js';
-        } else if (lower.includes('backend')) {
-            query = 'Node.js Backend Developer TypeScript';
-        } else if (lower.includes('profile') || lower.includes('fullstack') || lower.includes('full-stack')) {
-            query = 'Full Stack Developer Next.js TypeScript';
+        } else if (lower.includes('ai') || lower.includes('automation') || lower.includes('n8n')) {
+            query = 'AI Product Engineer Automation';
+        } else if (lower.includes('profile') || lower.includes('based on')) {
+            query = 'Product Designer Frontend Next.js';
         }
 
         let liveJobs = await fetchLiveLinkedInJobs({

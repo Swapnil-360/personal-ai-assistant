@@ -4,12 +4,12 @@
 const { supabaseRequest } = require('../actions_handler');
 
 async function main() {
-  console.log('--- Anchoring Swapnil Official Professional Identity ---');
+  console.log('--- Anchoring Swapnil Official Professional Identity: Product Designer & Builder ---');
 
-  const officialHeadline = 'Full-Stack Developer & AI Systems Builder | Next.js, TypeScript, Supabase | Creator of Edu51Portal | Committed to Enhancing User Experiences Through Technology | BUBT CSE';
-  const preferredDescription = 'Swapnil is a CSE student and Full-Stack Developer & AI Systems Builder who enjoys turning real-world problems into working digital products. He works with technologies such as Next.js, TypeScript, and Supabase, and is actively exploring AI systems, automation, and AI-assisted development. He is also the creator of Edu51Portal.';
-  const shortDescription = 'Swapnil is a CSE student, Full-Stack Developer, and AI Systems Builder focused on building practical digital products.';
-  const veryShortDescription = 'Full-Stack Developer & AI Systems Builder | CSE @ BUBT | Creator of Edu51Portal.';
+  const officialHeadline = 'Product Designer & Builder | Turning Real-World Problems into Digital Products | AI, Frontend & Automation | Creator of Edu51Portal | Final year CSE at BUBT';
+  const preferredDescription = 'Md. Miftahur Rahman Swapnil is a final-year CSE student at BUBT and a Product Designer & Builder focused on turning real-world problems into digital products. He works across AI, frontend development, and automation, using AI-assisted development to rapidly turn ideas into functional products. He is also the creator of Edu51Portal and actively explores AI systems, automation, web development, and research.';
+  const shortDescription = 'Swapnil is a final-year CSE student at BUBT and a Product Designer & Builder focused on turning real-world problems into digital products through AI, frontend development, and automation.';
+  const oneLineIdentity = 'Product Designer & Builder who turns real-world problems into digital products through AI, frontend development, and automation.';
 
   // 1. Fetch current profile
   console.log('\n1. Fetching profile...');
@@ -23,17 +23,17 @@ async function main() {
         ...(profile.metadata || {}),
         official_headline: officialHeadline,
         headline: officialHeadline,
-        primary_title: 'Full-Stack Developer & AI Systems Builder',
-        supporting_title: 'Product Builder',
-        academic_identity: 'CSE Student @ Bangladesh University of Business and Technology (BUBT)',
+        primary_title: 'Product Designer & Builder',
+        supporting_areas: ['AI', 'Frontend Development', 'Automation', 'AI-assisted development', 'Product prototyping', 'Web and application development', 'Real-world problem solving'],
+        academic_identity: 'Final-year CSE student at Bangladesh University of Business and Technology (BUBT)',
         institution: 'Bangladesh University of Business and Technology (BUBT)',
-        development_style: 'Vibe coding / AI-assisted coding (Workflow). Formal: AI-assisted development',
-        product_mindset: 'Problem → Idea → Product → Design → Development → Integration → Working Solution',
-        user_experience_focus: 'Committed to Enhancing User Experiences Through Technology',
+        core_philosophy: 'Turning Real-World Problems into Digital Products',
+        product_mindset: 'Real-world problem → Product idea → User experience → Design → Development → AI/API integration → Working product',
+        development_style: 'Vibe coding / AI-assisted coding (Workflow). Formal: AI-assisted development or AI-assisted coding',
         preferred_description: preferredDescription,
         short_description: shortDescription,
-        very_short_description: veryShortDescription,
-        positioning_rule: 'NEVER replace headline with Product Designer & Builder. Default title is Full-Stack Developer & AI Systems Builder.',
+        one_line_identity: oneLineIdentity,
+        positioning_rule: 'Primary title is Product Designer & Builder. Core positioning is Turning Real-World Problems into Digital Products. Do NOT automatically call him a Full-Stack Developer. Avoid exaggerated senior titles.',
         edu51portal: {
           role: 'Creator',
           status: 'Active (~100 BUBT engineering students)',
@@ -44,7 +44,7 @@ async function main() {
       };
 
       const updateRes = await supabaseRequest(`/profiles?id=eq.${profile.id}`, 'PATCH', {
-        career_direction: 'Full-Stack Developer & AI Systems Builder',
+        career_direction: 'Product Designer & Builder',
         metadata: updatedMetadata,
         updated_at: new Date().toISOString()
       });
@@ -60,18 +60,18 @@ async function main() {
   try {
     const stateVal = {
       official_headline: officialHeadline,
-      primary_title: 'Full-Stack Developer & AI Systems Builder',
-      supporting_title: 'Product Builder',
-      academic: 'CSE Student at Bangladesh University of Business and Technology (BUBT)',
+      primary_title: 'Product Designer & Builder',
+      supporting_areas: ['AI', 'Frontend Development', 'Automation', 'AI-assisted development'],
+      academic: 'Final-year CSE student at Bangladesh University of Business and Technology (BUBT)',
       dev_style: 'vibe coding / AI-assisted coding (formal: AI-assisted development)',
-      product_mindset: 'Problem → Idea → Product → Design → Development → Integration → Working Solution',
-      core_philosophy: 'I build digital products around real-world problems.',
-      ux_philosophy: 'Committed to Enhancing User Experiences Through Technology (technical implementation + UX)',
+      core_philosophy: 'Turning Real-World Problems into Digital Products',
+      product_mindset: 'Real-world problem → Product idea → User experience → Design → Development → AI/API integration → Working product',
       rules: [
-        'Treat official headline as Swapnil current official headline.',
-        'Do NOT replace headline with Product Designer & Builder.',
-        'Full-Stack Developer is chosen primary positioning.',
-        'AI Systems Builder is second major positioning.',
+        'Use Product Designer & Builder as his primary identity.',
+        'Use Turning Real-World Problems into Digital Products as core positioning.',
+        'Mention AI, Frontend & Automation as primary supporting areas.',
+        'Do NOT automatically call him a Full-Stack Developer.',
+        'Do NOT exaggerate technical seniority (present as real student-builder, not corporate executive or seasoned architect).',
         'Vibe coder describes workflow, not formal title. Use AI-assisted development for formal contexts.',
         'Edu51Portal backend is Supabase + Google Drive API (NEVER Firebase).'
       ]
@@ -101,18 +101,18 @@ async function main() {
   console.log('\n3. Inserting identity memories...');
   const identityMemories = [
     {
-      content: `SWAPNIL OFFICIAL HEADLINE: "${officialHeadline}". Rule: Treat this as Swapnil's current official headline. Do NOT replace with "Product Designer & Builder" unless Swapnil specifically asks.`,
+      content: `SWAPNIL OFFICIAL HEADLINE: "${officialHeadline}". Use it as the default professional positioning for LinkedIn, portfolio, introductions, and professional conversations.`,
       memory_type: 'instruction',
       importance: 10,
       confidence: 1.0,
-      metadata: { tags: ['headline', 'identity', 'linkedin', 'professional', 'official', 'full-stack'] }
+      metadata: { tags: ['headline', 'identity', 'linkedin', 'professional', 'official', 'product-designer-builder'] }
     },
     {
-      content: `SWAPNIL PROFESSIONAL POSITIONING: Primary Public Title is "Full-Stack Developer & AI Systems Builder". Supporting title is "Product Builder" ("I build digital products around real-world problems."). Academic identity is "CSE Student @ BUBT".`,
+      content: `SWAPNIL CORE PROFESSIONAL IDENTITY: Primary title is "Product Designer & Builder". Core philosophy: "Turning Real-World Problems into Digital Products". Supporting areas: AI, Frontend Development, Automation. Do NOT automatically call him a Full-Stack Developer. Avoid exaggerated corporate senior titles.`,
       memory_type: 'fact',
       importance: 10,
       confidence: 1.0,
-      metadata: { tags: ['positioning', 'title', 'product-builder', 'cse-student', 'bubt'] }
+      metadata: { tags: ['positioning', 'title', 'product-designer-builder', 'cse-student', 'bubt'] }
     },
     {
       content: `SWAPNIL DEVELOPMENT STYLE: Describes workflow as "vibe coding / AI-assisted coding". In casual contexts, "vibe coder" is fine. In formal contexts (CVs, job apps, academic docs), ALWAYS use "AI-assisted development" or "AI-assisted coding".`,
@@ -122,11 +122,11 @@ async function main() {
       metadata: { tags: ['workflow', 'vibe-coding', 'ai-assisted-coding', 'development-style'] }
     },
     {
-      content: `SWAPNIL PRODUCT-BUILDING MINDSET & UX: Problem → Idea → Product → Design → Development → Integration → Working Solution. UX is critical: "Committed to Enhancing User Experiences Through Technology". Always balance technical implementation with user experience.`,
+      content: `SWAPNIL PRODUCT MINDSET: Real-world problem → Product idea → User experience → Design → Development → AI/API integration → Working product. Focus on actual problems solved, user interaction, interface feel, and automation.`,
       memory_type: 'preference',
       importance: 9,
       confidence: 1.0,
-      metadata: { tags: ['philosophy', 'product-mindset', 'ux', 'user-experience'] }
+      metadata: { tags: ['philosophy', 'product-mindset', 'ux', 'user-experience', 'product-design'] }
     },
     {
       content: `EDU51PORTAL ARCHITECTURE & POSITIONING: Swapnil is the Creator. Education platform for BUBT students (~100 active users). Backend: Supabase. Study materials: Google Drive API. NEVER describe Edu51Portal as Firebase-based.`,
@@ -136,7 +136,7 @@ async function main() {
       metadata: { tags: ['edu51portal', 'supabase', 'google-drive-api', 'creator'] }
     },
     {
-      content: `CANONICAL DESCRIPTIONS OF SWAPNIL: Preferred: "${preferredDescription}" | Short: "${shortDescription}" | Very Short: "${veryShortDescription}"`,
+      content: `CANONICAL DESCRIPTIONS OF SWAPNIL: Preferred: "${preferredDescription}" | Short: "${shortDescription}" | One-Line: "${oneLineIdentity}"`,
       memory_type: 'instruction',
       importance: 10,
       confidence: 1.0,
@@ -153,7 +153,7 @@ async function main() {
     }
   }
 
-  console.log('\n--- Done anchoring Swapnil Official Identity! ---');
+  console.log('\n--- Done anchoring Swapnil Official Identity: Product Designer & Builder! ---');
 }
 
 main().catch(console.error);

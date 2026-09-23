@@ -1059,33 +1059,34 @@ function auditSocialMedia(platform = null) {
     const ecosystem = {
         overview: {
             title: "Swapnil's Personal Brand & Social Footprint",
-            identity: "Full-Stack Developer & AI Systems Builder | Product Builder",
-            headline: "Full-Stack Developer & AI Systems Builder | Next.js, TypeScript, Supabase | Creator of Edu51Portal | Committed to Enhancing User Experiences Through Technology | BUBT CSE",
-            academics: "CSE Student @ Bangladesh University of Business and Technology (BUBT)",
+            identity: "Product Designer & Builder",
+            headline: "Product Designer & Builder | Turning Real-World Problems into Digital Products | AI, Frontend & Automation | Creator of Edu51Portal | Final year CSE at BUBT",
+            academics: "Final-year CSE student at Bangladesh University of Business and Technology (BUBT)",
             flagship_site: "https://www.mrswapnil.me/ (Cinematic Stark-OS HUD)",
             github: "https://github.com/Swapnil-360 (10 active repositories)",
-            summary: "Strong engineering foundation with around 100 daily active users on Edu51Portal and multi-agent AI architecture. Online brand is anchored around Full-Stack Development, AI Systems Building, and Product Prototyping."
+            summary: "Product-oriented builder combining interface design, frontend development (Next.js, TypeScript), AI APIs, and automation (n8n). Creator of Edu51Portal serving around 100 active university students."
         },
         platforms: {
             linkedin: {
                 platform: "LinkedIn",
                 url: "https://www.linkedin.com/in/mr-swapnil/",
                 handle: "mr-swapnil",
-                current_focus: "Full-Stack Developer & AI Systems Builder | Creator of Edu51Portal",
-                headline_recommendation: "Full-Stack Developer & AI Systems Builder | Next.js, TypeScript, Supabase | Creator of Edu51Portal | Committed to Enhancing User Experiences Through Technology | BUBT CSE",
-                official_headline: "Full-Stack Developer & AI Systems Builder | Next.js, TypeScript, Supabase | Creator of Edu51Portal | Committed to Enhancing User Experiences Through Technology | BUBT CSE",
-                positioning_rule: "Treat this headline as Swapnil's official chosen headline. NEVER replace with 'Product Designer & Builder'.",
-                audit_score: "9.6/10",
+                current_focus: "Product Designer & Builder | Creator of Edu51Portal",
+                headline_recommendation: "Product Designer & Builder | Turning Real-World Problems into Digital Products | AI, Frontend & Automation | Creator of Edu51Portal | Final year CSE at BUBT",
+                official_headline: "Product Designer & Builder | Turning Real-World Problems into Digital Products | AI, Frontend & Automation | Creator of Edu51Portal | Final year CSE at BUBT",
+                positioning_rule: "Treat this headline as Swapnil's official chosen headline. Do not automatically call him a Full-Stack Developer. Primary title is Product Designer & Builder.",
+                audit_score: "9.8/10",
                 strengths: [
-                    "Official headline perfectly communicates full-stack technical depth, AI systems building, UX dedication, and BUBT CSE identity",
+                    "High-impact, authentic positioning as a Product Designer & Builder focused on turning real-world problems into digital products",
+                    "Clear supporting technical pillars: AI, Frontend Development (Next.js/React), and Automation (n8n/APIs)",
                     "Real-world proof of work with Edu51Portal (serving ~100 BUBT students with Supabase + Google Drive API)",
-                    "Academic publication record (CurricuRAG accepted at IEEE OMLET 2026)",
+                    "Academic publication record (CurricuRAG accepted at IEEE OMLET 2026) as final-year CSE student at BUBT",
                     "Clean visual branding linking directly to GitHub (Swapnil-360) and personal portfolio (mrswapnil.me)"
                 ],
                 action_items: [
-                    "Maintain official headline: Full-Stack Developer & AI Systems Builder | Next.js, TypeScript, Supabase | Creator of Edu51Portal | Committed to Enhancing User Experiences Through Technology | BUBT CSE",
+                    "Maintain official headline: Product Designer & Builder | Turning Real-World Problems into Digital Products | AI, Frontend & Automation | Creator of Edu51Portal | Final year CSE at BUBT",
                     "Feature live demo links to mrswapnil.me and Edu51Portal in the Featured Section",
-                    "Publish 1-2 architectural case studies weekly (use /linkedin Edu51Portal or /linkedin CurricuRAG)"
+                    "Publish product-oriented build breakdowns weekly (use /linkedin Edu51Portal or /linkedin CurricuRAG)"
                 ]
             },
             twitter: {

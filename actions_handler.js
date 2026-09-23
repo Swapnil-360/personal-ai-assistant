@@ -6,6 +6,8 @@ const path = require('path');
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqaHJtY3Ricm9icG5vdW16bWp1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTkxNTc3NywiZXhwIjoyMTA1NDkxNzc3fQ.0_xov-GTLYTFGnm_gXxO2lmS1w_9Kc-pnWc0-T17UJ8';
 
 const PROJECTS = [
+    { id: 'b8e5c1d2-7a4f-4e9b-9c3a-1d5e7f8a9b0c', name: 'CurricuRAG', slug: 'curricurag' },
+    { id: '6e7404e1-93f3-4836-b076-5ed1814376f9', name: 'Smart Classroom', slug: 'smart-classroom' },
     { id: 'a4cfe217-d0f9-402b-a07d-b6e8b47975d6', name: 'Edu51Portal', slug: 'edu51portal' },
     { id: '8f413cc5-72bf-4439-a990-e3485d3969ed', name: 'OpusGenAI', slug: 'opusgenai' },
     { id: 'd54ced09-e1fb-4e82-a8f3-cd2fa5539924', name: 'Personal Portfolio', slug: 'personal-portfolio' },

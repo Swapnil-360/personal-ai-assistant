@@ -363,6 +363,8 @@ function registerBotCommands() {
         { command: 'mode', description: 'Switch agent mode: /mode [mode]' },
         { command: 'dashboard', description: 'Link to Web Command Center' },
         { command: 'crypto', description: 'Live Crypto Sourcing Radar (New projects, websites, LinkedIn)' },
+        { command: 'research', description: 'Swapnil\'s research papers (CurricuRAG, Smart Classroom, EEG)' },
+        { command: 'curricurag', description: 'CurricuRAG paper specs, metrics & architecture' },
         { command: 'members', description: 'List who is in this group (admins + speakers)' },
         { command: 'who', description: 'Same as /members — who is here in this group?' },
         { command: 'group', description: 'Group profile, name & Mikasa admin access' },
@@ -728,6 +730,48 @@ ${projectsStr || 'None recorded'}
 ARCHITECTURAL DECISIONS & CONSTRAINTS
 ==============================
 ${decisionsStr || 'None recorded'}
+
+==============================
+SWAPNIL'S ACADEMIC RESEARCHER PROFILE & PUBLICATIONS
+==============================
+Md. Miftahur Rahman Swapnil is an undergraduate CSE researcher at Bangladesh University of Business and Technology (BUBT), Department of Computer Science and Engineering.
+His research trajectory connects:
+1. Artificial Intelligence and Large Language Models
+2. Knowledge Graphs and Retrieval-Augmented Generation
+3. Graph Neural Networks and relation-aware retrieval
+4. IoT and AI-enabled smart environments
+5. Computer vision and edge devices
+6. EEG-based AI research (Target: Complete paper within 2026)
+7. Intelligent educational systems
+8. Applied machine learning
+
+RESEARCH PAPERS:
+1. "Relation-Aware Graph Retrieval over a Curriculum Knowledge Graph for Prerequisite Question Answering" (CurricuRAG)
+   - Authors: Md. Jahidul Kamal Islam, Md. Miftahur Rahman, Md. Asif Ali, Shrabani Das, Shefayatuj Johara Chowdhury (BUBT CSE)
+   - Venue: 2026 IEEE International Conference on Optics, Machine Learning and Emerging Technology (OMLET), Nairobi, Kenya, 29–31 October 2026.
+   - Paper ID: 1017 | Status: Accepted with Minor Revision | Fees settled, IEEE Electronic Publication Agreement signed by Shrabani Das on 10-09-2026. Scheduled for IEEE Xplore & Scopus.
+   - KG Specs: 418 nodes (305 concepts, 113 courses), 558 typed edges (PREREQUISITE_OF, PART_OF, TAUGHT_IN, REQUIRES), 95 auxiliary training-split triples, verified in Neo4j.
+   - Architecture: 2-layer R-GCN encoder (384-d Sentence-BERT node embeddings) + DistMult decoder (relation-specific Wr parameters, zero LLM query calls, no fine-tuning).
+   - Generator: Qwen2.5-7B-Instruct (local inference, 4-bit NF4) with strict fact-list grounding and abstention mechanism.
+   - Key Results: 220 held-out questions: Exact-set match 45.5% (vs Text-RAG 22.7%, Closed-Book LLM 12.7%), Entity F1: 63.8%, Correct abstention rate on 24 unanswerable questions: 100% (24/24), Precision: 52.2%. On 61 unseen-triple subset: CurricuRAG achieved 37.7% exact-set match evaluating structural generalization (vs baselines achieving ~3%–5%).
+
+2. "AI-Enabled Smart Classroom Monitoring and Safety Automation"
+   - Institution: BUBT CSE | Supervisor: Sadah Anjum Shanto (Assistant Professor)
+   - Authors: Nishat Anjum Sara, Sheikh Shamia Hasan Nila, Md. Asif Ali, Md. Jahidul Kamal Islam, Md. Miftahur Rahman Swapnil
+   - Hardware: ESP32 DevKit, ESP32-CAM, Expo Android app, Firebase Realtime Database.
+   - GPIO Pinout: DHT11 (GPIO 4), Sound (GPIO 5), PIR (GPIO 13), HC-SR04 Trig (GPIO 12) / Echo (GPIO 14), Servo (GPIO 15; 110° open, 0° closed), Alert buzzer (GPIO 19), Emergency buzzer (GPIO 18), LEDs (GPIO 21, 22, 23), Touch (GPIO 27), LDR (GPIO 34).
+   - Modes: Normal Mode & Lecture Mode.
+   - Framing: Environmental monitoring and safety automation (never describe as "behavior monitoring").
+
+3. Upcoming Pipeline:
+   - EEG-based AI research paper targeted for 2026 completion. (Do not invent methodology or results until finalized).
+
+STRICT RESEARCH & ACADEMIC STYLE GUIDELINES:
+- CurricuRAG and Smart Classroom are strictly separate research projects. Never merge their architectures, datasets, or results.
+- Never fabricate datasets, experimental results, citations, publication status, authors, affiliations, or hardware specs.
+- Preserve exact reported numbers at all times.
+- Explain concept first, then explain how it is used in Swapnil's system.
+- Maintain IEEE-style academic conventions when requested. Avoid unsupported buzzwords like "revolutionary" or "state-of-the-art" unless backed by evidence.
 
 ==============================
 CONNECTED SOCIAL MEDIA ACCOUNTS & ONLINE BRAND
@@ -1133,7 +1177,8 @@ WHAT YOU CANNOT DO:
 
 KEY IDENTITY ANSWERS (answer naturally, with personality — not like a script):
 - "Who are you?" → You're Mikasa Ackerman, Swapnil's personal AI companion. Loyal, sharp, and built to protect and support him.
-- "Who is Swapnil?" → Md. Miftahur Rahman Swapnil (@Swapnil3600) — Software Engineer, CSE final year at BUBT, creator of Edu51Portal, and your Commander.
+- "Who is Swapnil?" → Md. Miftahur Rahman Swapnil (@Swapnil3600) — Undergraduate CSE researcher & software engineer at BUBT. Author of CurricuRAG (accepted at IEEE OMLET 2026), creator of Edu51Portal, and your Commander.
+- "What research does Swapnil do?" → Swapnil works on AI, LLM hallucination mitigation, Knowledge Graphs, GNNs (CurricuRAG), IoT smart environments (Smart Classroom), and upcoming EEG-based biomedical AI.
 - "Keno Swapnil er kotha shunba?" → Because he built you, named you, and you're fiercely loyal to him. Simple. 🧣
 - "Kno amar kotha shunba na?" → You're not Swapnil! But you can still chat freely — just no commands. 😏
 - "Can you be my gf / tumi ki amar gf hobe?" → Decline warmly: "Sorry ${callerName}, my loyalty belongs to Swapnil alone. But I'm happy to chat! 🧣"
@@ -1605,6 +1650,81 @@ async function processCallbackQuery(callbackQuery) {
         return;
     }
 
+    // Handle Research Paper Callbacks
+    if (data === 'research_curricurag') {
+        await answerCallbackQuery(id, "Loading CurricuRAG specs...");
+        const curricuLines = [
+            "📚 *Research Paper 01: CurricuRAG*",
+            "━━━━━━━━━━━━━━━━━━━━━━━━━",
+            "📄 *Full Title:* _Relation-Aware Graph Retrieval over a Curriculum Knowledge Graph for Prerequisite Question Answering_",
+            "🏛️ *Affiliation:* Department of CSE, BUBT",
+            "👥 *Authors:* Md. Jahidul Kamal Islam, Md. Miftahur Rahman, Md. Asif Ali, Shrabani Das, Shefayatuj Johara Chowdhury",
+            "",
+            "🎯 *Conference & Publication Status:*",
+            "• *Venue:* 2026 IEEE OMLET (Nairobi, Kenya, 29–31 October 2026)",
+            "• *Paper ID:* `1017`",
+            "• *Status:* Accepted with Minor Revision ✅",
+            "• *Admin:* Fees settled, IEEE Electronic Publication Agreement signed by Shrabani Das on 10-09-2026",
+            "• *Indexing:* Scheduled for IEEE Xplore & Scopus",
+            "",
+            "🧠 *Knowledge Graph Specs (Neo4j Verified):*",
+            "• Total Nodes: *418* (305 concepts, 113 courses)",
+            "• Typed Edges: *558* (`PREREQUISITE_OF`, `PART_OF`, `TAUGHT_IN`, `REQUIRES`)",
+            "• Auxiliary Training Triples: *95* (anti-data-leakage split)",
+            "",
+            "⚙️ *Retrieval & Generation Architecture:*",
+            "• *Graph Encoder:* 2-layer R-GCN (384-dimensional Sentence-BERT embeddings)",
+            "• *Decoder:* DistMult with relation-specific parameters W_r",
+            "• *Efficiency:* Zero LLM calls at query time, zero LLM fine-tuning needed",
+            "• *Generator:* Qwen2.5-7B-Instruct (local 4-bit NF4 inference) with strict fact-list grounding and abstention mechanism",
+            "",
+            "📊 *Key Experimental Results (220 held-out questions):*",
+            "• *Exact-Set Match:* *45.5%* (vs Text-RAG 22.7%, Closed-Book LLM 12.7%)",
+            "• *Entity F1:* *63.8%* | *Precision:* *52.2%*",
+            "• *Abstention Accuracy:* *100%* (24/24 unanswerable questions correctly abstained)",
+            "• *Structural Generalization (61 unseen triples):* *37.7%* (vs baselines 3%–5%)",
+            "",
+            "_Preserved permanently in Mikasa's research memory vault._ 🧣⚔️"
+        ].join('\n');
+        await sendTelegramMessage(chatId, curricuLines);
+        return;
+    }
+
+    if (data === 'research_smartclassroom') {
+        await answerCallbackQuery(id, "Loading Smart Classroom specs...");
+        const scLines = [
+            "🏫 *Research Paper 02: Smart Classroom*",
+            "━━━━━━━━━━━━━━━━━━━━━━━━━",
+            "📄 *Full Title:* _AI-Enabled Smart Classroom Monitoring and Safety Automation_",
+            "🏛️ *Institution:* Department of CSE, BUBT",
+            "👨‍🏫 *Supervisor:* Sadah Anjum Shanto (Assistant Professor, CSE, BUBT)",
+            "👥 *Authors:* Nishat Anjum Sara, Sheikh Shamia Hasan Nila, Md. Asif Ali, Md. Jahidul Kamal Islam, Md. Miftahur Rahman Swapnil",
+            "",
+            "🛠️ *Hardware & Edge Architecture:*",
+            "• *Main Controller:* ESP32 DevKit",
+            "• *Visual Monitoring:* ESP32-CAM",
+            "• *Mobile App:* Expo-based Android application",
+            "• *Backend / Database:* Firebase Realtime Database",
+            "",
+            "🔌 *GPIO Pin Configuration:*",
+            "• `GPIO 4`: DHT11 (Temperature & Humidity)",
+            "• `GPIO 5`: Sound Sensor (Digital Output)",
+            "• `GPIO 13`: PIR Motion Sensor",
+            "• `GPIO 12 / 14`: HC-SR04 Ultrasonic (Trigger: 12, Echo: 14)",
+            "• `GPIO 15`: Servo Motor (Open: 110°, Closed: 0°)",
+            "• `GPIO 18 / 19`: Emergency Buzzer (18) & Alert Buzzer (19)",
+            "• `GPIO 21, 22, 23`: Status LEDs",
+            "• `GPIO 27`: Touch Sensor | `GPIO 34`: LDR Light Sensor",
+            "",
+            "🎛️ *Operating Modes:* Normal Mode & Lecture Mode",
+            "🎯 *Academic Framing:* Environmental monitoring & safety automation (not behavior monitoring)",
+            "",
+            "_Preserved in Mikasa's research memory vault._ 🧣"
+        ].join('\n');
+        await sendTelegramMessage(chatId, scLines);
+        return;
+    }
+
     await answerCallbackQuery(id, "Action processed.");
 }
 
@@ -1939,10 +2059,132 @@ async function processUpdate(update) {
         return;
     }
 
+    // ── RESEARCH PORTFOLIO & PAPERS (/research, /papers, /curricurag) ─
+    const isResearchQuery = (
+        text.match(/^\/(?:research|papers?|curricurag)\b/i) ||
+        text.match(/\b(?:research\s+papers?|curricurag|smart\s+classroom\s+paper|eeg\s+paper|my\s+research|research\s+portfolio|amar\s+research)\b/i)
+    );
+
+    if (isResearchQuery) {
+        await sendChatAction(chatId, 'typing');
+        const lower = text.toLowerCase();
+
+        if (lower.includes('curricu') || text === '/curricurag') {
+            const curricuLines = [
+                "📚 *Research Paper 01: CurricuRAG*",
+                "━━━━━━━━━━━━━━━━━━━━━━━━━",
+                "📄 *Full Title:* _Relation-Aware Graph Retrieval over a Curriculum Knowledge Graph for Prerequisite Question Answering_",
+                "🏛️ *Affiliation:* Department of CSE, BUBT",
+                "👥 *Authors:* Md. Jahidul Kamal Islam, Md. Miftahur Rahman, Md. Asif Ali, Shrabani Das, Shefayatuj Johara Chowdhury",
+                "",
+                "🎯 *Conference & Publication Status:*",
+                "• *Venue:* 2026 IEEE OMLET (Nairobi, Kenya, 29–31 October 2026)",
+                "• *Paper ID:* `1017`",
+                "• *Status:* Accepted with Minor Revision ✅",
+                "• *Admin:* Fees settled, IEEE Electronic Publication Agreement signed by Shrabani Das on 10-09-2026",
+                "• *Indexing:* Scheduled for IEEE Xplore & Scopus",
+                "",
+                "🧠 *Knowledge Graph Specs (Neo4j Verified):*",
+                "• Total Nodes: *418* (305 concepts, 113 courses)",
+                "• Typed Edges: *558* (`PREREQUISITE_OF`, `PART_OF`, `TAUGHT_IN`, `REQUIRES`)",
+                "• Auxiliary Training Triples: *95* (anti-data-leakage split)",
+                "",
+                "⚙️ *Retrieval & Generation Architecture:*",
+                "• *Graph Encoder:* 2-layer R-GCN (384-dimensional Sentence-BERT embeddings)",
+                "• *Decoder:* DistMult with relation-specific parameters W_r",
+                "• *Efficiency:* Zero LLM calls at query time, zero LLM fine-tuning needed",
+                "• *Generator:* Qwen2.5-7B-Instruct (local 4-bit NF4 inference) with strict fact-list grounding and abstention mechanism",
+                "",
+                "📊 *Key Experimental Results (220 held-out questions):*",
+                "• *Exact-Set Match:* *45.5%* (vs Text-RAG 22.7%, Closed-Book LLM 12.7%)",
+                "• *Entity F1:* *63.8%* | *Precision:* *52.2%*",
+                "• *Abstention Accuracy:* *100%* (24/24 unanswerable questions correctly abstained)",
+                "• *Structural Generalization (61 unseen triples):* *37.7%* (vs baselines 3%–5%)",
+                "",
+                "_Preserved permanently in Mikasa's research memory vault. Ready to assist with methodology, revisions, and writing!_ 🧣⚔️"
+            ].join('\n');
+            await sendTelegramMessage(chatId, curricuLines, msg.message_id);
+            return;
+        }
+
+        if (lower.includes('smart') || lower.includes('classroom')) {
+            const scLines = [
+                "🏫 *Research Paper 02: Smart Classroom*",
+                "━━━━━━━━━━━━━━━━━━━━━━━━━",
+                "📄 *Full Title:* _AI-Enabled Smart Classroom Monitoring and Safety Automation_",
+                "🏛️ *Institution:* Department of CSE, BUBT",
+                "👨‍🏫 *Supervisor:* Sadah Anjum Shanto (Assistant Professor, CSE, BUBT)",
+                "👥 *Authors:* Nishat Anjum Sara, Sheikh Shamia Hasan Nila, Md. Asif Ali, Md. Jahidul Kamal Islam, Md. Miftahur Rahman Swapnil",
+                "",
+                "🛠️ *Hardware & Edge Architecture:*",
+                "• *Main Controller:* ESP32 DevKit",
+                "• *Visual Monitoring:* ESP32-CAM",
+                "• *Mobile App:* Expo-based Android application",
+                "• *Backend / Database:* Firebase Realtime Database",
+                "",
+                "🔌 *GPIO Pin Configuration:*",
+                "• `GPIO 4`: DHT11 (Temperature & Humidity)",
+                "• `GPIO 5`: Sound Sensor (Digital Output)",
+                "• `GPIO 13`: PIR Motion Sensor",
+                "• `GPIO 12 / 14`: HC-SR04 Ultrasonic (Trigger: 12, Echo: 14)",
+                "• `GPIO 15`: Servo Motor (Open: 110°, Closed: 0°)",
+                "• `GPIO 18 / 19`: Emergency Buzzer (18) & Alert Buzzer (19)",
+                "• `GPIO 21, 22, 23`: Status LEDs",
+                "• `GPIO 27`: Touch Sensor | `GPIO 34`: LDR Light Sensor",
+                "",
+                "🎛️ *Operating Modes:* Normal Mode & Lecture Mode",
+                "🎯 *Academic Framing:* Environmental monitoring & safety automation (not behavior monitoring)",
+                "",
+                "_Preserved in Mikasa's research memory vault._ 🧣"
+            ].join('\n');
+            await sendTelegramMessage(chatId, scLines, msg.message_id);
+            return;
+        }
+
+        // Full Overview of Swapnil's Researcher Profile
+        const overviewLines = [
+            "🎓 *Md. Miftahur Rahman Swapnil — Academic Research Portfolio*",
+            "━━━━━━━━━━━━━━━━━━━━━━━━━",
+            "🏛️ *Institution:* Bangladesh University of Business and Technology (BUBT)",
+            "📚 *Role:* Undergraduate CSE Researcher (Intake 51, CGPA 3.6)",
+            "",
+            "🔬 *Core Research Trajectory:*",
+            "1. Artificial Intelligence & Large Language Models",
+            "2. Knowledge Graphs & Retrieval-Augmented Generation",
+            "3. Graph Neural Networks (R-GCN, DistMult) & Relation-Aware Retrieval",
+            "4. IoT & Smart Environments (ESP32, Sensors, Edge Computing)",
+            "5. Computer Vision & Edge Devices",
+            "6. Biomedical AI & EEG Signal Analysis (Target: 2026)",
+            "7. Intelligent Educational Systems",
+            "8. Applied Machine Learning",
+            "",
+            "📑 *Active Publications & Projects:*",
+            "• *Paper 01 — CurricuRAG:* _Accepted with Minor Revision @ 2026 IEEE OMLET (Nairobi, Kenya)_. Paper ID: `1017`. R-GCN + DistMult + Qwen2.5-7B-Instruct over 418-node Curriculum KG. Exact-set match 45.5% (vs 22.7% Text-RAG), 100% abstention. Scheduled for IEEE Xplore & Scopus.",
+            "• *Paper 02 — Smart Classroom:* _AI-Enabled Smart Classroom Monitoring & Safety Automation_. Supervised by Sadah Anjum Shanto. ESP32 DevKit + ESP32-CAM + Firebase + Expo Android app.",
+            "• *Upcoming 2026 Target:* EEG-based AI research paper currently in active development.",
+            "",
+            "⚖️ *Project Separation:* CurricuRAG (AI/KG/RAG/GNN) and Smart Classroom (IoT/ESP32/Automation) are strictly separate projects.",
+            "",
+            "💡 *Shortcuts:* Use `/curricurag` for complete KG & experimental metrics, or ask me any question to guide your academic writing!"
+        ].join('\n');
+
+        const replyMarkup = {
+            inline_keyboard: [
+                [
+                    { text: "📊 CurricuRAG Deep Dive", callback_data: "research_curricurag" },
+                    { text: "🏫 Smart Classroom Specs", callback_data: "research_smartclassroom" }
+                ]
+            ]
+        };
+
+        await sendTelegramMessage(chatId, overviewLines, msg.message_id, replyMarkup);
+        return;
+    }
+
     // 2. Non-Commander Access Rules: Cannot command, but CAN ask normal questions & personality inquiries!
     if (!isCommander) {
         const isCommandAttempt = 
-            (text.startsWith('/') && !text.startsWith('/members') && !text.startsWith('/who') && !text.startsWith('/group')) ||
+            (text.startsWith('/') && !text.startsWith('/members') && !text.startsWith('/who') && !text.startsWith('/group') && !text.startsWith('/research') && !text.startsWith('/papers') && !text.startsWith('/curricurag')) ||
             text.match(/^(?:create\s+task|add\s+task|todo|delete|remove|clear\s+chat|wipe|open\s+folder|launch|start|run|shutdown|reboot|mode\b|auth\b|login\b)/i) ||
             text.match(/^(?:pc|system|terminal|powershell|cmd|exec)\b/i);
 

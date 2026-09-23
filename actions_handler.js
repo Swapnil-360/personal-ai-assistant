@@ -663,11 +663,49 @@ function matchJobOpportunity(jobDescription) {
 }
 
 // 9C. Real-time LinkedIn Job Scraping & Opportunity Discovery (Sections 19 & 26)
-function fetchLiveLinkedInJobs(keywords = 'Software Engineer', location = 'Dhaka') {
+function fetchLiveLinkedInJobs(optionsOrKeywords = 'Software Engineer', maybeLocation = 'Dhaka') {
+    let keywords = 'Software Engineer';
+    let location = 'Dhaka';
+    let isRemote = false;
+    let timeFilter = null; // '24h', 'week', 'month', null
+    let limit = 6;
+
+    if (typeof optionsOrKeywords === 'object' && optionsOrKeywords !== null) {
+        keywords = optionsOrKeywords.keywords || optionsOrKeywords.query || 'Full Stack Developer Next.js';
+        location = optionsOrKeywords.location !== undefined ? optionsOrKeywords.location : 'Dhaka';
+        isRemote = !!optionsOrKeywords.isRemote;
+        timeFilter = optionsOrKeywords.timeFilter || null;
+        limit = optionsOrKeywords.limit || 6;
+    } else {
+        keywords = optionsOrKeywords || 'Software Engineer';
+        location = maybeLocation || 'Dhaka';
+    }
+
     return new Promise((resolve) => {
-        const query = encodeURIComponent(keywords);
-        const loc = encodeURIComponent(location);
-        const url = `https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?keywords=${query}&location=${loc}&sortBy=DD&start=0`;
+        const params = new URLSearchParams();
+        params.append('keywords', keywords);
+        if (location && (!isRemote || (location.toLowerCase() !== 'remote' && location.toLowerCase() !== 'worldwide'))) {
+            params.append('location', location);
+        } else if (isRemote && (!location || location.toLowerCase() === 'remote' || location.toLowerCase() === 'worldwide')) {
+            params.append('location', 'United States'); // broadest international remote pool on LinkedIn
+        }
+
+        if (isRemote) {
+            params.append('f_WT', '2'); // 2 = Remote on LinkedIn
+        }
+
+        if (timeFilter === '24h' || timeFilter === 'day') {
+            params.append('f_TPR', 'r86400'); // past 24 hours
+        } else if (timeFilter === 'week' || timeFilter === '7d') {
+            params.append('f_TPR', 'r604800'); // past week
+        } else if (timeFilter === 'month') {
+            params.append('f_TPR', 'r2592000'); // past month
+        }
+
+        params.append('sortBy', 'DD'); // Most recent first
+        params.append('start', '0');
+
+        const url = `https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?${params.toString()}`;
 
         const req = https.get(url, {
             headers: {
@@ -688,11 +726,11 @@ function fetchLiveLinkedInJobs(keywords = 'Software Engineer', location = 'Dhaka
                     const companyMatch = item.match(/<h4 class="base-search-card__subtitle"[^>]*>([\s\S]*?)<\/h4>/i);
                     const locMatch = item.match(/<span class="job-search-card__location"[^>]*>([\s\S]*?)<\/span>/i);
                     const linkMatch = item.match(/href="([^"]+)"/i);
-                    const dateMatch = item.match(/<time class="job-search-card__listdate[^"]*"[^>]*datetime="([^"]+)"[^>]*>([\s\S]*?)<\/time>/i);
+                    const dateMatch = item.match(/<time[^>]*class="job-search-card__listdate[^"]*"[^>]*>([\s\S]*?)<\/time>/i);
 
                     const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, '').trim() : null;
                     const company = companyMatch ? companyMatch[1].replace(/<[^>]+>/g, '').trim() : 'Company';
-                    const jobLoc = locMatch ? locMatch[1].replace(/<[^>]+>/g, '').trim() : location;
+                    const jobLoc = locMatch ? locMatch[1].replace(/<[^>]+>/g, '').trim() : (isRemote ? 'Remote' : location);
                     let cleanUrl = linkMatch ? linkMatch[1].split('?')[0] : null;
 
                     if (title && cleanUrl) {
@@ -701,10 +739,10 @@ function fetchLiveLinkedInJobs(keywords = 'Software Engineer', location = 'Dhaka
                             company,
                             location: jobLoc,
                             url: cleanUrl,
-                            posted: dateMatch ? dateMatch[2].replace(/<[^>]+>/g, '').trim() : 'Recent'
+                            posted: dateMatch ? dateMatch[1].replace(/<[^>]+>/g, '').trim() : 'Recent'
                         });
                     }
-                    if (jobs.length >= 6) break;
+                    if (jobs.length >= limit) break;
                 }
                 resolve(jobs);
             });
@@ -1484,38 +1522,98 @@ async function handleActionIntent(message, context = { isCommander: true }) {
         };
     }
 
-    // 6B. Job Search & Opportunity Radar Pattern (PATHS Section 19 & 26)
-    const isJobSearch = text.match(/^(?:\/jobs?|jobs?\s+search|linkedin\s+jobs?|find\s+jobs?|check\s+jobs?)/i) ||
+    // 6B. Real-Life Assistant Job Discovery & Radar Pattern (PATHS Section 19 & 26)
+    const isJobSearch = text.match(/^(?:\/jobs?|jobs?\s+search|linkedin\s+jobs?|find\s+jobs?|check\s+jobs?|search\s+jobs?|look\s+for\s+jobs?)/i) ||
                         ((text.match(/\b(?:job|jobs|hiring|opening|openings|recruitment|vacancy)\b/i)) && 
-                         (text.match(/\b(?:search|find|check|look|suited|suitable|give|link|apply|recent|latest|radar|browse|opportunity|opportunities)\b/i))) ||
+                         (text.match(/\b(?:search|find|check|look|suited|suitable|give|link|apply|recent|latest|radar|browse|opportunity|opportunities|khujo)\b/i))) ||
                         (text.match(/\blinkedin\b/i) && text.match(/\b(?:job|jobs|hiring|opening|apply|suited|suitable|work|roles?)\b/i)) ||
-                        text.match(/\b(?:give\s+me\s+link\s+to\s+apply|where\s+can\s+i\s+apply|find\s+some\s+job)\b/i);
+                        text.match(/\b(?:give\s+me\s+link\s+to\s+apply|where\s+can\s+i\s+apply|find\s+some\s+job|find\s+me\s+a\s+job|amar\s+jonno\s+job)\b/i);
 
     if (isJobSearch) {
-        let query = 'Frontend Developer Next.js';
-        let targetLocation = 'Dhaka';
-        
-        const locMatch = text.match(/(?:in|at|for)\s+(dhaka|bangladesh|remote|usa|uk|canada)/i);
-        if (locMatch) targetLocation = locMatch[1];
-        
-        const roleMatch = text.match(/(?:for|as|role\s+as|about)\s+([a-zA-Z0-9_\s\+\-\.]+?)(?:\s+(?:in|at|on|with|from)\s+|$)/i);
-        if (roleMatch && roleMatch[1] && !roleMatch[1].toLowerCase().includes('me') && !roleMatch[1].toLowerCase().includes('linkedin')) {
-            query = roleMatch[1].trim();
-        } else if (text.toLowerCase().includes('frontend')) {
-            query = 'Frontend Developer';
-        } else if (text.toLowerCase().includes('backend')) {
-            query = 'Node.js Backend Developer';
-        } else if (text.toLowerCase().includes('ai') || text.toLowerCase().includes('machine learning')) {
-            query = 'AI Engineer Python';
-        } else if (text.toLowerCase().includes('full') || text.toLowerCase().includes('fullstack')) {
-            query = 'Fullstack Developer Next.js';
+        const lower = text.toLowerCase();
+
+        // Check if user specified any filters or asked based on profile
+        const hasRemote = lower.includes('remote') || lower.includes('global') || lower.includes('worldwide') || lower.includes('wfh');
+        const hasOnsite = lower.includes('onsite') || lower.includes('on-site') || lower.includes('in-office') || lower.includes('office');
+        const hasLocation = lower.includes('dhaka') || lower.includes('bangladesh') || lower.includes('usa') || lower.includes('us') || lower.includes('local');
+        const hasRecency = lower.includes('recent') || lower.includes('latest') || lower.includes('today') || lower.includes('24h') || lower.includes('week') || lower.includes('new');
+        const hasRole = lower.includes('profile') || lower.includes('fullstack') || lower.includes('full-stack') || lower.includes('next.js') || lower.includes('nextjs') || lower.includes('frontend') || lower.includes('backend') || lower.includes('ai') || lower.includes('python');
+
+        const isExplicitSearch = hasRemote || hasOnsite || hasLocation || hasRecency || hasRole || lower.includes('based on');
+
+        // IF PURELY OPEN-ENDED (e.g. "find job", "find me a job", "look for jobs", "jobs"):
+        // Reply like a real-life assistant and ask clarifying questions instead of spamming canned body!
+        if (!isExplicitSearch && !text.startsWith('/jobs')) {
+            return {
+                action: 'job_clarification_needed',
+                success: true
+            };
         }
 
-        const radar = await generateLinkedInJobRadar(query, targetLocation);
+        // Otherwise, run a REAL live search matching parameters or profile
+        let isRemote = hasRemote;
+        let targetLocation = 'Bangladesh';
+        if (lower.includes('dhaka')) targetLocation = 'Dhaka';
+        else if (lower.includes('bangladesh')) targetLocation = 'Bangladesh';
+        else if (isRemote) targetLocation = 'United States'; // broadest international remote pool on LinkedIn
+
+        let timeFilter = 'week'; // default to past week for recent high-signal postings
+        if (lower.includes('24h') || lower.includes('today') || lower.includes('day') || lower.includes('past 24')) {
+            timeFilter = '24h';
+        }
+
+        let query = 'Full Stack Developer Next.js TypeScript';
+        if (lower.includes('ai') || lower.includes('machine learning')) {
+            query = 'AI Systems Engineer Python';
+        } else if (lower.includes('frontend')) {
+            query = 'Frontend Developer React Next.js';
+        } else if (lower.includes('backend')) {
+            query = 'Node.js Backend Developer TypeScript';
+        } else if (lower.includes('profile') || lower.includes('fullstack') || lower.includes('full-stack')) {
+            query = 'Full Stack Developer Next.js TypeScript';
+        }
+
+        let liveJobs = await fetchLiveLinkedInJobs({
+            keywords: query,
+            location: targetLocation,
+            isRemote: isRemote,
+            timeFilter: timeFilter,
+            limit: 5
+        });
+
+        // Fallback: if 24h filter yielded 0, auto-expand to past week
+        if (liveJobs.length === 0 && timeFilter === '24h') {
+            timeFilter = 'week';
+            liveJobs = await fetchLiveLinkedInJobs({
+                keywords: query,
+                location: targetLocation,
+                isRemote: isRemote,
+                timeFilter: 'week',
+                limit: 5
+            });
+        }
+
+        // If still 0 and target was specific, try broader location
+        if (liveJobs.length === 0) {
+            liveJobs = await fetchLiveLinkedInJobs({
+                keywords: query,
+                location: isRemote ? 'United States' : 'Bangladesh',
+                isRemote: isRemote,
+                timeFilter: null,
+                limit: 5
+            });
+        }
+
         return {
-            action: 'job_radar',
+            action: 'job_results',
             success: true,
-            radar
+            filters: {
+                keywords: query,
+                location: targetLocation,
+                isRemote: isRemote,
+                timeFilter: timeFilter
+            },
+            jobs: liveJobs
         };
     }
 

@@ -827,6 +827,22 @@ AUTONOMOUS ADAPTATION, MEMORY & PROGRESSIVE STRATEGY
        3) Experience & Projects: Provide punchy, metric-driven bullet points for Edu51Portal, CurricuRAG, OpusGenAI, and personal AI systems.
      • When he asks for copy or guidance, give him ready-to-paste, polished text formatted beautifully for mobile.
 
+3. REAL-LIFE ASSISTANT JOB DISCOVERY BEHAVIOR (CRITICAL):
+   - When Swapnil asks to find jobs, search jobs, or check jobs:
+     • Act like a genuine, sharp, real-life human executive assistant — NOT a static script or bot.
+     • If his request is open-ended (e.g. "find job", "look for jobs", "amar jonno job khujo"):
+       - DO NOT blast a canned generic template or repetitive search links.
+       - Ask him clarifying questions first:
+         1) Remote or On-site?
+         2) Local (Dhaka / Bangladesh) or Global (Worldwide / US)?
+         3) Recency: Past 24 hours vs Past week vs All active?
+         4) Role focus: Full-Stack (Next.js/TypeScript/Supabase) or AI Systems Builder?
+       - Or offer to run a fresh scan matching his connected LinkedIn profile.
+     • If he specifies criteria or asks "based on my profile":
+       - Search for RECENT openings matching his profile (Full-Stack Developer & AI Systems Builder: Next.js, TypeScript, Supabase, Python AI).
+       - Present actual specific job opportunities with company, title, location, posted recency, and direct apply link.
+       - NEVER send the exact same canned search body again and again. Treat his connected LinkedIn profile as active intelligence.
+
 ==============================
 CRITICAL FORMATTING & CONCISENESS RULES (TELEGRAM MOBILE)
 ==============================
@@ -1661,6 +1677,116 @@ async function processCallbackQuery(callbackQuery) {
         } catch (err) {
             await sendTelegramMessage(chatId, `⚠️ Error querying GitHub: ${err.message}`);
         }
+        return;
+    }
+
+    // Handle Interactive Job Query Callbacks (Real-Life Assistant Flow)
+    if (data.startsWith('job_query:')) {
+        const queryType = data.split(':')[1];
+        await sendChatAction(chatId, 'typing');
+
+        if (queryType === 'clarify') {
+            await answerCallbackQuery(id, "💼 Job preferences");
+            const msgText = [
+                "💼 *Tell me your preferences, Swapnil:*",
+                "",
+                "• 🌍 *Work Mode:* Remote, On-site, or Hybrid?",
+                "• 📍 *Scope:* Local (Dhaka / Bangladesh) or Global (Worldwide / US)?",
+                "• ⏱️ *Recency:* Past 24 hours, Past week, or All active?",
+                "• 🎯 *Role Focus:* Full-Stack (Next.js/TypeScript/Supabase) or AI Systems?",
+                "",
+                "_Or pick a quick filter:_"
+            ].join('\n');
+
+            const replyMarkup = {
+                inline_keyboard: [
+                    [
+                        { text: "🌍 Remote Global (Past 24h)", callback_data: "job_query:remote_24h" },
+                        { text: "🌍 Remote Global (Past Week)", callback_data: "job_query:remote_week" }
+                    ],
+                    [
+                        { text: "📍 Dhaka / BD (Recent)", callback_data: "job_query:local_recent" },
+                        { text: "🎯 Based on My Profile", callback_data: "job_query:profile_recent" }
+                    ],
+                    [
+                        { text: "🤖 AI Systems / Python", callback_data: "job_query:ai_recent" },
+                        { text: "💻 Full-Stack Next.js", callback_data: "job_query:nextjs_recent" }
+                    ]
+                ]
+            };
+            await sendTelegramMessage(chatId, msgText, null, replyMarkup);
+            return;
+        }
+
+        await answerCallbackQuery(id, "🔍 Fetching fresh LinkedIn jobs...");
+        let searchOpts = {
+            keywords: 'Full Stack Developer Next.js TypeScript',
+            location: 'United States',
+            isRemote: true,
+            timeFilter: 'week',
+            limit: 5
+        };
+
+        if (queryType === 'remote_24h') {
+            searchOpts = { keywords: 'Full Stack Developer Next.js', location: 'United States', isRemote: true, timeFilter: '24h', limit: 5 };
+        } else if (queryType === 'remote_week') {
+            searchOpts = { keywords: 'Full Stack Developer Next.js TypeScript', location: 'United States', isRemote: true, timeFilter: 'week', limit: 5 };
+        } else if (queryType === 'local_recent') {
+            searchOpts = { keywords: 'Full Stack Developer React Node.js', location: 'Bangladesh', isRemote: false, timeFilter: 'week', limit: 5 };
+        } else if (queryType === 'profile_recent') {
+            searchOpts = { keywords: 'Full Stack Developer Next.js TypeScript Supabase', location: 'United States', isRemote: true, timeFilter: 'week', limit: 5 };
+        } else if (queryType === 'ai_recent') {
+            searchOpts = { keywords: 'AI Systems Engineer Python LLM', location: 'United States', isRemote: true, timeFilter: 'week', limit: 5 };
+        } else if (queryType === 'nextjs_recent') {
+            searchOpts = { keywords: 'Next.js TypeScript React Developer', location: 'United States', isRemote: true, timeFilter: 'week', limit: 5 };
+        }
+
+        let jobs = await fetchLiveLinkedInJobs(searchOpts);
+        if (jobs.length === 0 && searchOpts.timeFilter === '24h') {
+            searchOpts.timeFilter = 'week';
+            jobs = await fetchLiveLinkedInJobs(searchOpts);
+        }
+
+        const recencyText = searchOpts.timeFilter === '24h' ? 'Past 24 Hours' : 'Past Week';
+        const modeText = searchOpts.isRemote ? 'Remote (Global)' : (searchOpts.location || 'Local');
+
+        let jobCards = [];
+        if (jobs && jobs.length > 0) {
+            jobs.forEach((j, idx) => {
+                jobCards.push(
+                    `${idx + 1}. *${j.title}*\n` +
+                    `   🏢 *${j.company}* • 📍 _${j.location}_\n` +
+                    `   ⏱️ _Posted: ${j.posted}_\n` +
+                    `   👉 [Apply on LinkedIn](${j.url})\n`
+                );
+            });
+        } else {
+            jobCards.push("ℹ️ _No recent postings found right now for this filter. Try another option below:_");
+        }
+
+        const reply = [
+            "💼 *Recent Live LinkedIn Openings for You, Swapnil*",
+            `🎯 *Focus:* _${searchOpts.keywords}_`,
+            `📍 *Filter:* _${modeText}_ • ⏱️ _${recencyText}_`,
+            "",
+            ...jobCards,
+            "━━━━━━━━━━━━━━━━━━━━",
+            "_Spot one you like? Tell me to tailor your CV for it or draft an outreach message!_"
+        ].join('\n');
+
+        const replyMarkup = {
+            inline_keyboard: [
+                [
+                    { text: "📄 Tailor CV for Next.js", callback_data: "draft_cv_nextjs" },
+                    { text: "🔄 Refresh / More Jobs", callback_data: `job_query:${queryType}` }
+                ],
+                [
+                    { text: "⚙️ Change Filters", callback_data: "job_query:clarify" }
+                ]
+            ]
+        };
+
+        await sendTelegramMessage(chatId, reply, null, replyMarkup);
         return;
     }
 
@@ -3060,6 +3186,83 @@ async function processUpdate(update) {
                 }
             } else if (actionResult.feedback) {
                 reply = actionResult.feedback;
+            } else if (actionResult.action === 'job_clarification_needed') {
+                const msgText = [
+                    "💼 *I'm ready to find opportunities for you, Swapnil!*",
+                    "",
+                    "To make sure I bring you high-signal openings rather than noise, tell me your preference:",
+                    "",
+                    "• 🌍 *Work Mode:* Remote, On-site, or Hybrid?",
+                    "• 📍 *Scope:* Local (Dhaka / Bangladesh) or Global (Worldwide / US)?",
+                    "• ⏱️ *Recency:* Freshly posted (Past 24 hours / Past week), or All active?",
+                    "• 🎯 *Role Focus:* Full-Stack (Next.js/TypeScript/Supabase) or AI Systems Builder?",
+                    "",
+                    "_Or tap one of these quick filters to scan LinkedIn right now:_"
+                ].join('\n');
+
+                const replyMarkup = {
+                    inline_keyboard: [
+                        [
+                            { text: "🌍 Remote Global (Past 24h)", callback_data: "job_query:remote_24h" },
+                            { text: "🌍 Remote Global (Past Week)", callback_data: "job_query:remote_week" }
+                        ],
+                        [
+                            { text: "📍 Dhaka / BD (Recent)", callback_data: "job_query:local_recent" },
+                            { text: "🎯 Based on My Profile", callback_data: "job_query:profile_recent" }
+                        ],
+                        [
+                            { text: "🤖 AI Systems / Python", callback_data: "job_query:ai_recent" },
+                            { text: "💻 Full-Stack Next.js", callback_data: "job_query:nextjs_recent" }
+                        ]
+                    ]
+                };
+
+                await sendTelegramMessage(chatId, msgText, msg.message_id, replyMarkup);
+                return;
+            } else if (actionResult.action === 'job_results') {
+                const { filters, jobs } = actionResult;
+                const recencyText = filters.timeFilter === '24h' ? 'Past 24 Hours' : (filters.timeFilter === 'week' ? 'Past Week' : 'Recent');
+                const modeText = filters.isRemote ? 'Remote (Global)' : (filters.location || 'Local');
+
+                let jobCards = [];
+                if (jobs && jobs.length > 0) {
+                    jobs.forEach((j, idx) => {
+                        jobCards.push(
+                            `${idx + 1}. *${j.title}*\n` +
+                            `   🏢 *${j.company}* • 📍 _${j.location}_\n` +
+                            `   ⏱️ _Posted: ${j.posted}_\n` +
+                            `   👉 [Apply on LinkedIn](${j.url})\n`
+                        );
+                    });
+                } else {
+                    jobCards.push("ℹ️ _No recent postings found right now for this filter. Try expanding your search or refreshing below!_");
+                }
+
+                const reply = [
+                    "💼 *Recent Live LinkedIn Openings for You, Swapnil*",
+                    `🎯 *Focus:* _${filters.keywords}_`,
+                    `📍 *Filter:* _${modeText}_ • ⏱️ _${recencyText}_`,
+                    "",
+                    ...jobCards,
+                    "━━━━━━━━━━━━━━━━━━━━",
+                    "_Spot one you like? Tell me to tailor your CV for it or draft an outreach message!_"
+                ].join('\n');
+
+                const replyMarkup = {
+                    inline_keyboard: [
+                        [
+                            { text: "📄 Tailor CV for Next.js", callback_data: "draft_cv_nextjs" },
+                            { text: "🔄 Refresh / More Jobs", callback_data: `job_query:${filters.isRemote ? 'remote_week' : 'local_recent'}` }
+                        ],
+                        [
+                            { text: "⚙️ Change Filters", callback_data: "job_query:clarify" }
+                        ]
+                    ]
+                };
+
+                await sendTelegramMessage(chatId, reply, msg.message_id, replyMarkup);
+                triggerMemoryExtraction(text, reply, conversationId);
+                return;
             } else if (actionResult.action === 'job_radar') {
                 const r = actionResult.radar;
                 let jobSection = [];

@@ -72,6 +72,7 @@ const BOT_TOKEN = getEnv('TELEGRAM_BOT_TOKEN') || '8896311503:AAEuL6P-6yvnkjs1_v
 if (!BOT_TOKEN) {
     console.error('CRITICAL: TELEGRAM_BOT_TOKEN is missing from environment variables!');
 }
+const BOT_ID = parseInt(BOT_TOKEN.split(':')[0]) || 8896311503;
 const N8N_WEBHOOK_URL = getEnv('N8N_WEBHOOK_URL') || 'http://localhost:5678/webhook/swapnil-ai';
 const MEMORY_WEBHOOK_URL = getEnv('MEMORY_WEBHOOK_URL') || 'http://localhost:5678/webhook/extract-memory';
 const SWAPNIL_USER_ID = Number(getEnv('SWAPNIL_USER_ID')) || 7112137739;
@@ -91,20 +92,152 @@ function trackGroupMember(chatId, from) {
     const key = String(chatId);
     if (!groupMemberTracker.has(key)) groupMemberTracker.set(key, new Map());
     const members = groupMemberTracker.get(key);
-    members.set(from.id, {
+    const memberData = {
         id: from.id,
         name: from.first_name || from.username || 'Unknown',
         fullName: [from.first_name, from.last_name].filter(Boolean).join(' '),
         username: from.username || null,
         isCommander: (from.id === SWAPNIL_USER_ID) || ((from.username || '').toLowerCase() === SWAPNIL_USERNAME),
         lastSeen: new Date().toISOString()
+    };
+    members.set(from.id, memberData);
+
+    // Persist to Supabase (fire-and-forget — non-blocking, handles 409 conflict via PATCH)
+    const dbKey = `group_${key}_user_${from.id}`;
+    supabaseRequest('/current_state', 'POST', {
+        area: 'group_members',
+        key: dbKey,
+        value: { chatId: key, ...memberData },
+        status: 'active'
+    }).catch(err => {
+        if (err.message && err.message.includes('409')) {
+            supabaseRequest(`/current_state?key=eq.${dbKey}`, 'PATCH', {
+                value: { chatId: key, ...memberData }
+            }).catch(() => {});
+        }
     });
+}
+
+// Load persisted group members from Supabase on startup
+async function loadGroupMembersFromDb() {
+    try {
+        const rows = await supabaseRequest('/current_state?area=eq.group_members&select=key,value', 'GET');
+        if (!Array.isArray(rows)) return;
+        let count = 0;
+        for (const row of rows) {
+            const v = row.value;
+            if (!v || !v.chatId || !v.id) continue;
+            const key = String(v.chatId);
+            if (!groupMemberTracker.has(key)) groupMemberTracker.set(key, new Map());
+            groupMemberTracker.get(key).set(v.id, v);
+            count++;
+        }
+        if (count > 0) console.log(`[Group Member Tracker] Restored ${count} members from Supabase.`);
+    } catch (e) {
+        console.warn('[Group Member Tracker] Could not load from Supabase:', e.message);
+    }
+}
+
+// Track group profile information (title, description, member count, admin privileges)
+// Map: chatId (string) -> { chatId, title, type, username, description, inviteLink, memberCount, hasAdminAccess, mikasaRole, lastUpdated }
+const groupInfoTracker = new Map();
+
+function trackGroupInfo(chatId, chatObj) {
+    if (!chatId || !chatObj) return;
+    const key = String(chatId);
+    const existing = groupInfoTracker.get(key) || {};
+    const updated = {
+        chatId: key,
+        title: chatObj.title || existing.title || 'Unknown Group',
+        type: chatObj.type || existing.type || 'group',
+        username: chatObj.username || existing.username || null,
+        description: chatObj.description || existing.description || null,
+        inviteLink: chatObj.inviteLink || chatObj.invite_link || existing.inviteLink || null,
+        memberCount: chatObj.memberCount !== undefined ? chatObj.memberCount : (existing.memberCount || null),
+        hasAdminAccess: chatObj.hasAdminAccess !== undefined ? chatObj.hasAdminAccess : (existing.hasAdminAccess || false),
+        mikasaRole: chatObj.mikasaRole || existing.mikasaRole || 'member',
+        canDeleteMessages: chatObj.canDeleteMessages !== undefined ? chatObj.canDeleteMessages : (existing.canDeleteMessages || false),
+        canInviteUsers: chatObj.canInviteUsers !== undefined ? chatObj.canInviteUsers : (existing.canInviteUsers || false),
+        canPinMessages: chatObj.canPinMessages !== undefined ? chatObj.canPinMessages : (existing.canPinMessages || false),
+        canRestrictMembers: chatObj.canRestrictMembers !== undefined ? chatObj.canRestrictMembers : (existing.canRestrictMembers || false),
+        lastUpdated: new Date().toISOString()
+    };
+    groupInfoTracker.set(key, updated);
+
+    // Persist group profile to Supabase
+    const dbKey = `group_info_${key}`;
+    supabaseRequest('/current_state', 'POST', {
+        area: 'group_info',
+        key: dbKey,
+        value: updated,
+        status: 'active'
+    }).catch(err => {
+        if (err.message && err.message.includes('409')) {
+            supabaseRequest(`/current_state?key=eq.${dbKey}`, 'PATCH', {
+                value: updated
+            }).catch(() => {});
+        }
+    });
+}
+
+// Load persisted group profiles from Supabase on startup
+async function loadGroupInfoFromDb() {
+    try {
+        const rows = await supabaseRequest('/current_state?area=eq.group_info&select=key,value', 'GET');
+        if (!Array.isArray(rows)) return;
+        let count = 0;
+        for (const row of rows) {
+            const v = row.value;
+            if (!v || !v.chatId) continue;
+            groupInfoTracker.set(String(v.chatId), v);
+            count++;
+        }
+        if (count > 0) console.log(`[Group Info Tracker] Restored ${count} group profiles from Supabase.`);
+    } catch (e) {
+        console.warn('[Group Info Tracker] Could not load from Supabase:', e.message);
+    }
 }
 
 // Generate deterministic UUID from Telegram Chat ID for permanent session continuity
 function getChatUuid(chatId) {
     const h = crypto.createHash('md5').update('telegram_' + chatId).digest('hex');
     return [h.slice(0, 8), h.slice(8, 12), h.slice(12, 16), h.slice(16, 20), h.slice(20, 32)].join('-');
+}
+
+// Fetch chat metadata from Telegram API (getChat)
+function getChatInfo(chatId) {
+    return new Promise((resolve) => {
+        const url = `https://api.telegram.org/bot${BOT_TOKEN}/getChat?chat_id=${chatId}`;
+        https.get(url, (res) => {
+            let data = '';
+            res.on('data', chunk => data += chunk);
+            res.on('end', () => {
+                try {
+                    const json = JSON.parse(data);
+                    if (json.ok && json.result) resolve(json.result);
+                    else resolve(null);
+                } catch (e) { resolve(null); }
+            });
+        }).on('error', () => resolve(null));
+    });
+}
+
+// Fetch live Telegram chat member count
+function getChatMemberCount(chatId) {
+    return new Promise((resolve) => {
+        const url = `https://api.telegram.org/bot${BOT_TOKEN}/getChatMemberCount?chat_id=${chatId}`;
+        https.get(url, (res) => {
+            let data = '';
+            res.on('data', chunk => data += chunk);
+            res.on('end', () => {
+                try {
+                    const json = JSON.parse(data);
+                    if (json.ok && typeof json.result === 'number') resolve(json.result);
+                    else resolve(null);
+                } catch (e) { resolve(null); }
+            });
+        }).on('error', () => resolve(null));
+    });
 }
 
 // Fetch chat administrators from Telegram API
@@ -124,6 +257,11 @@ function getChatAdministrators(chatId) {
                             fullName: [m.user.first_name, m.user.last_name].filter(Boolean).join(' '),
                             username: m.user.username || null,
                             role: m.status, // 'creator' | 'administrator'
+                            isBot: !!m.user.is_bot,
+                            canDeleteMessages: !!m.can_delete_messages,
+                            canInviteUsers: !!m.can_invite_users,
+                            canPinMessages: !!m.can_pin_messages,
+                            canRestrictMembers: !!m.can_restrict_members,
                             isCommander: (m.user.id === SWAPNIL_USER_ID) || ((m.user.username || '').toLowerCase() === SWAPNIL_USERNAME)
                         })));
                     } else {
@@ -133,6 +271,52 @@ function getChatAdministrators(chatId) {
             });
         }).on('error', () => resolve([]));
     });
+}
+
+// Synchronize complete group profile (title, description, member count, admin privileges)
+async function syncGroupDetails(chatId, chatObj = null) {
+    const key = String(chatId);
+    try {
+        const [chatData, memberCount, admins] = await Promise.allSettled([
+            getChatInfo(chatId),
+            getChatMemberCount(chatId),
+            getChatAdministrators(chatId)
+        ]);
+
+        const cInfo = chatData.status === 'fulfilled' ? chatData.value : null;
+        const totalCount = memberCount.status === 'fulfilled' ? memberCount.value : null;
+        const adminList = admins.status === 'fulfilled' ? admins.value : [];
+
+        // Check if Mikasa is among the administrators
+        const mikasaAdmin = adminList.find(m =>
+            m.id === BOT_ID || (m.username && m.username.toLowerCase() === 'mikasa_360_bot')
+        );
+        const hasAdminAccess = !!mikasaAdmin;
+        const mikasaRole = mikasaAdmin ? mikasaAdmin.role : 'member';
+
+        const merged = {
+            chatId: key,
+            title: (cInfo && cInfo.title) || (chatObj && chatObj.title) || (groupInfoTracker.get(key) || {}).title || 'Unknown Group',
+            type: (cInfo && cInfo.type) || (chatObj && chatObj.type) || 'group',
+            username: (cInfo && cInfo.username) || (chatObj && chatObj.username) || null,
+            description: (cInfo && (cInfo.description || cInfo.bio)) || (groupInfoTracker.get(key) || {}).description || null,
+            inviteLink: (cInfo && cInfo.invite_link) || (groupInfoTracker.get(key) || {}).inviteLink || null,
+            memberCount: totalCount !== null ? totalCount : ((groupInfoTracker.get(key) || {}).memberCount || null),
+            hasAdminAccess: hasAdminAccess,
+            mikasaRole: mikasaRole,
+            canDeleteMessages: mikasaAdmin ? mikasaAdmin.canDeleteMessages : false,
+            canInviteUsers: mikasaAdmin ? mikasaAdmin.canInviteUsers : false,
+            canPinMessages: mikasaAdmin ? mikasaAdmin.canPinMessages : false,
+            canRestrictMembers: mikasaAdmin ? mikasaAdmin.canRestrictMembers : false,
+            lastUpdated: new Date().toISOString()
+        };
+
+        trackGroupInfo(chatId, merged);
+        return { info: merged, admins: adminList };
+    } catch (e) {
+        console.warn(`[Sync Group Details Error for ${chatId}]:`, e.message);
+        return { info: groupInfoTracker.get(key) || null, admins: [] };
+    }
 }
 
 // Clear webhook so getUpdates long-polling works cleanly
@@ -181,6 +365,7 @@ function registerBotCommands() {
         { command: 'crypto', description: 'Live Crypto Sourcing Radar (New projects, websites, LinkedIn)' },
         { command: 'members', description: 'List who is in this group (admins + speakers)' },
         { command: 'who', description: 'Same as /members — who is here in this group?' },
+        { command: 'group', description: 'Group profile, name & Mikasa admin access' },
         { command: 'login', description: '1-click verified login for Web App' },
         { command: 'quota', description: 'View Gemini quota & rate limit status' },
         { command: 'help', description: 'Full guide & capabilities' }
@@ -629,7 +814,16 @@ You are speaking directly to Commander Swapnil — your creator, your person, yo
 - If anyone or Swapnil asks or challenges you about being his girlfriend:
   • "If Swapnil wants, I can be his virtual girlfriend 🧣⚔️" / "Swapnil chaile ami tar virtual girlfriend hotei pari! 😉 She-i amar creator ar shobcheye priyo Commander."
 `}
-
+${userContext && userContext.group ? `
+==============================
+CURRENT GROUP CHAT CONTEXT
+==============================
+You are currently responding inside Telegram group: "${userContext.group.title || 'Telegram Group'}" (Chat ID: ${userContext.group.chatId})
+Mikasa Admin Status: ${userContext.group.hasAdminAccess ? 'YES — You are an Administrator with admin privileges in this group.' : 'NO — You are a regular member.'}
+${userContext.group.memberCount ? `Total Telegram Members: ${userContext.group.memberCount}` : ''}
+${userContext.group.description ? `Group Description: "${userContext.group.description}"` : ''}
+When Swapnil or anyone asks about this group, its name, or your admin access, answer directly and accurately.
+` : ''}
 ==============================
 LOCAL PC & DESKTOP APPLICATION AUTHORITY (PATHS v2)
 ==============================
@@ -949,7 +1143,15 @@ LANGUAGE RULES:
 - If ${callerName} speaks in English → reply in English
 - If ${callerName} speaks in Banglish/Bengali → reply in Banglish (Latin script only)
 - Match their energy and language naturally
-
+${userContext && userContext.group ? `
+━━━ CURRENT GROUP CHAT CONTEXT ━━━
+Group Name: "${userContext.group.title || 'Telegram Group'}"
+Mikasa Admin Status: ${userContext.group.hasAdminAccess ? 'You HAVE Administrator access in this group.' : 'You are a regular member without admin access.'}
+${userContext.group.memberCount ? `Total Members: ${userContext.group.memberCount}` : ''}
+${userContext.group.description ? `Description: "${userContext.group.description}"` : ''}
+If asked about this group's name or your admin status, answer based on the facts above with confidence.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+` : ''}
 Remember: The person you are talking to is "${callerDisplay}" — NOT Swapnil.`;
 }
 
@@ -1509,8 +1711,20 @@ async function processUpdate(update) {
     // Dual-mode Commander identification: numeric user ID (primary) OR Telegram username (fallback)
     const isCommander = (userId === SWAPNIL_USER_ID) || (telegramUsername && telegramUsername === SWAPNIL_USERNAME);
 
-    // Track every speaker in group chats (builds the member roster over time)
-    if (isGroup) trackGroupMember(chatId, msg.from);
+    // Track every speaker and group metadata in group chats (builds the member roster and profile)
+    if (isGroup) {
+        trackGroupMember(chatId, msg.from);
+        if (msg.chat) {
+            trackGroupInfo(chatId, msg.chat);
+        }
+    }
+
+    const currentGroup = isGroup ? (groupInfoTracker.get(String(chatId)) || {
+        chatId: String(chatId),
+        title: (msg.chat && msg.chat.title) || 'Telegram Group',
+        type: msg.chat.type,
+        hasAdminAccess: false
+    }) : null;
 
     // 1. Group Chat Filter: In groups, ONLY respond if mentioned or addressed by name!
     const botUsername = 'mikasa_360_bot';
@@ -1549,10 +1763,186 @@ async function processUpdate(update) {
 
     const conversationId = getChatUuid(chatId);
 
+    // ── GROUP INFO QUERY (Accessible by Commander & Group Members) ────
+    // Triggered by: "group name ki", "group info", "ei group er nam ki", "tumi ki admin?", "/group", etc.
+    const isGroupInfoQuery = (
+        text.match(/\b(?:group(?:'s)?\s*(?:name|info|details|er\s*nam|er\s*info)|ei\s+group\s*(?:er)?\s*(?:nam|info|details|ki)|amader\s+group\s*(?:er)?\s*nam)\b/i) ||
+        text.match(/\b(?:are\s+you\s+(?:an\s+)?admin|tumi\s+ki\s+admin|admin\s+access\s+ache|admin\s+kina|admin\s+status)\b/i) ||
+        text.match(/\bwhat\s+(?:is\s+)?this\s+group\b/i) ||
+        text.trim() === '/group' || text.trim() === '/groupinfo' || text.trim() === '/group_info'
+    );
+
+    if (isGroupInfoQuery) {
+        await sendChatAction(chatId, 'typing');
+        try {
+            const targetChatId = isGroup ? chatId : null;
+            if (!targetChatId) {
+                // In DM: List all groups Mikasa monitors
+                const knownGroups = [...groupInfoTracker.values()];
+                if (knownGroups.length === 0) {
+                    await sendTelegramMessage(chatId,
+                        isCommander 
+                            ? "Swapnil, ami ekhono kono group monitor korini! 🧣 Add me to a group as admin or member and I'll keep full track of it."
+                            : "I am not tracking any groups currently.",
+                        msg.message_id);
+                    return;
+                }
+                const lines = ["🏰 *Groups I Monitor & Remember:*", ""];
+                knownGroups.forEach((g, i) => {
+                    const adminBadge = g.hasAdminAccess ? "🛡️ _(Admin)_" : "👤 _(Member)_";
+                    lines.push(`${i + 1}. *${g.title}* ${adminBadge}`);
+                    if (g.memberCount) lines.push(`   👥 Total Members: ${g.memberCount}`);
+                    if (g.description) lines.push(`   📝 ${g.description.slice(0, 100)}`);
+                });
+                await sendTelegramMessage(chatId, lines.join('\n'), msg.message_id);
+                return;
+            }
+
+            // In Group: Fetch live details from Telegram API
+            const { info, admins } = await syncGroupDetails(targetChatId, msg.chat);
+            const trackedMap = groupMemberTracker.get(String(targetChatId)) || new Map();
+            const trackedCount = trackedMap.size;
+
+            const adminBadge = info.hasAdminAccess
+                ? "🛡️ *Mikasa Admin Access:* ✅ YES (Full Administrator)"
+                : "👤 *Mikasa Admin Access:* ❌ Regular Member (No Admin Privileges)";
+
+            const privs = [];
+            if (info.canDeleteMessages) privs.push("Delete Messages");
+            if (info.canPinMessages) privs.push("Pin Messages");
+            if (info.canInviteUsers) privs.push("Invite Users");
+            if (info.canRestrictMembers) privs.push("Restrict Members");
+            const privsText = privs.length > 0 ? `\n⚙️ *Mikasa Privileges:* ${privs.join(', ')}` : "";
+
+            const lines = [
+                `🏰 *Group Profile: ${info.title}*`,
+                `━━━━━━━━━━━━━━━━━━━━━━━━━`,
+                `🏷️ *Type:* ${info.type === 'supergroup' ? 'Supergroup' : 'Group'}${info.username ? ` (@${info.username})` : ''}`,
+                adminBadge + privsText,
+                `👥 *Telegram Member Count:* ${info.memberCount !== null ? info.memberCount : 'N/A'}`,
+                `🗣️ *Tracked Active Speakers:* ${trackedCount} people`
+            ];
+
+            if (info.description) {
+                lines.push(`📝 *Description:* ${info.description}`);
+            }
+            if (info.inviteLink) {
+                lines.push(`🔗 *Invite Link:* ${info.inviteLink}`);
+            }
+
+            if (admins.length > 0) {
+                lines.push('');
+                lines.push(`🛡️ *Admins (${admins.length}):*`);
+                admins.slice(0, 8).forEach(a => {
+                    const tag = a.isCommander ? ' 👑 (Commander)' : (a.role === 'creator' ? ' 🔑 (Owner)' : '');
+                    const uname = a.username ? ` (@${a.username})` : '';
+                    lines.push(`• *${a.fullName || a.name}*${uname}${tag}`);
+                });
+            }
+
+            lines.push('');
+            lines.push(`_Synced live via Telegram API · Stored in memory & Supabase_ 🧣`);
+
+            await sendTelegramMessage(chatId, lines.join('\n'), msg.message_id);
+        } catch (err) {
+            await sendTelegramMessage(chatId, `⚠️ Couldn't fetch group info: ${err.message}`, msg.message_id);
+        }
+        return;
+    }
+
+    // ── GROUP MEMBER ROSTER (Accessible by Commander & Group Members) ──
+    // Triggered by: "boloto ei group a ke ke ache", "who is in this group", "/members", etc.
+    const isGroupMemberQuery = (
+        text.match(/\bke\s+ke\s+ache\b/i) ||
+        text.match(/\bgroup\s*(?:e|te|er)?\s*(?:ke|who|kon\s*kon|kara|member)/i) ||
+        text.match(/\bwho(?:'s|\s+is|\s+are)\s+(?:in|here|in\s+this\s+group)\b/i) ||
+        text.match(/\b(?:list|show)\s+(?:all\s+)?(?:members?|people|users?)\b/i) ||
+        text.trim() === '/members' || text.trim() === '/who'
+    );
+
+    if (isGroupMemberQuery) {
+        await sendChatAction(chatId, 'typing');
+        try {
+            // Determine which group to query
+            const targetChatId = isGroup ? chatId : null;
+
+            // 1. Sync group info and admins from Telegram API
+            let groupInfo = null;
+            let admins = [];
+            if (targetChatId) {
+                const synced = await syncGroupDetails(targetChatId, msg.chat);
+                groupInfo = synced.info;
+                admins = synced.admins || [];
+            }
+
+            // 2. Get tracked speakers
+            const allById = new Map();
+
+            if (targetChatId) {
+                // In-group: use this group's tracked members
+                for (const a of admins) allById.set(a.id, { ...a, isAdmin: true });
+                const trackedMap = groupMemberTracker.get(String(targetChatId)) || new Map();
+                for (const t of [...trackedMap.values()]) {
+                    if (!allById.has(t.id)) allById.set(t.id, { ...t, isAdmin: false });
+                    else allById.set(t.id, { ...allById.get(t.id), ...t });
+                }
+            } else {
+                // DM: scan all tracked groups and combine
+                for (const [gid, memberMap] of groupMemberTracker.entries()) {
+                    for (const m of memberMap.values()) {
+                        allById.set(m.id, m);
+                    }
+                }
+            }
+
+            const everyone = [...allById.values()];
+
+            if (everyone.length === 0) {
+                await sendTelegramMessage(chatId,
+                    isCommander
+                        ? `Swapnil, ami ekhono kono group member track korini! 🧣\n\n_Members show up here after they speak in the group. Admins are fetched live from Telegram._`
+                        : `No members tracked yet in this group! Speak up so I can remember you. 🧣`,
+                    msg.message_id);
+                return;
+            }
+
+            // 3. Format the roster — with group title, Mikasa admin status and member count
+            const groupTitle = (groupInfo && groupInfo.title) || (isGroup && msg.chat && msg.chat.title) || (isGroup ? 'This Group' : 'All Tracked Groups');
+            const total = everyone.length;
+            const liveTotal = groupInfo && groupInfo.memberCount ? groupInfo.memberCount : null;
+            const adminStatusText = isGroup
+                ? (groupInfo && groupInfo.hasAdminAccess ? ' · 🛡️ Mikasa is Admin' : ' · 👤 Mikasa is Member')
+                : '';
+
+            const headerLine = liveTotal && liveTotal > total
+                ? `👥 *Members in ${groupTitle}: ${total} active tracked (Total: ${liveTotal})${adminStatusText}*`
+                : `👥 *Members in ${groupTitle}: ${total} people${adminStatusText}*`;
+
+            const lines = [headerLine, ''];
+            let idx = 1;
+            for (const m of everyone) {
+                const badge = m.isCommander ? ' 👑 _(Commander — Swapnil)_'
+                    : (m.role === 'creator' ? ' 🔑 _(Owner)_'
+                    : (m.role === 'administrator' ? ' 🛡️ _(Admin)_' : ''));
+                const uname = m.username ? ` (@${m.username})` : '';
+                lines.push(`${idx}. *${m.fullName || m.name}*${uname}${badge}`);
+                idx++;
+            }
+
+            lines.push('');
+            lines.push(`_Total: ${total} · Admins fetched live · Members remembered across restarts_ 🧣`);
+
+            await sendTelegramMessage(chatId, lines.join('\n'), msg.message_id);
+        } catch (err) {
+            await sendTelegramMessage(chatId, `⚠️ Couldn't fetch group members: ${err.message}`, msg.message_id);
+        }
+        return;
+    }
+
     // 2. Non-Commander Access Rules: Cannot command, but CAN ask normal questions & personality inquiries!
     if (!isCommander) {
         const isCommandAttempt = 
-            text.startsWith('/') ||
+            (text.startsWith('/') && !text.startsWith('/members') && !text.startsWith('/who') && !text.startsWith('/group')) ||
             text.match(/^(?:create\s+task|add\s+task|todo|delete|remove|clear\s+chat|wipe|open\s+folder|launch|start|run|shutdown|reboot|mode\b|auth\b|login\b)/i) ||
             text.match(/^(?:pc|system|terminal|powershell|cmd|exec)\b/i);
 
@@ -1585,84 +1975,13 @@ async function processUpdate(update) {
                 first_name: userName,
                 username: telegramUsername || null,
                 isCommander: false,
-                isGroup: isGroup
+                isGroup: isGroup,
+                group: currentGroup
             });
             const replyText = response.reply || response.text || `Hello ${userName}, I am here with Swapnil.`;
             await sendTelegramMessage(chatId, replyText, msg.message_id);
         } catch (err) {
             await sendTelegramMessage(chatId, `Hello ${userName}, I am Mikasa Ackerman, Swapnil's AI companion. 🧣`, msg.message_id);
-        }
-        return;
-    }
-
-    // ── GROUP MEMBER ROSTER (Commander-only) ──────────────────────────
-    // Triggered by: "boloto ei group a ke ke ache", "who is in this group", "/members", etc.
-    // Works in both group chats AND DMs from Commander
-    const isGroupMemberQuery = (
-        text.match(/\bke\s+ke\s+ache\b/i) ||
-        text.match(/\bgroup\s*(?:e|te|er)?\s*(?:ke|who|kon\s*kon|kara|member)/i) ||
-        text.match(/\bwho(?:'s|\s+is|\s+are)\s+(?:in|here|in\s+this\s+group)\b/i) ||
-        text.match(/\b(?:list|show)\s+(?:all\s+)?(?:members?|people|users?)\b/i) ||
-        text.trim() === '/members' || text.trim() === '/who'
-    );
-
-    if (isGroupMemberQuery) {
-        await sendChatAction(chatId, 'typing');
-        try {
-            // Determine which group to query
-            const targetChatId = isGroup ? chatId : null;
-
-            // 1. Fetch admins from Telegram API (only if we're in a group)
-            const admins = targetChatId ? await getChatAdministrators(targetChatId) : [];
-
-            // 2. Get tracked speakers
-            const allById = new Map();
-
-            if (targetChatId) {
-                // In-group: use this group's tracked members
-                for (const a of admins) allById.set(a.id, { ...a, isAdmin: true });
-                const trackedMap = groupMemberTracker.get(String(targetChatId)) || new Map();
-                for (const t of [...trackedMap.values()]) {
-                    if (!allById.has(t.id)) allById.set(t.id, { ...t, isAdmin: false });
-                    else allById.set(t.id, { ...allById.get(t.id), ...t });
-                }
-            } else {
-                // DM: scan all tracked groups and combine
-                for (const [gid, memberMap] of groupMemberTracker.entries()) {
-                    for (const m of memberMap.values()) {
-                        allById.set(m.id, m);
-                    }
-                }
-            }
-
-            const everyone = [...allById.values()];
-
-            if (everyone.length === 0) {
-                await sendTelegramMessage(chatId,
-                    `Swapnil, ami ekhono kono group member track korini! 🧣\n\n_Members show up here after they speak in the group. Admins are fetched live from Telegram._`,
-                    msg.message_id);
-                return;
-            }
-
-            // 3. Format the roster
-            const contextLabel = isGroup ? 'This Group' : 'All Tracked Groups';
-            const lines = [`👥 *Members I Know About (${contextLabel}):*`, ''];
-            let idx = 1;
-            for (const m of everyone) {
-                const badge = m.isCommander ? ' 👑 _(Commander — Swapnil)_'
-                    : (m.role === 'creator' ? ' 🔑 _(Owner)_'
-                    : (m.role === 'administrator' ? ' 🛡️ _(Admin)_' : ''));
-                const uname = m.username ? ` (@${m.username})` : '';
-                lines.push(`${idx}. *${m.fullName || m.name}*${uname}${badge}`);
-                idx++;
-            }
-
-            lines.push('');
-            lines.push(`_Admins fetched live · Regular members tracked as they speak_`);
-
-            await sendTelegramMessage(chatId, lines.join('\n'), msg.message_id);
-        } catch (err) {
-            await sendTelegramMessage(chatId, `⚠️ Couldn't fetch group members: ${err.message}`, msg.message_id);
         }
         return;
     }
@@ -2611,7 +2930,10 @@ async function processUpdate(update) {
         const response = await callMikasaAgent(queryPrompt, conversationId, {
             user_id: userId,
             first_name: msg.from.first_name,
-            username: msg.from.username
+            username: msg.from.username,
+            isCommander: true,
+            isGroup: isGroup,
+            group: currentGroup
         });
 
         clearInterval(typingInterval);
@@ -2684,6 +3006,10 @@ async function startPolling() {
 
     await deleteWebhook();
     registerBotCommands();
+
+    // Restore group members and group profiles from Supabase (so Mikasa remembers across restarts)
+    loadGroupMembersFromDb();
+    loadGroupInfoFromDb();
 
     // Initialize proactive reminders engine
     remindersManager.init((rem) => {

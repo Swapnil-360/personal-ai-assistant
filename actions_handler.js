@@ -1021,30 +1021,33 @@ function auditSocialMedia(platform = null) {
     const ecosystem = {
         overview: {
             title: "Swapnil's Personal Brand & Social Footprint",
-            identity: "Full-Stack Software Engineer & Autonomous AI Systems Builder",
-            academics: "Final Semester CSE @ Bangladesh University of Business and Technology (BUBT)",
+            identity: "Full-Stack Developer & AI Systems Builder | Product Builder",
+            headline: "Full-Stack Developer & AI Systems Builder | Next.js, TypeScript, Supabase | Creator of Edu51Portal | Committed to Enhancing User Experiences Through Technology | BUBT CSE",
+            academics: "CSE Student @ Bangladesh University of Business and Technology (BUBT)",
             flagship_site: "https://www.mrswapnil.me/ (Cinematic Stark-OS HUD)",
             github: "https://github.com/Swapnil-360 (10 active repositories)",
-            summary: "Strong engineering foundation with around 100 daily active users on Edu51Portal and multi-agent AI architecture. Online brand can be elevated by aligning bio headlines across all channels and establishing consistent weekly build logs."
+            summary: "Strong engineering foundation with around 100 daily active users on Edu51Portal and multi-agent AI architecture. Online brand is anchored around Full-Stack Development, AI Systems Building, and Product Prototyping."
         },
         platforms: {
             linkedin: {
                 platform: "LinkedIn",
                 url: "https://www.linkedin.com/in/mr-swapnil/",
                 handle: "mr-swapnil",
-                current_focus: "Full-Stack Developer & AI Systems Engineer (Creator of Edu51Portal, 100+ Students)",
-                headline_recommendation: "Full-Stack Developer & AI Systems Builder | Next.js, TypeScript, Supabase | Creator of Edu51Portal (100+ Students) | BUBT CSE (Active ✅)",
-                audit_score: "9.2/10",
+                current_focus: "Full-Stack Developer & AI Systems Builder | Creator of Edu51Portal",
+                headline_recommendation: "Full-Stack Developer & AI Systems Builder | Next.js, TypeScript, Supabase | Creator of Edu51Portal | Committed to Enhancing User Experiences Through Technology | BUBT CSE",
+                official_headline: "Full-Stack Developer & AI Systems Builder | Next.js, TypeScript, Supabase | Creator of Edu51Portal | Committed to Enhancing User Experiences Through Technology | BUBT CSE",
+                positioning_rule: "Treat this headline as Swapnil's official chosen headline. NEVER replace with 'Product Designer & Builder'.",
+                audit_score: "9.6/10",
                 strengths: [
-                    "High-impact headline featuring Edu51Portal (100+ Students) and BUBT CSE",
-                    "Strong project proof-of-work (Edu51Portal, Stark-OS Portfolio, OpusGenAI, Mikasa-OS)",
-                    "Clean visual branding linking directly to GitHub and personal portfolio",
-                    "Clear niche in AI integration (Gemini 2.5, OpenRouter, n8n, Supabase)"
+                    "Official headline perfectly communicates full-stack technical depth, AI systems building, UX dedication, and BUBT CSE identity",
+                    "Real-world proof of work with Edu51Portal (serving ~100 BUBT students with Supabase + Google Drive API)",
+                    "Academic publication record (CurricuRAG accepted at IEEE OMLET 2026)",
+                    "Clean visual branding linking directly to GitHub (Swapnil-360) and personal portfolio (mrswapnil.me)"
                 ],
                 action_items: [
-                    "Craft story-driven About Section featuring engineering impact and full-stack architecture",
-                    "Feature live demo link to mrswapnil.me and Edu51Portal in the Featured Section",
-                    "Publish 1-2 architectural case studies weekly (use /linkedin Edu51Portal or /linkedin OpusGenAI)"
+                    "Maintain official headline: Full-Stack Developer & AI Systems Builder | Next.js, TypeScript, Supabase | Creator of Edu51Portal | Committed to Enhancing User Experiences Through Technology | BUBT CSE",
+                    "Feature live demo links to mrswapnil.me and Edu51Portal in the Featured Section",
+                    "Publish 1-2 architectural case studies weekly (use /linkedin Edu51Portal or /linkedin CurricuRAG)"
                 ]
             },
             twitter: {

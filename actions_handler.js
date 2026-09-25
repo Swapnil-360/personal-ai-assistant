@@ -2,6 +2,7 @@ const https = require('https');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const portfolioManager = require('./portfolio_manager');
 
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqaHJtY3Ricm9icG5vdW16bWp1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTkxNTc3NywiZXhwIjoyMTA1NDkxNzc3fQ.0_xov-GTLYTFGnm_gXxO2lmS1w_9Kc-pnWc0-T17UJ8';
 
@@ -135,15 +136,26 @@ const PATHS_MEMORY_CATEGORIES = new Set([
     'KNOWLEDGE'
 ]);
 
+const DB_ALLOWED_MEMORY_TYPES = new Set([
+    'preference',
+    'fact',
+    'instruction',
+    'workflow',
+    'experience',
+    'decision'
+]);
+
 function normalizeMemoryType(rawType) {
-    if (!rawType) return 'FACT';
-    const upper = String(rawType).trim().toUpperCase();
-    if (PATHS_MEMORY_CATEGORIES.has(upper)) return upper;
-    if (upper === 'DECISION') return 'PROJECT_DECISION';
-    if (upper === 'INSTRUCTION') return 'PREFERENCE';
-    if (upper === 'EXPERIENCE') return 'CAREER';
-    if (upper === 'HABIT') return 'WORKFLOW';
-    return 'FACT';
+    if (!rawType) return 'fact';
+    const lower = String(rawType).trim().toLowerCase();
+    if (DB_ALLOWED_MEMORY_TYPES.has(lower)) return lower;
+    if (lower === 'project' || lower === 'knowledge' || lower === 'lesson' || lower === 'social' || lower === 'profile' || lower === 'conversation' || lower === 'task') return 'fact';
+    if (lower === 'project_decision' || lower === 'decision') return 'decision';
+    if (lower === 'career' || lower === 'experience') return 'experience';
+    if (lower === 'goal' || lower === 'instruction') return 'instruction';
+    if (lower === 'habit' || lower === 'workflow') return 'workflow';
+    if (lower === 'preference') return 'preference';
+    return 'fact';
 }
 
 async function storeMemoryWithConflictResolution({ content, memory_type, importance = 7, confidence = 0.95, source_type = 'telegram_chat', conversation_id = null, user_message = null }) {
@@ -486,24 +498,26 @@ What's an architecture decision you made early on that saved your project? Let's
         };
     }
 
-    if (lower.includes('opus') || lower.includes('opusgenai') || lower.includes('ai')) {
+    if (lower.includes('opus') || lower.includes('opusgenai')) {
         return {
             topic: 'OpusGenAI',
-            title: 'Architecting an AI Generation Engine: Gemini 2.5 Flash + OpenRouter Fallbacks',
+            title: 'OpusGenAI: Making Studio-Quality Product Photography & Video Ads Accessible with AI',
             content:
-`Most developers treat AI APIs like simple REST calls. Until production hits latency spikes and rate limits. ⚡
+`Creating professional product photography traditionally requires expensive cameras, physical lighting setups, specialized studios, and hours of post-production. 
 
-While engineering OpusGenAI and autonomous agent workflows, we implemented a dual-tier LLM architecture:
+As a frontend & product builder on OpusGenAI (a client project at opusgenai.com), we worked on simplifying that entire workflow down to:
+📸 One product photo ➔ ⚡ AI Processing ➔ 🎨 Studio-quality marketing visual.
 
-🔹 Primary Tier: Google Gemini 2.5 Flash for lightning ~1.2s response times and deep multi-turn comprehension.
-🔹 Secondary Fallback: OpenRouter (GPT-4o-mini) with automatic retry interceptors so our users never experience downtime.
-🔹 Vector Memory Vault: 1536-dimensional embeddings (text-embedding-3-small) to maintain continuous project memory across sessions.
+Key product engineering highlights:
+🔹 Automated studio lighting, realistic shadows, 4x upscaling, and background replacement.
+🔹 Multi-ratio canvas expansion (1:1 for marketplaces, 9:16 for Reels/TikTok, 16:9 for banners).
+🔹 Structured marketing & video templates: merchants can turn a single product photo into an ad campaign without needing to write complicated AI prompts.
 
-Reliability in AI products isn't just about having the smartest model. It's about designing defensive architectures that fail gracefully.
+Stack: Next.js, TypeScript, fal.ai (Flux & Gemini), Supabase, and Vercel.
 
-Are you building with AI agents or multi-model fallbacks? What is your preferred stack?
+When designing generative AI products, the best UX hides model parameters behind intuitive workflows that solve real commercial needs.
 
-#ArtificialIntelligence #GenerativeAI #SystemDesign #NextJS #SoftwareArchitecture #OpenRouter #NodeJS`
+#GenerativeAI #ProductDesign #NextJS #AIWorkflows #BuildInPublic #ECommerce #Frontend`
         };
     }
 
@@ -1032,11 +1046,11 @@ function generateSingleTweet(topicOrProject = 'Mikasa') {
         };
     }
 
-    if (lower.includes('opus') || lower.includes('opusgenai') || lower.includes('llm')) {
+    if (lower.includes('opus') || lower.includes('opusgenai')) {
         return {
             topic: 'OpusGenAI',
-            title: 'Dual-Tier LLM Architecture for OpusGenAI',
-            tweet: "Engineering reliable AI systems requires defensive fallbacks! ⚡\n\nOpusGenAI dual-tier stack:\n• Primary: Google Gemini 2.5 Flash (~1.2s latency)\n• Fallback: OpenRouter GPT-4o-mini on errors\n• Memory: 1536-dim Supabase pgvector\n\nZero downtime.\n\n#GenerativeAI #SystemDesign #BuildInPublic"
+            title: 'AI Product Photography & Video Ads — OpusGenAI',
+            tweet: "Turn 1 product photo into a studio-grade ad campaign in seconds! 📸✨\n\nOpusGenAI client build highlights:\n• Next.js + fal.ai (Flux/Gemini) + Supabase\n• Studio lighting & 4x neural upscaling\n• 1-click video marketing templates\n\nSimplifying AI for creators.\n\n#GenerativeAI #ProductDesign #NextJS"
         };
     }
 
@@ -1247,6 +1261,81 @@ async function handleActionIntent(message, context = { isCommander: true }) {
             action: 'persona_response',
             success: true,
             feedback: `Karon tumi Swapnil nao! 😉\n\nTumi amake normal proshno korte paro, tech ba development niye kotha bolte paro — ami shundor bhabe uttor dibo. Kintu amake command korar ba operational orders dewar odhikar shudhu amar Commander Swapnil er ache! 🧣⚔️`
+        };
+    }
+
+    // 0B. Direct Memorization / "Mone Rakhba" / Remember This (Permanent Memory Vault)
+    function extractMemoryStatement(input) {
+        if (!input) return null;
+        const clean = input.trim();
+        // Pattern 1: /remember or /memorize command
+        let m = clean.match(/^(?:\/remember|\/memorize)\s+(.+)$/i);
+        if (m) return m[1].trim();
+
+        // Pattern 2: English prefix: 'remember this:', 'remember that', 'remember'
+        m = clean.match(/^(?:please\s+)?(?:remember\s+(?:this|that)?|memorize\s+(?:this|that)?)\s*[:,\-]?\s+(.+)$/i);
+        if (m) return m[1].trim();
+
+        // Pattern 3: Banglish prefix: 'eta mone rakhba', 'eta more rakhba', 'mone rakhba', 'mone rekho'
+        m = clean.match(/^(?:eta|eita|ei\s+ta)\s+(?:mone|more)\s+(?:rakhba|rekho|raikho|rakhish)\s*[:,\-]?\s+(.+)$/i);
+        if (m) return m[1].trim();
+
+        m = clean.match(/^(?:mone|more)\s+(?:rakhba|rekho|raikho|rakhish)\s*[:,\-]?\s+(.+)$/i);
+        if (m) return m[1].trim();
+
+        // Pattern 4: Banglish postfix: '[fact] eta mone rakhba' or '[fact] mone rakhba'
+        m = clean.match(/^(.+?)\s*[,.-]?\s*(?:eta|eita)?\s*(?:mone|more)\s+(?:rakhba|rekho|raikho|rakhish)\s*$/i);
+        if (m) return m[1].trim();
+
+        // Pattern 5: English postfix: '[fact] remember this'
+        m = clean.match(/^(.+?)\s*[,.-]?\s*(?:please\s+)?remember\s+(?:this|that)\s*$/i);
+        if (m) return m[1].trim();
+
+        return null;
+    }
+
+    const memoryStatement = extractMemoryStatement(text);
+    if (memoryStatement && memoryStatement.length >= 3) {
+        if (context && context.isCommander === false) {
+            return {
+                action: 'unauthorized_command',
+                success: false,
+                feedback: `🛡️ **Memory Vault Restricted**\n\nAmi shudhu amar Commander Swapnil er instructions ar facts memory te save kori! ⚔️`
+            };
+        }
+
+        // Classify category intelligently
+        const low = memoryStatement.toLowerCase();
+        let cat = 'FACT';
+        if (low.includes('prefer') || low.includes('like') || low.includes('love') || low.includes('hate') || low.includes('pochondo') || low.includes('valobashi') || low.includes('dark mode') || low.includes('light mode')) {
+            cat = 'PREFERENCE';
+        } else if (low.includes('edu51') || low.includes('opusgen') || low.includes('stark') || low.includes('portfolio') || low.includes('curricurag') || low.includes('smart classroom')) {
+            cat = 'PROJECT';
+        } else if (low.includes('decide') || low.includes('chose') || low.includes('switch to')) {
+            cat = 'PROJECT_DECISION';
+        } else if (low.includes('job') || low.includes('salary') || low.includes('career') || low.includes('interview') || low.includes('company') || low.includes('linkedin')) {
+            cat = 'CAREER';
+        } else if (low.includes('goal') || low.includes('target') || low.includes('aim') || low.includes('by 2026')) {
+            cat = 'GOAL';
+        } else if (low.includes('routine') || low.includes('habit') || low.includes('daily') || low.includes('every day') || low.includes('gym')) {
+            cat = 'WORKFLOW';
+        }
+
+        const res = await storeMemoryWithConflictResolution({
+            content: memoryStatement,
+            memory_type: cat,
+            importance: 9,
+            confidence: 1.0,
+            source_type: 'direct_user_command',
+            user_message: text
+        });
+
+        return {
+            action: 'memory_saved',
+            success: true,
+            memory: memoryStatement,
+            category: cat,
+            feedback: `🛡️ **Locked into memory, Swapnil!** 🧠\n\nI have permanently memorized this:\n💬 *"${memoryStatement}"*\n📂 **Category:** \`${cat}\`\n\n_Everything you tell me to remember is saved in Supabase and will guide my decisions and responses._ ⚔️`
         };
     }
 
@@ -1653,11 +1742,168 @@ async function handleActionIntent(message, context = { isCommander: true }) {
         };
     }
 
+    // 7B. Portfolio Autonomous Sync, Update & Push (Stark-OS mrswapnil.me)
+    const isPortfolioSync = 
+        text.match(/^(?:\/portfolio_sync|\/sync_portfolio|\/portfolio|\/portfolio_status)\b/i) ||
+        text.match(/(?:update|sync|push|deploy|add\s+to)\s+(?:my\s+)?portfolio\b/i) ||
+        text.match(/portfolio\s+(?:update|sync|push|deploy)\b/i) ||
+        text.match(/add\s+(?:project|paper|research)\s+(?:to\s+)?(?:my\s+)?portfolio/i);
+
+    if (isPortfolioSync) {
+        const lower = text.toLowerCase();
+
+        // Case A: Specific addition of CurricuRAG research paper
+        if (lower.includes('curricu') || lower.includes('rag') || lower.includes('omlet') || lower.includes('1017')) {
+            const result = await portfolioManager.addCurricuRAGToPortfolio(true);
+            await recordAuditLog({
+                user_request: text,
+                agent_decision: 'Add CurricuRAG (IEEE OMLET 2026) paper to portfolio projects and research interests, compile with TypeScript, and git push to main.',
+                tool_used: 'portfolio_manager.addCurricuRAGToPortfolio',
+                action_performed: 'Portfolio Project & Research Update',
+                data_affected: 'lib/initialData.ts (INITIAL_PROJECTS, INITIAL_EDUCATION)',
+                result: result.success ? `Committed ${result.commitHash} and pushed to origin main` : result.error,
+                verification_status: result.success ? 'verified' : 'failed'
+            });
+
+            return {
+                action: 'portfolio_updated',
+                success: result.success,
+                commitHash: result.commitHash,
+                liveUrl: 'https://www.mrswapnil.me/',
+                feedback: result.success
+                    ? `🛡️ **CurricuRAG Paper Added to Live Portfolio!**\n\n` +
+                      `✨ **Title:** CurricuRAG (IEEE OMLET 2026)\n` +
+                      `🔬 **Status:** Added to Featured Projects & Research Interests\n` +
+                      `🚀 **Git Push:** Committed \`${result.commitHash}\` and pushed to \`origin main\`\n` +
+                      `⚡ **Deployment:** Vercel auto-deploying to [mrswapnil.me](https://www.mrswapnil.me/) right now!\n\n` +
+                      `_Verified with TypeScript compiler (0 errors) prior to pushing._`
+                    : `⚠️ Failed to update portfolio: ${result.error}`
+            };
+        }
+
+        // Case B: General Sync / Headline & Identity Update
+        if (lower.includes('sync') || lower.includes('headline') || lower.includes('hero') || lower.includes('identity')) {
+            const result = await portfolioManager.updatePortfolio({
+                syncIdentity: true,
+                push: true
+            });
+            await recordAuditLog({
+                user_request: text,
+                agent_decision: 'Synchronize official Product Designer & Builder identity across portfolio hero and settings, compile, and git push.',
+                tool_used: 'portfolio_manager.updatePortfolio',
+                action_performed: 'Portfolio Identity Sync',
+                data_affected: 'lib/initialData.ts (INITIAL_HERO, INITIAL_SETTINGS)',
+                result: result.success ? `Committed ${result.commitHash} and pushed to origin main` : result.error,
+                verification_status: result.success ? 'verified' : 'failed'
+            });
+
+            return {
+                action: 'portfolio_updated',
+                success: result.success,
+                commitHash: result.commitHash,
+                liveUrl: 'https://www.mrswapnil.me/',
+                feedback: result.success
+                    ? `🛡️ **Portfolio Synchronized & Pushed!**\n\n` +
+                      `✨ **Headline:** Product Designer & Builder | Turning Real-World Problems into Digital Products\n` +
+                      `🚀 **Git Push:** Committed \`${result.commitHash || 'latest'}\` to \`origin main\`\n` +
+                      `⚡ **Deployment:** Vercel build triggered for [mrswapnil.me](https://www.mrswapnil.me/)\n\n` +
+                      `_TypeScript compiler verification passed (0 errors)._`
+                    : `⚠️ Sync failed: ${result.error}`
+            };
+        }
+
+        // Case C: Adding a custom project from text or structured query
+        const projectMatch = text.match(/(?:add\s+project|add\s+new\s+project)\s+["']?([^"'\n]+?)["']?(?:\s+to\s+(?:my\s+)?portfolio|$)/i);
+        if (projectMatch) {
+            const projectName = projectMatch[1].trim();
+            const slug = projectName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+            const newProject = {
+                id: `proj-${slug}`,
+                slug: slug,
+                title: projectName,
+                subtitle: `${projectName} — Designed & Built by Swapnil`,
+                category: "web",
+                categoryLabel: "Product & Engineering",
+                shortDescription: `Digital product engineered by Swapnil solving practical user problems with modern web architecture.`,
+                fullDescription: `${projectName} is a modern application built to deliver seamless user experience and robust technical performance.`,
+                problem: `Inefficient workflows and lack of streamlined digital tools for end users.`,
+                solution: `Engineered an intuitive, high-performance interface with optimized data flows.`,
+                role: "Product Designer & Builder",
+                status: "Live",
+                heroImage: "/images/projects/opusgen.jpg",
+                gallery: ["/images/projects/opusgen.jpg"],
+                technologies: ["Next.js", "TypeScript", "Tailwind CSS", "Supabase"],
+                githubUrl: `https://github.com/Swapnil-360/${slug}`,
+                featured: true,
+                displayOrder: 1,
+                year: "2026",
+                keyFeatures: [
+                    "High-performance responsive interface",
+                    "Optimized state management and database integration",
+                    "Cinematic dark mode styling"
+                ],
+                challenges: "Ensuring zero-latency responsiveness and clean architecture.",
+                outcome: "Successfully deployed and operational."
+            };
+
+            const result = await portfolioManager.updatePortfolio({
+                syncIdentity: true,
+                newProject,
+                customCommitMsg: `Add ${projectName} to portfolio projects`,
+                push: true
+            });
+
+            await recordAuditLog({
+                user_request: text,
+                agent_decision: `Add project ${projectName} to portfolio, compile, and git push.`,
+                tool_used: 'portfolio_manager.updatePortfolio',
+                action_performed: 'Portfolio Project Addition',
+                data_affected: `lib/initialData.ts (INITIAL_PROJECTS[${slug}])`,
+                result: result.success ? `Committed ${result.commitHash} and pushed to origin main` : result.error,
+                verification_status: result.success ? 'verified' : 'failed'
+            });
+
+            return {
+                action: 'portfolio_updated',
+                success: result.success,
+                commitHash: result.commitHash,
+                liveUrl: 'https://www.mrswapnil.me/',
+                feedback: result.success
+                    ? `🛡️ **Project "${projectName}" Added to Live Portfolio!**\n\n` +
+                      `✨ **Slug:** \`${slug}\`\n` +
+                      `🚀 **Git Push:** Committed \`${result.commitHash}\` to \`origin main\`\n` +
+                      `⚡ **Deployment:** Vercel auto-deploying to [mrswapnil.me](https://www.mrswapnil.me/)\n\n` +
+                      `_TypeScript compiler verification passed cleanly!_`
+                    : `⚠️ Project add failed: ${result.error}`
+            };
+        }
+
+        // Generic / Help overview if command /portfolio is sent
+        return {
+            action: 'portfolio_menu',
+            success: true,
+            feedback: [
+                "🛡️ **Portfolio Autonomous Operations (Stark-OS)**",
+                "",
+                "I can directly modify your live portfolio repository (`stark-os-portfolio`), verify with TypeScript, commit, and `git push` to trigger Vercel deployment to **mrswapnil.me**!",
+                "",
+                "⚡ **Supported Actions:**",
+                "• *'Add CurricuRAG paper to my portfolio'* — Adds your IEEE OMLET 2026 paper to projects & research and pushes.",
+                "• *'Sync portfolio'* — Updates hero headline to official *Product Designer & Builder* and pushes.",
+                "• *'Add project [Name] to my portfolio'* — Injects a new project and deploys.",
+                "",
+                "🌐 **Live Site:** [mrswapnil.me](https://www.mrswapnil.me/)",
+                "📁 **Repository:** `Swapnil-360/stark-os-portfolio` (branch: `main`)"
+            ].join('\n')
+        };
+    }
+
     return null;
 }
 
 module.exports = {
     handleActionIntent,
+    portfolioManager,
     fetchCryptoSourcingRadar,
     createTask,
     completeTask,

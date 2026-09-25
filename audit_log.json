@@ -1,5 +1,145 @@
 [
   {
+    "timestamp": "2026-09-25T16:57:12.173Z",
+    "user_request": "শুনো সো",
+    "agent_decision": "Learned new [preference] memory; superseded 0 outdated memories",
+    "tool_used": "Supabase /memories",
+    "action_performed": "store_memory",
+    "data_affected": "51c6bd53-b675-4b89-be62-ce8fdd5cf479",
+    "result": "Swapnil uses 'সো' (So) as a casual nickname or conversational shorthand when addressing the AI.",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-25T14:54:56.127Z",
+    "user_request": "",
+    "agent_decision": "",
+    "tool_used": "",
+    "action_performed": "",
+    "data_affected": null,
+    "result": "Success",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-23T21:23:40.622Z",
+    "user_request": "",
+    "agent_decision": "",
+    "tool_used": "",
+    "action_performed": "",
+    "data_affected": null,
+    "result": "Success",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-23T21:20:30.775Z",
+    "user_request": "",
+    "agent_decision": "",
+    "tool_used": "",
+    "action_performed": "",
+    "data_affected": null,
+    "result": "Success",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-23T21:03:27.928Z",
+    "user_request": "",
+    "agent_decision": "",
+    "tool_used": "",
+    "action_performed": "",
+    "data_affected": null,
+    "result": "Success",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-23T20:53:51.793Z",
+    "user_request": "Basis Student forum of BUBT chapter club member, Graphics Designer and Media and publication Secretary (2023-2026), IT club General member, event management",
+    "agent_decision": "Learned new [experience] memory; superseded 0 outdated memories",
+    "tool_used": "Supabase /memories",
+    "action_performed": "store_memory",
+    "data_affected": "669c433b-b413-41cd-a4c4-3378d75c908e",
+    "result": "Swapnil leadership roles: BASIS Students' Forum - BUBT Chapter (Member, Graphics Designer, Media & Publication Secretary, 2023–2026), BUBT IT Club (General Member), and internal university event management organizer.",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-23T20:53:51.175Z",
+    "user_request": "accepted paper is Relation-Aware Graph Retrieval over a Curriculum Knowledge Graph for Prerequisite QA and EEG based is running",
+    "agent_decision": "Learned new [fact] memory; superseded 0 outdated memories",
+    "tool_used": "Supabase /memories",
+    "action_performed": "store_memory",
+    "data_affected": "5fd34a84-604a-41d0-bfc5-c4daf86a3f90",
+    "result": "Swapnil accepted research paper is officially titled: \"Relation-Aware Graph Retrieval over a Curriculum Knowledge Graph for Prerequisite QA\" (IEEE OMLET 2026). His ongoing research includes \"EEG-Based Motor Imagery Classification\" (deep learning for assistive neuro-rehabilitation and paralysis motor",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-23T20:53:50.210Z",
+    "user_request": "change to Product Designer & Builder, AI, Frontend & Automation",
+    "agent_decision": "Learned new [fact] memory; superseded 0 outdated memories",
+    "tool_used": "Supabase /memories",
+    "action_performed": "store_memory",
+    "data_affected": "aeae5a57-4960-402a-8dcc-777b033d5c25",
+    "result": "SWAPNIL OFFICIAL HEADLINE: \"Product Designer & Builder | AI, Frontend & Automation\". Use this as his updated headline across CV, portfolio, and professional conversations.",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-23T20:53:49.116Z",
+    "user_request": "my ssc from Kadirabad BL High School pirganj,Rangpur",
+    "agent_decision": "Learned new [fact] memory; superseded 0 outdated memories",
+    "tool_used": "Supabase /memories",
+    "action_performed": "store_memory",
+    "data_affected": "78d0e37d-e953-4fee-863a-44b8237b638d",
+    "result": "Md. Miftahur Rahman Swapnil completed his Secondary School Certificate (SSC) in Science with GPA 5.00/5.00 from Kadirabad BL High School, Pirganj, Rangpur (2019). HSC was Shaheed Police Smrity College (2021).",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-23T17:49:35.281Z",
+    "user_request": "remember this: always run tsc before pushing",
+    "agent_decision": "Learned new [fact] memory; superseded 0 outdated memories",
+    "tool_used": "Supabase /memories",
+    "action_performed": "store_memory",
+    "data_affected": "a2a569f1-cb19-44a0-a1b8-e66e92a600c0",
+    "result": "always run tsc before pushing",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-23T17:49:34.292Z",
+    "user_request": "mone rakhba I am building Edu51 mobile app with React Native",
+    "agent_decision": "Learned new [fact] memory; superseded 0 outdated memories",
+    "tool_used": "Supabase /memories",
+    "action_performed": "store_memory",
+    "data_affected": "5f83a641-d087-4103-8197-cee074b415fd",
+    "result": "I am building Edu51 mobile app with React Native",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-23T17:49:02.404Z",
+    "user_request": "eta mone rakhba Next.js is my favorite frontend framework",
+    "agent_decision": "Learned new [FACT] memory; superseded 0 outdated memories",
+    "tool_used": "Supabase /memories",
+    "action_performed": "store_memory",
+    "data_affected": "f07af0de-5ed7-4138-8930-fc1f56eff03c",
+    "result": "Next.js is my favorite frontend framework",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-23T17:49:01.335Z",
+    "user_request": "eta more rakhba ami kal theke routine follow korbo",
+    "agent_decision": "Learned new [WORKFLOW] memory; superseded 0 outdated memories",
+    "tool_used": "Supabase /memories",
+    "action_performed": "store_memory",
+    "data_affected": "abfa3ae6-191d-4b3f-b740-7650f8f326b9",
+    "result": "ami kal theke routine follow korbo",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-23T16:51:00.662Z",
+    "user_request": "",
+    "agent_decision": "",
+    "tool_used": "",
+    "action_performed": "",
+    "data_affected": null,
+    "result": "Success",
+    "verification_status": "verified"
+  },
+  {
     "timestamp": "2026-09-22T18:57:54.889Z",
     "user_request": "Mane, ajke jeishob crypto project website a list hoise, newly added ogulo search kore amake website link or LinkedIn link dao... I'm waiting for it",
     "agent_decision": "Learned new [PREFERENCE] memory; superseded 0 outdated memories",

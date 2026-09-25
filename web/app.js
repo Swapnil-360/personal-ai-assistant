@@ -1201,12 +1201,13 @@ async function sendMessageToMikasa(text, isSpoken = false) {
         if (data.actionResult && data.actionResult.feedback && !reply.includes(data.actionResult.feedback)) {
             reply += `\n\n⚡ *[Action Executed]*: ${data.actionResult.feedback}`;
         }
-        appendMikasaChatMessage(reply);
+        const customAudio = data.actionResult?.custom_audio || null;
+        appendMikasaChatMessage(reply, customAudio);
         loadQuotaTelemetry();
 
         // Speak reply automatically if triggered by voice and audio synthesis is active
         if (speechSynthEnabled && isSpoken) {
-            playCuteFemaleVoice(reply);
+            playCuteFemaleVoice(reply, customAudio);
         }
 
         // If intent opened a browser URL, open tab directly in active browser
@@ -1240,7 +1241,7 @@ async function sendMessageToMikasa(text, isSpoken = false) {
     }
 }
 
-function appendMikasaChatMessage(text) {
+function appendMikasaChatMessage(text, customAudio = null) {
     const messagesContainer = document.getElementById('chat-messages-container');
     const bubble = document.createElement('div');
     bubble.className = 'chat-bubble-hud bubble-mikasa';
@@ -1257,7 +1258,7 @@ function appendMikasaChatMessage(text) {
     if (btnSpeak) {
         btnSpeak.addEventListener('click', (e) => {
             e.stopPropagation();
-            playCuteFemaleVoice(text);
+            playCuteFemaleVoice(text, customAudio);
         });
     }
     messagesContainer.appendChild(bubble);
@@ -1698,7 +1699,7 @@ function stripVoiceText(text) {
         .trim();
 }
 
-function playCuteFemaleVoice(text) {
+function playCuteFemaleVoice(text, customAudioUrl = null) {
     if (!text || !text.trim() || !speechSynthEnabled) return;
 
     // Stop any ongoing audio or speech
@@ -1720,31 +1721,55 @@ function playCuteFemaleVoice(text) {
 
     if (visualizerBars) visualizerBars.classList.add('speaking');
 
+    // Check for custom pre-recorded voice-over (e.g. Commander bio upload)
+    let candidateCustomAudio = customAudioUrl;
+    if (!candidateCustomAudio && (text.includes('favorite Commander') || text.includes('Product Designer & Builder'))) {
+        candidateCustomAudio = '/audio/mikasa_whoami.mp3';
+    }
+
+    function playAudioSource(srcUrl, onFallback) {
+        const audio = new Audio(srcUrl);
+        activeAudioPlayer = audio;
+
+        audio.onplay = () => {
+            if (visualizerBars) visualizerBars.classList.add('speaking');
+        };
+        audio.onended = () => {
+            if (visualizerBars) visualizerBars.classList.remove('speaking');
+            if (activeAudioPlayer === audio) activeAudioPlayer = null;
+        };
+        audio.onerror = () => {
+            if (onFallback) onFallback();
+        };
+
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+            playPromise.catch(() => {
+                if (onFallback) onFallback();
+            });
+        }
+    }
+
+    // If custom audio candidate is specified, try loading it first; if 404/error, seamlessly fall back to Gemini TTS!
+    if (candidateCustomAudio) {
+        playAudioSource(candidateCustomAudio, () => {
+            console.log(`[Custom audio ${candidateCustomAudio} not found or failed, using Gemini TTS]`);
+            const audioUrl = `/api/voice/tts?text=${encodeURIComponent(cleanVoiceText)}`;
+            playAudioSource(audioUrl, () => {
+                if (visualizerBars) visualizerBars.classList.remove('speaking');
+                fallbackBrowserFemaleVoice(cleanVoiceText);
+            });
+        });
+        return;
+    }
+
     // 1. Primary: Gemini Native Cute Female Voice ("Kore" model on Gemini 3.8 Flash Lite)
     const audioUrl = `/api/voice/tts?text=${encodeURIComponent(cleanVoiceText)}`;
-    const audio = new Audio(audioUrl);
-    activeAudioPlayer = audio;
-
-    audio.onplay = () => {
-        if (visualizerBars) visualizerBars.classList.add('speaking');
-    };
-    audio.onended = () => {
-        if (visualizerBars) visualizerBars.classList.remove('speaking');
-        if (activeAudioPlayer === audio) activeAudioPlayer = null;
-    };
-    audio.onerror = (err) => {
-        console.warn('[Gemini TTS Unavailable -> Switching to Browser Cute Female Fallback]:', err);
+    playAudioSource(audioUrl, () => {
+        console.warn('[Gemini TTS Unavailable -> Switching to Browser Cute Female Fallback]');
         if (visualizerBars) visualizerBars.classList.remove('speaking');
         fallbackBrowserFemaleVoice(cleanVoiceText);
-    };
-
-    const playPromise = audio.play();
-    if (playPromise !== undefined) {
-        playPromise.catch((e) => {
-            console.warn('[Autoplay policy or network error -> Browser Voice Fallback]:', e);
-            fallbackBrowserFemaleVoice(cleanVoiceText);
-        });
-    }
+    });
 }
 
 async function fallbackBrowserFemaleVoice(cleanText) {

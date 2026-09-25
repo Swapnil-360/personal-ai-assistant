@@ -139,7 +139,11 @@ const MIME_TYPES = {
     '.ico': 'image/x-icon',
     '.jpeg': 'image/jpeg',
     '.jpg': 'image/jpeg',
-    '.webp': 'image/webp'
+    '.webp': 'image/webp',
+    '.mp3': 'audio/mpeg',
+    '.wav': 'audio/wav',
+    '.ogg': 'audio/ogg',
+    '.m4a': 'audio/mp4'
 };
 
 function parseBody(req) {

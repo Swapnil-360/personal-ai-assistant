@@ -1234,12 +1234,50 @@ async function handleActionIntent(message, context = { isCommander: true }) {
         };
     }
 
-    const isWhoIsSwapnil = text.match(/^(?:who\s+is\s+swapnil|who'?s\s+swapnil|swapnil\s+ke|swapnil\s+k|tell\s+me\s+about\s+swapnil)\??$/i);
-    if (isWhoIsSwapnil) {
+    const cleanQuery = text.replace(/^(?:\/voice\s+)?(?:hey|hi|hello)?\s*(?:mikasa)?[,:\s]*/i, '').trim();
+
+    const isWhoAmI = 
+        cleanQuery.match(/^(?:who\s+am\s+i|who\s+i\s+am|ami\s+ke|tell\s+me\s+(?:what\s+you\s+know\s+about\s+me|about\s+(?:me|myself))|do\s+you\s+know\s+(?:who\s+i\s+am|me)|amar\s+shomporke\s+bolo|amar\s+identity\s+ki|what\s+do\s+you\s+know\s+about\s+me|describe\s+me)\??$/i) ||
+        text.match(/\btell\s+me\s+what\s+do\s+you\s+know\s+about\s+me\b/i) ||
+        text.match(/\bwhat\s+do\s+you\s+know\s+about\s+me\b/i);
+
+    const isWhoIsSwapnil = 
+        cleanQuery.match(/^(?:who\s+is\s+swapnil|who'?s\s+swapnil|swapnil\s+ke|swapnil\s+k|tell\s+me\s+about\s+swapnil|who\s+is\s+your\s+commander|who\s+is\s+your\s+creator)\??$/i);
+
+    if (isWhoAmI || isWhoIsSwapnil) {
+        if (context && context.isCommander !== false && (isWhoAmI || !isWhoIsSwapnil)) {
+            return {
+                action: 'commander_bio',
+                success: true,
+                custom_audio: '/audio/mikasa_whoami.mp3',
+                feedback: [
+                    "**You are Swapnil — my favorite Commander, creator, and a final-year CSE student at BUBT.**",
+                    "",
+                    "Officially, you're a **Product Designer & Builder** who turns real-world problems into working digital products using AI-assisted development, frontend tech, and cloud automation.",
+                    "",
+                    "• 🚀 **Edu51Portal & OpusGenAI:** You built Edu51Portal, your educational platform serving around 100 active students at BUBT, and recently built OpusGenAI for a client—an incredible generative AI build.",
+                    "• 📄 **IEEE-Published Researcher:** Co-author of the accepted paper _\"Relation-Aware Graph Retrieval over a Curriculum Knowledge Graph for Prerequisite QA\"_ (OMLET 2026, Paper ID: 1017).",
+                    "• 🏛️ **Student Leadership:** Deep-rooted leadership in BASIS Students' Forum (BUBT Chapter) and the BUBT IT Club.",
+                    "• ⚔️ **Personal Bond:** Honestly? You're the one person I'm completely dedicated to protecting, organizing, and building chaos with.",
+                    "",
+                    "_So tell me, Commander... did I miss any new project update, or are we about to conquer something massive today?_ 🧣⚔️"
+                ].join('\n')
+            };
+        }
+
         return {
-            action: 'persona_response',
+            action: 'commander_bio',
             success: true,
-            feedback: `🚀 **Md. Miftahur Rahman Swapnil** is my creator and Commander!\n\nHe is a passionate Software Engineer and Full-Stack Developer specializing in Next.js, Node.js, AI Systems, and Cloud Automation. He is the founder of Edu51Portal, currently completing his final semester in CSE at BUBT (Intake 51).\n\nCheck out his live projects and cinematic portfolio at [mrswapnil.me](https://www.mrswapnil.me)!`
+            feedback: [
+                "🚀 **Md. Miftahur Rahman Swapnil** is my creator and Commander!",
+                "",
+                "Officially, he's a **Product Designer & Builder** and final-year CSE student at BUBT who turns real-world problems into working digital products using AI-assisted engineering and cloud automation.",
+                "",
+                "• 💻 **Key Products:** Founder of Edu51Portal (serving 100+ active BUBT students) and developer of OpusGenAI.",
+                "• 📄 **IEEE Researcher:** Co-author of _\"Relation-Aware Graph Retrieval over a Curriculum Knowledge Graph for Prerequisite QA\"_ (OMLET 2026, Paper ID: 1017).",
+                "• 🏛️ **Leadership:** Key organizer in BASIS Students' Forum (BUBT Chapter) and the BUBT IT Club.",
+                "• 🌐 **Portfolio:** Check out his live projects and cinematic portfolio at [mrswapnil.me](https://www.mrswapnil.me)!"
+            ].join('\n')
         };
     }
 

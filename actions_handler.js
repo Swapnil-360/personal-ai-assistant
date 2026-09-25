@@ -1251,7 +1251,7 @@ async function handleActionIntent(message, context = { isCommander: true }) {
             return {
                 action: 'commander_bio',
                 success: true,
-                custom_audio: '/audio/mikasa_whoami.mp3',
+                custom_audio: '/audio/Miksa-about_Swapnil.mp3',
                 spoken_text: spokenBio,
                 feedback: [
                     "**You are Swapnil — my favorite Commander, creator, and a final-year CSE student at BUBT.**",

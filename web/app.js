@@ -1725,7 +1725,7 @@ function playCuteFemaleVoice(text, customAudioUrl = null) {
     // Check for custom pre-recorded voice-over (e.g. Commander bio upload)
     let candidateCustomAudio = customAudioUrl;
     if (!candidateCustomAudio && (text.includes('favorite Commander') || text.includes('Product Designer & Builder'))) {
-        candidateCustomAudio = '/audio/mikasa_whoami.mp3';
+        candidateCustomAudio = '/audio/Miksa-about_Swapnil.mp3';
     }
 
     function playAudioSource(srcUrl, onFallback) {

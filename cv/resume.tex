@@ -1,0 +1,209 @@
+%-------------------------
+% Executive 2-Page Resume / CV in LaTeX (Black & White Edition)
+% Tailored for Md. Miftahur Rahman Swapnil
+% Ready for Overleaf (Compile with pdflatex or xelatex)
+%-------------------------
+
+\documentclass[10pt, a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{marvosym}
+\usepackage[usenames,dvipsnames]{color}
+\usepackage{verbatim}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+\usepackage[english]{babel}
+\usepackage{tabularx}
+\usepackage{geometry}
+\usepackage{xcolor}
+\usepackage{fontawesome5}
+\usepackage{array}
+
+% Page Geometry - Executive 2-Page margins
+\geometry{left=16mm, right=16mm, top=12mm, bottom=12mm}
+
+% Pure Executive Black & White Palette
+\definecolor{headerBlack}{HTML}{000000}
+\definecolor{bodyBlack}{HTML}{111827}
+\definecolor{subGray}{HTML}{374151}
+\definecolor{ruleBlack}{HTML}{111827}
+\definecolor{tableBorder}{HTML}{D1D5DB}
+
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+\urlstyle{same}
+\raggedbottom
+\raggedright
+\setlength{\tabcolsep}{0in}
+
+% Sections formatting with clean black line
+\titleformat{\section}{
+  \vspace{4pt}\bfseries\normalsize\color{headerBlack}
+}{}{0em}{}[\color{ruleBlack}\titlerule \vspace{3pt}]
+
+% Custom list styling
+\newcommand{\resumeItem}[1]{
+  \item\small{
+    {#1 \vspace{-2pt}}
+  }
+}
+
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+\newcommand{\resumeItemListStart}{\begin{itemize}[leftmargin=0.18in, label=\textbullet]}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{-3pt}}
+
+\begin{document}
+
+%----------HEADER ON PAGE 1----------
+\begin{center}
+    {\Huge \textbf{MD. MIFTAHUR RAHMAN SWAPNIL}} \\ \vspace{2pt}
+    {\large \textbf{Product Designer \& Builder $|$ AI, Frontend \& Automation}} \\ \vspace{5pt}
+    \small{
+        \faPhone*~880 1318-090383 \quad
+        \faEnvelope~\href{mailto:miftahurr503@gmail.com}{miftahurr503@gmail.com} \quad
+        \faMapMarker*~Mirpur, Dhaka, Bangladesh \\ \vspace{3pt}
+        \faLinkedin~\href{https://www.linkedin.com/in/mr-swapnil}{www.linkedin.com/in/mr-swapnil} \quad
+        \faGlobe~\href{https://www.mrswapnil.me}{https://www.mrswapnil.me}
+    }
+\end{center}
+\vspace{-6pt}
+{\color{ruleBlack}\hrule height 1.2pt}
+\vspace{2pt}
+
+%-----------ABOUT ME-----------
+\section{ABOUT ME}
+\small{
+Product Designer \& Builder with an innovative and curious mindset, always exploring new ideas, technologies, and ways to turn them into working products. I enjoy building and experimenting with new things, whether it is to solve a real-world problem, learn something new, or gain hands-on experience. I use AI as a practical part of my workflow to simplify tasks, improve user experiences, and reduce time spent on repetitive work. Currently, I’m especially interested in AI automation and building smarter workflows that make everyday processes easier and more efficient.
+}
+\vspace{3pt}
+
+%-----------EDUCATION TABLE-----------
+\section{EDUCATION}
+\vspace{2pt}
+\begin{tabular}{|p{3.5cm}|p{8.5cm}|p{3.0cm}|p{2.2cm}|}
+\hline
+\textbf{Degree} & \textbf{Institution} & \textbf{Result} & \textbf{Year} \\
+\hline
+\textbf{B.Sc. in CSE} & Bangladesh University of Business and Technology (BUBT) & CGPA 3.60/4.00 & 2023--2026 (Expected) \\
+\hline
+\textbf{HSC --- Science} & Shaheed Police Smrity College, Mirpur-14, Dhaka & GPA 5.00/5.00 & 2021 \\
+\hline
+\textbf{SSC --- Science} & Kadirabad BL High School, Pirganj, Rangpur & GPA 5.00/5.00 & 2019 \\
+\hline
+\end{tabular}
+\vspace{4pt}
+
+%-----------TECHNICAL SKILLS-----------
+\section{TECHNICAL SKILLS}
+\small{
+\textbf{Frontend:} Next.js, React, TypeScript, JavaScript \\
+\textbf{Backend \& Database:} Supabase, PostgreSQL, REST APIs \\
+\textbf{AI \& Automation:} AI APIs, n8n, AI-assisted development, workflow automation \\
+\textbf{Other:} Git, GitHub, etc.
+}
+\vspace{3pt}
+
+%-----------FEATURED PROJECTS-----------
+\section{FEATURED PROJECTS}
+\vspace{-2pt}
+\textbf{Edu51Portal} \\
+\textit{\small Next.js 14, TypeScript, Supabase PostgreSQL, Google Drive API, Tailwind CSS}
+\begin{itemize}[leftmargin=0.18in, label=\textbullet, itemsep=1pt, topsep=2pt]
+  \small
+  \item Designed and launched an all-in-one academic platform serving $\sim$100 active BUBT students, delivering instant routine lookups, exam notices, and course materials.
+  \item Integrated Google Drive API with Supabase to distribute academic PDFs securely with \$0 cloud storage infrastructure overhead.
+  \item Engineered section-specific schedule filtering, fuzzy course search, and mobile-first responsive interfaces with sub second page performance.
+\end{itemize}
+\vspace{3pt}
+
+\textbf{PawfectMatch} \\
+\textit{\small React Native, Node.js, Supabase Realtime DB, AI Pet Care Assistant(Gemini Api)}
+\begin{itemize}[leftmargin=0.18in, label=\textbullet, itemsep=1pt, topsep=2pt]
+  \small
+  \item Designed and developed a pet adoption mobile platform connecting verified rescuers with adopters, featuring AI-guided pet care recommendations and matchmaking.
+\end{itemize}
+
+\clearpage
+
+%----------RUNNING HEADER ON PAGE 2----------
+\begin{tabular*}{\textwidth}{l@{\extracolsep{\fill}}r}
+  \textbf{\large MD. MIFTAHUR RAHMAN SWAPNIL} & \small \textbf{Product Designer \& Builder $|$ AI, Frontend \& Automation}
+\end{tabular*}
+\vspace{-3pt}
+{\color{ruleBlack}\hrule height 1.2pt}
+\vspace{6pt}
+
+%-----------FEATURED PROJECTS CONTINUED-----------
+\textbf{Personal AI Assistant -- Mikasa} \\
+\textit{\small Node.js, Telegram Bot API, Supabase, n8n, Multi-LLM Orchestration, Local PC Bridge}
+\begin{itemize}[leftmargin=0.18in, label=\textbullet, itemsep=1pt, topsep=2pt]
+  \small
+  \item Architected an autonomous personal AI operating system with persistent memory extraction, continuous learning, and multi-model failover (Gemini 2.5 Flash \& OpenRouter).
+  \item Telegram bot controls, cross-platform cron automation, and secure local PC execution bridges for terminal and desktop operations.
+  \item Integrated real-time database grounding with Supabase.
+\end{itemize}
+\vspace{3pt}
+
+\textbf{MuteBD} \\
+\textit{\small Flutter, Dart, Google Maps API, Background Geofencing, Firebase}
+\begin{itemize}[leftmargin=0.18in, label=\textbullet, itemsep=1pt, topsep=2pt]
+  \small
+  \item Engineered a location-based mobile application that automatically silences smartphones in designated quiet zones (mosques, hospitals, libraries, classrooms) using GPS geofencing.
+  \item Implemented battery-optimized background geofence listeners with customizable boundary radii and offline-first quiet zone caching.
+\end{itemize}
+\vspace{3pt}
+
+\textbf{OpusGen AI} \\
+\textit{\small Next.js, TypeScript, fal.ai (Flux/Gemini), Supabase, Vercel}
+\begin{itemize}[leftmargin=0.18in, label=\textbullet, itemsep=1pt, topsep=2pt]
+  \small
+  \item OpusGenAI is an AI-powered product photography studio that helps businesses turn ordinary product photos into professional marketing visuals without requiring a physical photography studio, professional camera equipment, or advanced design skills.
+  \item AI-generated image, video and captions for marketing and social media use.
+\end{itemize}
+
+%-----------RESEARCH & PUBLICATIONS-----------
+\section{RESEARCH \& PUBLICATIONS}
+\vspace{-2pt}
+\textbf{Relation-Aware Graph Retrieval over a Curriculum Knowledge Graph for Prerequisite QA} (Accepted (IEEE OMLET 2026))
+\begin{itemize}[leftmargin=0.18in, label=\textbullet, itemsep=1pt, topsep=2pt]
+  \small
+  \item Authors: Md. Jahidul Kamal Islam, \textbf{Md. Miftahur Rahman Swapnil}, Md. Asif Ali, Shrabani Das, Shefayatuj Johara Chowdhury.
+  \item Engineered a curriculum knowledge graph RAG system with a 2-layer R-GCN encoder and DistMult decoder over 418 nodes and 558 typed edges verified in Neo4j.
+  \item Achieved 45.5\% exact-set match (vs. 22.7\% text-RAG), 63.8\% Entity F1, and a 100\% correct abstention rate on unanswerable questions with 0 query-time LLM overhead.
+\end{itemize}
+\vspace{3pt}
+
+\textbf{AI-Enabled Smart Classroom Monitoring and Safety Automation} (Accepted (IEEE i-COSTE 2026))
+\begin{itemize}[leftmargin=0.18in, label=\textbullet, itemsep=1pt, topsep=2pt]
+  \small
+  \item Authors: Md. Jahidul Kamal Islam, \textbf{Md. Miftahur Rahman Swapnil}, Md. Asif Ali, Nishat Anjum Sara, Sheikh Shamia Hasan Nila, Sadah Anjum Shanto, (Assistant Professor).
+  \item Engineered an IoT smart classroom safety automation system integrating sensor telemetry (DHT11, PIR, Ultrasonic, Sound) with automated door actuators and alert buzzers.
+  \item Implemented dual operational presets (Normal Mode \& Lecture Mode) integrated with Firebase Realtime Database and mobile dashboard telemetry.
+\end{itemize}
+
+%-----------LEADERSHIP & COMMUNITY ENGAGEMENT-----------
+\section{LEADERSHIP \& COMMUNITY ENGAGEMENT}
+\vspace{-2pt}
+\textbf{BASIS Students' Forum of BUBT Chapter Club} \\
+\textit{\small General Member, Graphics Designer \& Media and Publication Secretary}
+\begin{itemize}[leftmargin=0.18in, label=\textbullet, itemsep=1pt, topsep=2pt]
+  \small
+  \item Directed creative visual branding, digital promotional media, and publication outreach for tech seminars, workshops, and industry networking events.
+\end{itemize}
+
+%-----------LANGUAGES-----------
+\section{LANGUAGES}
+\begin{itemize}[leftmargin=0.18in, label=\textbullet, itemsep=1pt, topsep=2pt]
+  \small
+  \item \textbf{Bangla} --- Native / First Language
+  \item \textbf{English} --- Professional Working Proficiency
+\end{itemize}
+
+\end{document}

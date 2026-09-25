@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Md. Miftahur Rahman Swapnil - Curriculum Vitae</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;450;500;600;700;800;900&display=swap');
+
+    @page {
+      size: A4;
+      margin: 0;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: #090d16;
+      background: #ffffff;
+      font-size: 8.8pt;
+      line-height: 1.36;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .resume-page {
+      width: 210mm;
+      height: 297mm;
+      max-height: 297mm;
+      margin: 0 auto;
+      background: #ffffff;
+      padding: 10mm 14mm 8mm 14mm;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      page-break-after: always;
+      break-after: page;
+      overflow: hidden;
+      box-sizing: border-box;
+    }
+
+    .resume-page:last-child {
+      page-break-after: auto;
+      break-after: auto;
+    }
+
+    .page-content {
+      flex: 1;
+    }
+
+    /* Elegant Top Border Line on each page */
+    .top-accent-bar {
+      height: 3px;
+      background: linear-gradient(90deg, #056676 0%, #088395 50%, #0a4d68 100%);
+      border-radius: 2px;
+      margin-bottom: 10px;
+    }
+
+    /* Running header for Page 2 */
+    .running-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding-bottom: 6px;
+      border-bottom: 1.5px solid #cbd5e1;
+      margin-bottom: 12px;
+    }
+
+    .running-name {
+      font-size: 11pt;
+      font-weight: 800;
+      color: #020617;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .running-title {
+      font-size: 9pt;
+      font-weight: 600;
+      color: #056676;
+    }
+
+    /* Running Footers */
+    .page-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 8px;
+      border-top: 1px solid #e2e8f0;
+      font-size: 8pt;
+      color: #64748b;
+      margin-top: 10px;
+    }
+
+    .footer-left {
+      font-weight: 500;
+      color: #475569;
+    }
+
+    .footer-right {
+      font-weight: 600;
+      color: #056676;
+    }
+
+    /* Header Section on Page 1 */
+    .header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .header-left {
+      flex: 1;
+      padding-right: 18px;
+    }
+
+    .name {
+      font-size: 21pt;
+      font-weight: 900;
+      color: #020617;
+      letter-spacing: -0.6px;
+      line-height: 1.1;
+      text-transform: uppercase;
+      margin-bottom: 3px;
+    }
+
+    .headline {
+      font-size: 10.5pt;
+      font-weight: 750;
+      color: #056676;
+      letter-spacing: 0.2px;
+      margin-bottom: 8px;
+    }
+
+    .contact-grid {
+      display: grid;
+      grid-template-columns: auto auto;
+      gap: 3px 20px;
+      font-size: 8.7pt;
+      color: #090d16;
+    }
+
+    .contact-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .contact-item svg {
+      width: 13px;
+      height: 13px;
+      fill: none;
+      stroke: #056676;
+      stroke-width: 2.2;
+      flex-shrink: 0;
+    }
+
+    .contact-item a {
+      color: #090d16;
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .header-right {
+      flex-shrink: 0;
+    }
+
+    .profile-photo {
+      width: 82px;
+      height: 82px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 3px solid #056676;
+      box-shadow: 0 3px 8px rgba(5, 102, 118, 0.25);
+      display: block;
+    }
+
+    .header-divider {
+      height: 2px;
+      background: linear-gradient(90deg, #056676 0%, #088395 50%, #034c59 100%);
+      margin-bottom: 10px;
+      border-radius: 1px;
+    }
+
+    /* Section Styles */
+    .section {
+      margin-bottom: 10px;
+    }
+
+    .section-title {
+      font-size: 9.8pt;
+      font-weight: 850;
+      color: #056676;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      border-bottom: 2px solid #cbd5e1;
+      padding-bottom: 2.5px;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .summary-text {
+      text-align: justify;
+      color: #090d16;
+      line-height: 1.45;
+      font-size: 9.1pt;
+      font-weight: 450;
+    }
+
+    /* Skills */
+    .skills-list {
+      list-style: none;
+    }
+
+    .skills-item {
+      margin-bottom: 3.5px;
+      font-size: 8.9pt;
+      color: #1e293b;
+      line-height: 1.38;
+    }
+
+    .skills-category {
+      font-weight: 750;
+      color: #020617;
+    }
+
+    /* Projects & Items */
+    .item-block {
+      margin-bottom: 8px;
+    }
+
+    .item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 2px;
+    }
+
+    .item-title-group {
+      font-size: 9.2pt;
+    }
+
+    .item-title {
+      font-weight: 800;
+      color: #020617;
+    }
+
+    .item-subtitle {
+      color: #334155;
+      font-weight: 600;
+      font-size: 8.7pt;
+    }
+
+    .item-date {
+      font-size: 8.6pt;
+      font-weight: 750;
+      color: #056676;
+      white-space: nowrap;
+    }
+
+    .item-score {
+      font-size: 8.9pt;
+      font-weight: 800;
+      color: #020617;
+      white-space: nowrap;
+    }
+
+    .item-bullets {
+      list-style-type: none;
+      padding-left: 0;
+    }
+
+    .item-bullets li {
+      position: relative;
+      padding-left: 13px;
+      margin-bottom: 2.5px;
+      font-size: 8.9pt;
+      color: #090d16;
+      line-height: 1.38;
+      text-align: justify;
+      font-weight: 450;
+    }
+
+    .item-bullets li::before {
+      content: "•";
+      position: absolute;
+      left: 2px;
+      color: #056676;
+      font-weight: bold;
+      font-size: 9.5pt;
+    }
+
+    .highlight {
+      font-weight: 700;
+      color: #020617;
+    }
+
+    /* Education Rows */
+    .edu-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 6px;
+      padding-bottom: 4px;
+      border-bottom: 1px dashed #e2e8f0;
+    }
+
+    .edu-row:last-child {
+      border-bottom: none;
+      margin-bottom: 0;
+    }
+
+    .edu-left {
+      flex: 1;
+    }
+
+    .edu-degree {
+      font-weight: 800;
+      color: #020617;
+      font-size: 9.1pt;
+    }
+
+    .edu-school {
+      color: #334155;
+      font-size: 8.7pt;
+      font-weight: 550;
+    }
+
+    .edu-right {
+      text-align: right;
+    }
+
+    /* Languages row */
+    .languages-line {
+      font-size: 9pt;
+      color: #090d16;
+      font-weight: 550;
+      line-height: 1.4;
+    }
+
+    @media print {
+      body {
+        background: #ffffff;
+      }
+      .resume-page {
+        max-width: 100%;
+        min-height: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ================= PAGE 1 ================= -->
+<div class="resume-page">
+  <div class="page-content">
+
+    <div class="top-accent-bar"></div>
+
+    <!-- Header -->
+    <div class="header-row">
+      <div class="header-left">
+        <div class="name">Md. Miftahur Rahman Swapnil</div>
+        <div class="headline">Product Designer &amp; Builder | AI, Frontend &amp; Automation</div>
+        
+        <div class="contact-grid">
+          <div class="contact-item">
+            <svg viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            <span>Mirpur, Dhaka, Bangladesh</span>
+          </div>
+          <div class="contact-item">
+            <svg viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            <a href="mailto:miftahurr503@gmail.com">miftahurr503@gmail.com</a>
+          </div>
+          <div class="contact-item">
+            <svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/></svg>
+            <span>+880 1318-090383</span>
+          </div>
+          <div class="contact-item">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+            <a href="https://www.mrswapnil.me/">mrswapnil.me</a>
+          </div>
+          <div class="contact-item">
+            <svg viewBox="0 0 24 24"><path d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-2-2 2 2 0 00-2 2v7h-4v-7a6 6 0 016-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg>
+            <a href="https://www.linkedin.com/in/mr-swapnil/">linkedin.com/in/mr-swapnil</a>
+          </div>
+          <div class="contact-item">
+            <svg viewBox="0 0 24 24"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 00-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0020 4.77 5.07 5.07 0 0019.91 1S18.73.65 16 2.48a13.38 13.38 0 00-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 005 4.77a5.44 5.44 0 00-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 009 18.13V22"/></svg>
+            <a href="https://github.com/Swapnil-360">github.com/Swapnil-360</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <img src="pfp_LinkedIn.png" alt="Md. Miftahur Rahman Swapnil" class="profile-photo">
+      </div>
+    </div>
+
+    <div class="header-divider"></div>
+
+    <!-- Summary -->
+    <div class="section">
+      <div class="section-title">Summary</div>
+      <p class="summary-text">
+        Product Designer &amp; Builder with an innovative and curious mindset, always exploring new ideas, technologies, and ways to turn them into working products. I enjoy building and experimenting with new things, whether it is to solve a real-world problem, learn something new, or gain hands-on experience. I use AI as a practical part of my workflow to simplify tasks, improve user experiences, and reduce time spent on repetitive work. Currently, I’m especially interested in AI automation and building smarter workflows that make everyday processes easier and more efficient.
+      </p>
+    </div>
+
+    <!-- Skills -->
+    <div class="section">
+      <div class="section-title">Core Technical Competencies</div>
+      <ul class="skills-list">
+        <li class="skills-item">
+          <span class="skills-category">• Product &amp; UI/UX Design:</span> User Research, Wireframing, High-Fidelity Prototyping (Figma), Design Systems, Responsive Layouts, User Flow Mapping
+        </li>
+        <li class="skills-item">
+          <span class="skills-category">• Frontend Engineering:</span> Next.js 14/15 (App Router), React 18/19, TypeScript, Tailwind CSS, JavaScript (ES6+), HTML5/CSS3, Mobile-First Web
+        </li>
+        <li class="skills-item">
+          <span class="skills-category">• Backend &amp; Databases:</span> Supabase (PostgreSQL, Row Level Security, Auth), Node.js, REST APIs, Google Drive API, Firebase Realtime Database
+        </li>
+        <li class="skills-item">
+          <span class="skills-category">• AI &amp; Intelligent Systems:</span> Knowledge Graphs &amp; RAG Architecture, Multi-LLM Orchestration (Gemini 2.5, OpenRouter), Relational GCN, Neo4j, PyTorch, Deep Learning for EEG
+        </li>
+        <li class="skills-item">
+          <span class="skills-category">• Tools &amp; Automation:</span> Git &amp; GitHub, n8n Automation, Telegram Bot API, Vercel, Docker (Basic), VS Code, LaTeX, Overleaf
+        </li>
+      </ul>
+    </div>
+
+    <!-- Featured Projects (Part 1) -->
+    <div class="section">
+      <div class="section-title">Featured Projects</div>
+
+      <!-- Personal AI Assistant (Mikasa) -->
+      <div class="item-block">
+        <div class="item-header">
+          <div class="item-title-group">
+            <span class="item-title">Personal AI Assistant — Mikasa</span>
+            <span class="item-subtitle">— Node.js, Telegram Bot API, Supabase, n8n, Multi-LLM Orchestration, Local PC Bridge</span>
+          </div>
+          <span class="item-date">Active</span>
+        </div>
+        <ul class="item-bullets">
+          <li>Architected an autonomous personal AI operating system with persistent memory extraction, continuous learning, and multi-model failover (<span class="highlight">Gemini 2.5 Flash &amp; OpenRouter</span>).</li>
+          <li>Engineered bidirectional Telegram bot controls, cross-platform cron automation, and secure local PC execution bridges for terminal and desktop operations.</li>
+          <li>Integrated real-time database grounding with Supabase pgvector, storing structured memory categories and user preferences with conflict resolution.</li>
+        </ul>
+      </div>
+
+      <!-- Edu51Portal -->
+      <div class="item-block">
+        <div class="item-header">
+          <div class="item-title-group">
+            <span class="item-title">Edu51Portal</span>
+            <span class="item-subtitle">— Next.js 14, TypeScript, Supabase PostgreSQL, Google Drive API, Tailwind CSS</span>
+          </div>
+          <span class="item-date">Live</span>
+        </div>
+        <ul class="item-bullets">
+          <li>Designed and launched an all-in-one academic platform serving <span class="highlight">~100 active BUBT students</span>, delivering instant routine lookups, exam notices, and course materials.</li>
+          <li>Integrated Google Drive API with Supabase to distribute 1,000+ academic PDFs securely with <span class="highlight">$0 cloud storage infrastructure overhead</span>.</li>
+          <li>Engineered section-specific schedule filtering, fuzzy course search, and mobile-first responsive interfaces with sub-second page performance.</li>
+        </ul>
+      </div>
+
+      <!-- OpusGen AI -->
+      <div class="item-block">
+        <div class="item-header">
+          <div class="item-title-group">
+            <span class="item-title">OpusGenAI — AI Product Photography &amp; Marketing Platform</span>
+            <span class="item-subtitle">(Client Project) — Next.js, TypeScript, fal.ai (Flux/Gemini), Supabase, Vercel</span>
+          </div>
+          <span class="item-date">Live</span>
+        </div>
+        <ul class="item-bullets">
+          <li>Contributed as frontend &amp; product builder to an AI studio converting product photos into studio-grade marketing visuals, commercial assets, and multi-ratio formats (1:1, 9:16, 16:9).</li>
+          <li>Engineered user-facing generation workflows (background replacement, 4× AI upscaling, smart uncrop) and designed structured marketing &amp; image-to-video campaign templates, removing prompt complexity for e-commerce merchants.</li>
+        </ul>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- Page 1 Footer -->
+  <div class="page-footer">
+    <div class="footer-left">Md. Miftahur Rahman Swapnil • Curriculum Vitae</div>
+    <div class="footer-right">Page 1 of 2</div>
+  </div>
+</div>
+
+
+<!-- ================= PAGE 2 ================= -->
+<div class="resume-page">
+  <div class="page-content">
+
+    <div class="top-accent-bar"></div>
+
+    <!-- Running Header on Page 2 -->
+    <div class="running-header">
+      <div class="running-name">Md. Miftahur Rahman Swapnil</div>
+      <div class="running-title">Product Designer &amp; Builder | AI, Frontend &amp; Automation</div>
+    </div>
+
+    <!-- Featured Projects (Continued) -->
+    <div class="section">
+      <div class="section-title">Featured Projects (Continued)</div>
+
+      <!-- MuteBD -->
+      <div class="item-block">
+        <div class="item-header">
+          <div class="item-title-group">
+            <span class="item-title">MuteBD</span>
+            <span class="item-subtitle">— Flutter, Dart, Google Maps API, Background Geofencing, Firebase</span>
+          </div>
+          <span class="item-date">Completed</span>
+        </div>
+        <ul class="item-bullets">
+          <li>Engineered a location-based mobile application that automatically silences smartphones in designated quiet zones (mosques, hospitals, libraries, classrooms) using GPS geofencing.</li>
+          <li>Implemented battery-optimized background geofence listeners with customizable boundary radii and offline-first quiet zone caching.</li>
+        </ul>
+      </div>
+
+      <!-- PawfectMatch -->
+      <div class="item-block">
+        <div class="item-header">
+          <div class="item-title-group">
+            <span class="item-title">PawfectMatch</span>
+            <span class="item-subtitle">— React Native, Node.js, Firebase Realtime DB, AI Pet Care Assistant</span>
+          </div>
+          <span class="item-date">Completed</span>
+        </div>
+        <ul class="item-bullets">
+          <li>Designed and developed a pet adoption mobile platform connecting verified rescuers with adopters, featuring AI-guided pet care recommendations and matchmaking.</li>
+          <li>Built transparent adoption verification workflows, shelter discovery directories, and real-time community engagement feeds.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Research & Publications -->
+    <div class="section">
+      <div class="section-title">Research &amp; Publications</div>
+      
+      <!-- Paper 1: IEEE OMLET -->
+      <div class="item-block">
+        <div class="item-header">
+          <div class="item-title-group">
+            <span class="item-title">Relation-Aware Graph Retrieval over a Curriculum Knowledge Graph for Prerequisite QA</span>
+          </div>
+          <span class="item-date">Accepted (IEEE OMLET 2026)</span>
+        </div>
+        <ul class="item-bullets">
+          <li><span class="highlight">IEEE OMLET 2026</span> (Nairobi, Kenya) — Accepted with Minor Revision (Paper ID: 1017, Scheduled for IEEE Xplore &amp; Scopus).</li>
+          <li>Authors: Md. Jahidul Kamal Islam, <span class="highlight">Md. Miftahur Rahman Swapnil</span>, Md. Asif Ali, Shrabani Das, Shefayatuj Johara Chowdhury (BUBT CSE).</li>
+          <li>Engineered a curriculum knowledge graph RAG system with a 2-layer R-GCN encoder and DistMult decoder over <span class="highlight">418 nodes and 558 typed edges</span> verified in Neo4j.</li>
+          <li>Achieved <span class="highlight">45.5% exact-set match</span> (vs. 22.7% text-RAG), 63.8% Entity F1, and a <span class="highlight">100% correct abstention rate</span> on unanswerable questions with 0 query-time LLM overhead.</li>
+        </ul>
+      </div>
+
+      <!-- Paper 2: Smart Classroom -->
+      <div class="item-block">
+        <div class="item-header">
+          <div class="item-title-group">
+            <span class="item-title">AI-Enabled Smart Classroom Monitoring and Safety Automation</span>
+          </div>
+          <span class="item-date">Completed (BUBT CSE)</span>
+        </div>
+        <ul class="item-bullets">
+          <li>Authors: Nishat Anjum Sara, Sheikh Shamia Hasan Nila, Md. Asif Ali, Md. Jahidul Kamal Islam, <span class="highlight">Md. Miftahur Rahman Swapnil</span> (Supervised by Sadah Anjum Shanto, Assistant Professor).</li>
+          <li>Engineered an IoT smart classroom safety automation system integrating sensor telemetry (DHT11, PIR, Ultrasonic, Sound) with automated door actuators and alert buzzers.</li>
+          <li>Implemented dual operational presets (Normal Mode &amp; Lecture Mode) integrated with Firebase Realtime Database and mobile dashboard telemetry.</li>
+        </ul>
+      </div>
+
+      <!-- Paper 3: EEG -->
+      <div class="item-block">
+        <div class="item-header">
+          <div class="item-title-group">
+            <span class="item-title">EEG-Based Motor Imagery Classification</span>
+          </div>
+          <span class="item-date">Ongoing / Running (2026)</span>
+        </div>
+        <ul class="item-bullets">
+          <li>Investigating deep learning architectures for assistive neuro-rehabilitation and paralysis motor control interfaces.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Education -->
+    <div class="section">
+      <div class="section-title">Education</div>
+      
+      <div class="edu-row">
+        <div class="edu-left">
+          <div class="edu-degree">Bachelor of Science in Computer Science &amp; Engineering (CSE)</div>
+          <div class="edu-school">Bangladesh University of Business and Technology (BUBT) | Intake 51</div>
+        </div>
+        <div class="edu-right">
+          <div class="item-score">CGPA: 3.60 / 4.00</div>
+          <div class="item-date">2022 – 2026 (Expected)</div>
+        </div>
+      </div>
+
+      <div class="edu-row">
+        <div class="edu-left">
+          <div class="edu-degree">Higher Secondary Certificate (HSC) — Science</div>
+          <div class="edu-school">Shaheed Police Smrity College</div>
+        </div>
+        <div class="edu-right">
+          <div class="item-score">GPA: 5.00 / 5.00</div>
+          <div class="item-date">2021</div>
+        </div>
+      </div>
+
+      <div class="edu-row">
+        <div class="edu-left">
+          <div class="edu-degree">Secondary School Certificate (SSC) — Science</div>
+          <div class="edu-school">Kadirabad BL High School, Pirganj, Rangpur</div>
+        </div>
+        <div class="edu-right">
+          <div class="item-score">GPA: 5.00 / 5.00</div>
+          <div class="item-date">2019</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Leadership & Community -->
+    <div class="section">
+      <div class="section-title">Leadership &amp; Community Engagement</div>
+      
+      <div class="item-block">
+        <div class="item-header">
+          <div class="item-title-group">
+            <span class="item-title">BASIS Students' Forum — BUBT Chapter</span>
+            <span class="item-subtitle">— Member, Graphics Designer &amp; Media and Publication Secretary</span>
+          </div>
+          <span class="item-date">2023 – 2026</span>
+        </div>
+        <ul class="item-bullets">
+          <li>Directed creative visual branding, digital promotional media, and publication outreach for tech seminars, workshops, and industry networking events.</li>
+        </ul>
+      </div>
+
+      <div class="item-block">
+        <div class="item-header">
+          <div class="item-title-group">
+            <span class="item-title">BUBT IT Club</span>
+            <span class="item-subtitle">— General Member</span>
+          </div>
+          <span class="item-date">2022 – Present</span>
+        </div>
+        <ul class="item-bullets">
+          <li>Active contributor to peer programming circles, tech workshops, and student developer initiatives.</li>
+        </ul>
+      </div>
+
+      <div class="item-block">
+        <div class="item-header">
+          <div class="item-title-group">
+            <span class="item-title">Internal University Event Management</span>
+            <span class="item-subtitle">— Active Coordinator &amp; Event Organizer</span>
+          </div>
+          <span class="item-date">2022 – Present</span>
+        </div>
+        <ul class="item-bullets">
+          <li>Coordinated stage management, guest logistics, and event operations for university tech fests and academic seminars.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Languages -->
+    <div class="section">
+      <div class="section-title">Languages</div>
+      <div class="languages-line">
+        • <strong>Bangla</strong> — Native / First Language &nbsp;&nbsp;|&nbsp;&nbsp; • <strong>English</strong> — Professional Working Proficiency
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Page 2 Footer -->
+  <div class="page-footer">
+    <div class="footer-left">Md. Miftahur Rahman Swapnil • mrswapnil.me</div>
+    <div class="footer-right">Page 2 of 2</div>
+  </div>
+</div>
+
+</body>
+</html>

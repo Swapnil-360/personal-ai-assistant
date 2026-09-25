@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Md. Miftahur Rahman Swapnil — Curriculum Vitae (B&W)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    /* Executive Black & White Clean Styling */
+    @page {
+      size: A4;
+      margin: 0;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background-color: #f1f5f9;
+      color: #111827;
+      line-height: 1.38;
+      font-size: 9pt;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Print / Preview Canvas Container */
+    .cv-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 0;
+      gap: 28px;
+    }
+
+    /* Exactly A4 Dimensions (210mm x 297mm) */
+    .resume-page {
+      width: 210mm;
+      height: 297mm;
+      max-height: 297mm;
+      background: #ffffff;
+      padding: 12mm 16mm;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      overflow: hidden;
+      page-break-after: always;
+      break-after: page;
+    }
+
+    @media print {
+      body {
+        background: transparent;
+      }
+      .cv-container {
+        padding: 0;
+        gap: 0;
+      }
+      .resume-page {
+        box-shadow: none;
+        margin: 0;
+        width: 210mm;
+        height: 297mm;
+        page-break-after: always;
+        break-after: page;
+      }
+      .no-print {
+        display: none !important;
+      }
+    }
+
+    /* Typography & Hierarchy */
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+
+    /* Header Section on Page 1 */
+    .header-main {
+      text-align: center;
+      margin-bottom: 6px;
+    }
+
+    .candidate-name {
+      font-size: 19pt;
+      font-weight: 800;
+      letter-spacing: 0.6px;
+      color: #000000;
+      margin-bottom: 2px;
+      text-transform: uppercase;
+    }
+
+    .candidate-title {
+      font-size: 10.5pt;
+      font-weight: 600;
+      color: #1f2937;
+      margin-bottom: 6px;
+    }
+
+    .contact-row {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 16px;
+      font-size: 8.5pt;
+      color: #111827;
+      margin-bottom: 3px;
+    }
+
+    .contact-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .contact-icon {
+      width: 12px;
+      height: 12px;
+      stroke-width: 2;
+      stroke: #111827;
+      fill: none;
+      vertical-align: middle;
+      flex-shrink: 0;
+    }
+
+    .contact-icon-fill {
+      fill: #111827;
+      stroke: none;
+    }
+
+    /* Horizontal Dividers */
+    .section-divider {
+      border: none;
+      border-top: 1.2px solid #111827;
+      margin: 8px 0 6px 0;
+      width: 100%;
+    }
+
+    .header-divider {
+      border: none;
+      border-top: 1.2px solid #111827;
+      margin: 8px 0 7px 0;
+      width: 100%;
+    }
+
+    /* Section Titles */
+    .section-title {
+      font-size: 10pt;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #000000;
+      margin-bottom: 5px;
+    }
+
+    /* About Me Paragraph */
+    .about-text {
+      font-size: 8.4pt;
+      line-height: 1.38;
+      color: #111827;
+      text-align: justify;
+    }
+
+    /* Education Table */
+    .edu-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 8.2pt;
+      margin-top: 2px;
+    }
+
+    .edu-table th, .edu-table td {
+      border: 1px solid #d1d5db;
+      padding: 5px 8px;
+      text-align: left;
+      vertical-align: middle;
+    }
+
+    .edu-table th {
+      font-weight: 700;
+      color: #000000;
+      background-color: #ffffff;
+    }
+
+    .edu-table td {
+      color: #1f2937;
+    }
+
+    .edu-table strong {
+      color: #000000;
+      font-weight: 700;
+    }
+
+    /* Technical Skills */
+    .skills-block {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      font-size: 8.4pt;
+    }
+
+    .skills-row strong {
+      color: #000000;
+      font-weight: 700;
+    }
+
+    /* Project & Publication Items */
+    .item-block {
+      margin-bottom: 6px;
+    }
+
+    .item-header {
+      font-size: 9pt;
+      font-weight: 700;
+      color: #000000;
+      margin-bottom: 1px;
+    }
+
+    .item-tech {
+      font-size: 8.2pt;
+      font-weight: 500;
+      color: #374151;
+      margin-bottom: 3px;
+    }
+
+    /* Clean Crisp Bullet Points */
+    .resume-bullets {
+      list-style-type: none;
+      padding-left: 0;
+      margin-top: 2px;
+    }
+
+    .resume-bullets li {
+      position: relative;
+      padding-left: 14px;
+      font-size: 8.2pt;
+      line-height: 1.34;
+      color: #1f2937;
+      margin-bottom: 2.5px;
+      text-align: justify;
+    }
+
+    .resume-bullets li::before {
+      content: "•";
+      position: absolute;
+      left: 3px;
+      color: #000000;
+      font-size: 10pt;
+      line-height: 1;
+    }
+
+    /* Page 2 Running Header */
+    .running-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 4px;
+    }
+
+    .running-name {
+      font-size: 10pt;
+      font-weight: 800;
+      color: #000000;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .running-title {
+      font-size: 8.5pt;
+      font-weight: 600;
+      color: #1f2937;
+      text-align: right;
+    }
+
+    /* Print floating action button for quick browser save */
+    .fab-print {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #000000;
+      color: #ffffff;
+      padding: 12px 20px;
+      border-radius: 30px;
+      font-size: 13px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.25);
+      cursor: pointer;
+      border: 1px solid #333333;
+      z-index: 100;
+      transition: all 0.2s ease;
+    }
+    .fab-print:hover {
+      background: #222222;
+      transform: translateY(-2px);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Floating Print Trigger -->
+  <button class="fab-print no-print" onclick="window.print()">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+    Print / Save as PDF
+  </button>
+
+  <div class="cv-container">
+
+    <!-- ================= PAGE 1 ================= -->
+    <div class="resume-page" id="page-1">
+      
+      <!-- Candidate Header -->
+      <div class="header-main">
+        <h1 class="candidate-name">MD. MIFTAHUR RAHMAN SWAPNIL</h1>
+        <div class="candidate-title">Product Designer &amp; Builder | AI, Frontend &amp; Automation</div>
+        
+        <div class="contact-row">
+          <span class="contact-item">
+            <svg class="contact-icon" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
+            880 1318-090383
+          </span>
+          <span class="contact-item">
+            <svg class="contact-icon" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+            <a href="mailto:miftahurr503@gmail.com">miftahurr503@gmail.com</a>
+          </span>
+          <span class="contact-item">
+            <svg class="contact-icon" viewBox="0 0 24 24"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+            Mirpur, Dhaka, Bangladesh
+          </span>
+        </div>
+
+        <div class="contact-row">
+          <span class="contact-item">
+            <svg class="contact-icon contact-icon-fill" viewBox="0 0 24 24"><path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 10.9v8.37H9.2V10.9H6.46M7.83 6.69c-.93 0-1.68.75-1.68 1.68 0 .93.75 1.68 1.68 1.68.93 0 1.68-.75 1.68-1.68 0-.93-.75-1.68-1.68z"></path></svg>
+            <a href="https://www.linkedin.com/in/mr-swapnil" target="_blank">www.linkedin.com/in/mr-swapnil</a>
+          </span>
+          <span class="contact-item">
+            <svg class="contact-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+            <a href="https://www.mrswapnil.me" target="_blank">https://www.mrswapnil.me</a>
+          </span>
+        </div>
+      </div>
+
+      <div class="header-divider"></div>
+
+      <!-- About Me -->
+      <div class="section-title">ABOUT ME</div>
+      <p class="about-text">
+        Product Designer &amp; Builder with an innovative and curious mindset, always exploring new ideas, technologies, and ways to turn them into working products. I enjoy building and experimenting with new things, whether it is to solve a real-world problem, learn something new, or gain hands-on experience. I use AI as a practical part of my workflow to simplify tasks, improve user experiences, and reduce time spent on repetitive work. Currently, I’m especially interested in AI automation and building smarter workflows that make everyday processes easier and more efficient.
+      </p>
+
+      <hr class="section-divider">
+
+      <!-- Education Table -->
+      <div class="section-title">EDUCATION</div>
+      <table class="edu-table">
+        <thead>
+          <tr>
+            <th style="width: 23%;">Degree</th>
+            <th style="width: 47%;">Institution</th>
+            <th style="width: 17%;">Result</th>
+            <th style="width: 13%;">Year</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>B.Sc. in CSE</strong></td>
+            <td>Bangladesh University of Business and Technology (BUBT)</td>
+            <td>CGPA 3.60/4.00</td>
+            <td>2023–2026<br>(Expected)</td>
+          </tr>
+          <tr>
+            <td><strong>HSC — Science</strong></td>
+            <td>Shaheed Police Smrity College, Mirpur-14, Dhaka</td>
+            <td>GPA 5.00/5.00</td>
+            <td>2021</td>
+          </tr>
+          <tr>
+            <td><strong>SSC — Science</strong></td>
+            <td>Kadirabad BL High School, Pirganj, Rangpur</td>
+            <td>GPA 5.00/5.00</td>
+            <td>2019</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <hr class="section-divider">
+
+      <!-- Technical Skills -->
+      <div class="section-title">TECHNICAL SKILLS</div>
+      <div class="skills-block">
+        <div class="skills-row"><strong>Frontend:</strong> Next.js, React, TypeScript, JavaScript</div>
+        <div class="skills-row"><strong>Backend &amp; Database:</strong> Supabase, PostgreSQL, REST APIs</div>
+        <div class="skills-row"><strong>AI &amp; Automation:</strong> AI APIs, n8n, AI-assisted development, workflow automation</div>
+        <div class="skills-row"><strong>Other:</strong> Git, GitHub, etc.</div>
+      </div>
+
+      <hr class="section-divider">
+
+      <!-- Featured Projects (Part 1) -->
+      <div class="section-title">FEATURED PROJECTS</div>
+
+      <!-- Edu51Portal -->
+      <div class="item-block">
+        <div class="item-header">Edu51Portal</div>
+        <div class="item-tech">Next.js 14, TypeScript, Supabase PostgreSQL, Google Drive API, Tailwind CSS</div>
+        <ul class="resume-bullets">
+          <li>Designed and launched an all-in-one academic platform serving ~100 active BUBT students, delivering instant routine lookups, exam notices, and course materials.</li>
+          <li>Integrated Google Drive API with Supabase to distribute academic PDFs securely with $0 cloud storage infrastructure overhead.</li>
+          <li>Engineered section-specific schedule filtering, fuzzy course search, and mobile-first responsive interfaces with sub second page performance.</li>
+        </ul>
+      </div>
+
+      <!-- PawfectMatch -->
+      <div class="item-block">
+        <div class="item-header">PawfectMatch</div>
+        <div class="item-tech">React Native, Node.js, Supabase Realtime DB, AI Pet Care Assistant(Gemini Api)</div>
+        <ul class="resume-bullets">
+          <li>Designed and developed a pet adoption mobile platform connecting verified rescuers with adopters, featuring AI-guided pet care recommendations and matchmaking.</li>
+        </ul>
+      </div>
+
+    </div>
+
+
+    <!-- ================= PAGE 2 ================= -->
+    <div class="resume-page" id="page-2">
+      
+      <!-- Running Header -->
+      <div class="running-header">
+        <div class="running-name">MD. MIFTAHUR RAHMAN SWAPNIL</div>
+        <div class="running-title">Product Designer &amp; Builder | AI, Frontend<br>&amp; Automation</div>
+      </div>
+
+      <div class="header-divider"></div>
+
+      <!-- Featured Projects (Part 2) -->
+      <!-- Personal AI Assistant – Mikasa -->
+      <div class="item-block">
+        <div class="item-header">Personal AI Assistant – Mikasa</div>
+        <div class="item-tech">Node.js, Telegram Bot API, Supabase, n8n, Multi-LLM Orchestration, Local PC Bridge</div>
+        <ul class="resume-bullets">
+          <li>Architected an autonomous personal AI operating system with persistent memory extraction, continuous learning, and multi-model failover (Gemini 2.5 Flash &amp; OpenRouter).</li>
+          <li>Telegram bot controls, cross-platform cron automation, and secure local PC execution bridges for terminal and desktop operations.</li>
+          <li>Integrated real-time database grounding with Supabase.</li>
+        </ul>
+      </div>
+
+      <!-- MuteBD -->
+      <div class="item-block">
+        <div class="item-header">MuteBD</div>
+        <div class="item-tech">Flutter, Dart, Google Maps API, Background Geofencing, Firebase</div>
+        <ul class="resume-bullets">
+          <li>Engineered a location-based mobile application that automatically silences smartphones in designated quiet zones (mosques, hospitals, libraries, classrooms) using GPS geofencing.</li>
+          <li>Implemented battery-optimized background geofence listeners with customizable boundary radii and offline-first quiet zone caching.</li>
+        </ul>
+      </div>
+
+      <!-- OpusGen AI -->
+      <div class="item-block">
+        <div class="item-header">OpusGen AI</div>
+        <div class="item-tech">Next.js, TypeScript, fal.ai (Flux/Gemini), Supabase, Vercel</div>
+        <ul class="resume-bullets">
+          <li>OpusGenAI is an AI-powered product photography studio that helps businesses turn ordinary product photos into professional marketing visuals without requiring a physical photography studio, professional camera equipment, or advanced design skills.</li>
+          <li>AI-generated image, video and captions for marketing and social media use.</li>
+        </ul>
+      </div>
+
+      <hr class="section-divider">
+
+      <!-- Research & Publications -->
+      <div class="section-title">RESEARCH &amp; PUBLICATIONS</div>
+
+      <!-- Publication 1 -->
+      <div class="item-block">
+        <div class="item-header">Relation-Aware Graph Retrieval over a Curriculum Knowledge Graph for Prerequisite QA (Accepted (IEEE OMLET 2026)</div>
+        <ul class="resume-bullets">
+          <li>Authors: Md. Jahidul Kamal Islam, <strong>Md. Miftahur Rahman Swapnil</strong>, Md. Asif Ali, Shrabani Das, Shefayatuj Johara Chowdhury.</li>
+          <li>Engineered a curriculum knowledge graph RAG system with a 2-layer R-GCN encoder and DistMult decoder over 418 nodes and 558 typed edges verified in Neo4j.</li>
+          <li>Achieved 45.5% exact-set match (vs. 22.7% text-RAG), 63.8% Entity F1, and a 100% correct abstention rate on unanswerable questions with 0 query-time LLM overhead.</li>
+        </ul>
+      </div>
+
+      <!-- Publication 2 -->
+      <div class="item-block">
+        <div class="item-header">AI-Enabled Smart Classroom Monitoring and Safety Automation (Accepted (IEEE i-COSTE 2026)</div>
+        <ul class="resume-bullets">
+          <li>Authors: Md. Jahidul Kamal Islam, <strong>Md. Miftahur Rahman Swapnil</strong>, Md. Asif Ali, Nishat Anjum Sara, Sheikh Shamia Hasan Nila, Sadah Anjum Shanto, (Assistant Professor).</li>
+          <li>Engineered an IoT smart classroom safety automation system integrating sensor telemetry (DHT11, PIR, Ultrasonic, Sound) with automated door actuators and alert buzzers.</li>
+          <li>Implemented dual operational presets (Normal Mode &amp; Lecture Mode) integrated with Firebase Realtime Database and mobile dashboard telemetry.</li>
+        </ul>
+      </div>
+
+      <hr class="section-divider">
+
+      <!-- Leadership & Community Engagement -->
+      <div class="section-title">LEADERSHIP &amp; COMMUNITY ENGAGEMENT</div>
+      <div class="item-block">
+        <div class="item-header">BASIS Students' Forum of BUBT Chapter Club</div>
+        <div class="item-tech">General Member, Graphics Designer &amp; Media and Publication Secretary</div>
+        <ul class="resume-bullets">
+          <li>Directed creative visual branding, digital promotional media, and publication outreach for tech seminars, workshops, and industry networking events.</li>
+        </ul>
+      </div>
+
+      <hr class="section-divider">
+
+      <!-- Languages -->
+      <div class="section-title">LANGUAGES</div>
+      <ul class="resume-bullets">
+        <li><strong>Bangla</strong> — Native / First Language</li>
+        <li><strong>English</strong> — Professional Working Proficiency</li>
+      </ul>
+
+    </div>
+
+  </div>
+
+</body>
+</html>

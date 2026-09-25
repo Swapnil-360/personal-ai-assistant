@@ -1719,12 +1719,22 @@ async function loadPCTelemetry() {
 
         const disksContainer = document.getElementById('gauge-disks-list');
         if (disksContainer && data.disks) {
-            disksContainer.innerHTML = data.disks.map(d => `
-                <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                    <span><strong>Drive ${d.drive}</strong> (${d.totalGb} GB)</span>
-                    <span style="color: ${parseFloat(d.freePct) < 15 ? '#f87171' : '#34d399'};">${d.freeGb} GB free (${d.freePct}%)</span>
+            disksContainer.innerHTML = data.disks.map(d => {
+                const freePct = parseFloat(d.freePct);
+                const usedPct = Math.max(0, Math.min(100, 100 - freePct));
+                const statusColor = freePct < 15 ? '#f87171' : '#34d399';
+                return `
+                <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; padding: 7px 10px; margin-bottom: 6px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                        <span style="font-weight: 700; color: #f1f5f9; font-size: 0.74rem;">Drive ${escapeHtml(d.drive)} <span style="font-size: 0.68rem; color: #94a3b8; font-weight: normal;">(${escapeHtml(String(d.totalGb))} GB)</span></span>
+                        <span style="color: ${statusColor}; font-weight: 700; font-size: 0.72rem;">${escapeHtml(String(d.freeGb))} GB free (${escapeHtml(String(d.freePct))}%)</span>
+                    </div>
+                    <div style="width: 100%; height: 5px; background: rgba(255,255,255,0.08); border-radius: 999px; overflow: hidden;">
+                        <div style="width: ${usedPct}%; height: 100%; background: ${freePct < 15 ? 'linear-gradient(90deg, #ef4444, #f87171)' : 'linear-gradient(90deg, #0284c7, #00f2fe)'}; border-radius: 999px;"></div>
+                    </div>
                 </div>
-            `).join('');
+            `;
+            }).join('');
         }
 
         const badgeN8nLive = document.getElementById('badge-n8n-live');
@@ -1814,23 +1824,29 @@ async function runControlledTerminal(cmd) {
 async function loadServiceMonitors() {
     const grid = document.getElementById('monitors-grid');
     if (!grid) return;
-    grid.innerHTML = '<div style="padding: 12px; text-align: center; color: #94a3b8; grid-column: 1/-1;">Pinging monitored services...</div>';
+    grid.innerHTML = '<div style="padding: 16px; text-align: center; color: #94a3b8; grid-column: 1/-1;">Pinging monitored services...</div>';
     try {
         const res = await fetch('/api/pc/monitors');
         const list = await res.json();
         grid.innerHTML = list.map(m => {
             const isUp = m.status === 'UP';
             const color = isUp ? '#34d399' : (m.status === 'DEGRADED' ? '#fbbf24' : '#f87171');
+            const beaconClass = isUp ? 'green' : (m.status === 'DEGRADED' ? 'amber' : 'red');
+            const latencyColor = m.latencyMs < 50 ? '#34d399' : (m.latencyMs < 200 ? '#38bdf8' : '#fbbf24');
             return `
-                <div style="background: rgba(15, 23, 42, 0.5); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 12px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                        <span style="font-size: 0.82rem; font-weight: 700; color: #f1f5f9;">${escapeHtml(m.name)}</span>
-                        <span style="font-size: 0.7rem; font-weight: 700; color: ${color}; background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 4px;">● ${m.status}</span>
+                <div style="background: linear-gradient(145deg, rgba(14, 22, 38, 0.65) 0%, rgba(8, 14, 26, 0.85) 100%); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; justify-content: space-between; transition: all 0.2s ease;">
+                    <div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                            <span style="font-size: 0.84rem; font-weight: 700; color: #f1f5f9; font-family: var(--font-heading);">${escapeHtml(m.name)}</span>
+                            <span style="font-size: 0.68rem; font-weight: 700; color: ${color}; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); padding: 2px 7px; border-radius: 999px; display: inline-flex; align-items: center; gap: 5px;">
+                                <span class="pulse-beacon ${beaconClass}"></span> ${escapeHtml(m.status)}
+                            </span>
+                        </div>
+                        <div style="font-size: 0.72rem; color: #94a3b8; word-break: break-all; font-family: var(--font-mono);">${escapeHtml(m.url)}</div>
                     </div>
-                    <div style="font-size: 0.72rem; color: #94a3b8; word-break: break-all;">${escapeHtml(m.url)}</div>
-                    <div style="margin-top: 8px; display: flex; justify-content: space-between; font-size: 0.72rem; color: #cbd5e1;">
-                        <span>Latency: <strong>${m.latencyMs}ms</strong></span>
-                        <span>SSL: <strong>${m.ssl}</strong></span>
+                    <div style="margin-top: 12px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.06); display: flex; justify-content: space-between; align-items: center; font-size: 0.72rem; color: #cbd5e1; font-family: var(--font-mono);">
+                        <span>Latency: <strong style="color: ${latencyColor};">${m.latencyMs}ms</strong></span>
+                        <span style="color: ${m.ssl === 'VALID' ? '#34d399' : '#94a3b8'};">🔒 ${escapeHtml(m.ssl)}</span>
                     </div>
                 </div>
             `;
@@ -1839,4 +1855,17 @@ async function loadServiceMonitors() {
         grid.innerHTML = `<div style="padding: 12px; color: #f87171; grid-column: 1/-1;">Monitoring error: ${escapeHtml(e.message)}</div>`;
     }
 }
+
+// Quick Terminal Command Chips delegation
+document.addEventListener('click', (e) => {
+    const chip = e.target.closest('.term-chip');
+    if (chip) {
+        const cmd = chip.getAttribute('data-cmd');
+        const input = document.getElementById('input-terminal-cmd');
+        if (input && cmd) {
+            input.value = cmd;
+            runControlledTerminal(cmd);
+        }
+    }
+});
 

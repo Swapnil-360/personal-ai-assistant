@@ -242,272 +242,383 @@
                     </div>
 
                     <!-- Live Matrix Status Strip -->
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-top: 10px; padding-top: 14px; border-top: 1px solid var(--border-subtle);">
-                        <div style="background: rgba(15, 23, 42, 0.6); padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-subtle); text-align: center;">
-                            <div style="font-size: 0.68rem; color: var(--text-muted);">PC BRIDGE</div>
-                            <div style="font-size: 0.8rem; font-weight: 700; color: #34d399; margin-top: 2px;">● ONLINE</div>
+                    <div class="matrix-status-strip">
+                        <div class="matrix-node-pod">
+                            <span class="matrix-node-label">PC BRIDGE</span>
+                            <span class="matrix-node-val val-green"><span class="pulse-beacon green"></span> ONLINE</span>
                         </div>
-                        <div style="background: rgba(15, 23, 42, 0.6); padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-subtle); text-align: center;">
-                            <div style="font-size: 0.68rem; color: var(--text-muted);">MEMORY VAULT</div>
-                            <div style="font-size: 0.8rem; font-weight: 700; color: #34d399; margin-top: 2px;">● ONLINE</div>
+                        <div class="matrix-node-pod">
+                            <span class="matrix-node-label">MEMORY VAULT</span>
+                            <span class="matrix-node-val val-green"><span class="pulse-beacon green"></span> ONLINE</span>
                         </div>
-                        <div style="background: rgba(15, 23, 42, 0.6); padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-subtle); text-align: center;">
-                            <div style="font-size: 0.68rem; color: var(--text-muted);">LOCAL n8n</div>
-                            <div style="font-size: 0.8rem; font-weight: 700; color: #34d399; margin-top: 2px;" id="badge-n8n-live">● RUNNING</div>
+                        <div class="matrix-node-pod">
+                            <span class="matrix-node-label">LOCAL n8n</span>
+                            <span class="matrix-node-val val-green" id="badge-n8n-live"><span class="pulse-beacon green"></span> RUNNING</span>
                         </div>
-                        <div style="background: rgba(15, 23, 42, 0.6); padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-subtle); text-align: center;">
-                            <div style="font-size: 0.68rem; color: var(--text-muted);">GITHUB API</div>
-                            <div style="font-size: 0.8rem; font-weight: 700; color: #34d399; margin-top: 2px;">● CONNECTED</div>
+                        <div class="matrix-node-pod">
+                            <span class="matrix-node-label">GITHUB API</span>
+                            <span class="matrix-node-val val-green"><span class="pulse-beacon green"></span> CONNECTED</span>
                         </div>
-                        <div style="background: rgba(15, 23, 42, 0.6); padding: 8px 12px; border-radius: 6px; border: 1px solid var(--border-subtle); text-align: center;">
-                            <div style="font-size: 0.68rem; color: var(--text-muted);">BROWSER CONTROL</div>
-                            <div style="font-size: 0.8rem; font-weight: 700; color: #38bdf8; margin-top: 2px;">● READY</div>
+                        <div class="matrix-node-pod">
+                            <span class="matrix-node-label">BROWSER CONTROL</span>
+                            <span class="matrix-node-val val-cyan"><span class="pulse-beacon cyan"></span> READY</span>
                         </div>
                     </div>
                 </div>
 
                 <!-- 2. HOLOGRAPHIC QUICK LAUNCH DOCK (BROWSER & APPS) -->
-                <div class="hud-glass-card">
+                <div class="hud-glass-card dock-card-elevated">
                     <div class="card-hud-header">
                         <div class="card-hud-title">
-                            <span class="hud-icon">🚀</span> Quick Launch Dock — Instant PC & Browser Actions
+                            <span class="hud-icon-badge">🚀</span>
+                            <span>Quick Launch Dock</span>
+                            <span class="badge-mini-cyan">Instant PC & Web</span>
                         </div>
                         <div class="card-hud-subtitle">Direct Windows localhost execution via start & cmd</div>
                     </div>
 
-                    <!-- Dock Grid of 10 Holographic Tiles -->
+                    <!-- Dock Grid of 12 Holographic Glass Tiles -->
                     <div class="quick-dock-grid">
                         <button class="dock-tile-btn" data-action="open-youtube" title="Open YouTube in a new browser tab">
-                            <span class="tile-icon" style="color: #ef4444;">🔴</span>
+                            <div class="tile-icon-wrap glow-red">
+                                <span class="tile-icon">▶</span>
+                            </div>
                             <span class="tile-name">YouTube</span>
                             <span class="tile-sub">Browser Tab</span>
                         </button>
 
                         <button class="dock-tile-btn" data-action="open-github" title="Open GitHub Swapnil-360 in new tab">
-                            <span class="tile-icon" style="color: #f1f5f9;">🐙</span>
+                            <div class="tile-icon-wrap glow-white">
+                                <span class="tile-icon">🐙</span>
+                            </div>
                             <span class="tile-name">GitHub</span>
                             <span class="tile-sub">Swapnil-360</span>
                         </button>
 
                         <button class="dock-tile-btn" data-action="launch-vscode" title="Launch Visual Studio Code on Windows">
-                            <span class="tile-icon" style="color: #38bdf8;">💻</span>
+                            <div class="tile-icon-wrap glow-sky">
+                                <span class="tile-icon">💻</span>
+                            </div>
                             <span class="tile-name">VS Code</span>
                             <span class="tile-sub">Desktop App</span>
                         </button>
 
                         <button class="dock-tile-btn" data-action="launch-terminal" title="Launch Windows PowerShell / Terminal">
-                            <span class="tile-icon" style="color: #34d399;">⚡</span>
+                            <div class="tile-icon-wrap glow-emerald">
+                                <span class="tile-icon">⚡</span>
+                            </div>
                             <span class="tile-name">Terminal</span>
                             <span class="tile-sub">PowerShell</span>
                         </button>
 
                         <button class="dock-tile-btn" data-action="open-google" title="Open Google Search">
-                            <span class="tile-icon" style="color: #4285f4;">🌐</span>
+                            <div class="tile-icon-wrap glow-google">
+                                <span class="tile-icon">🌐</span>
+                            </div>
                             <span class="tile-name">Google</span>
                             <span class="tile-sub">Search Engine</span>
                         </button>
 
                         <button class="dock-tile-btn" data-action="open-linkedin" title="Open LinkedIn Profile">
-                            <span class="tile-icon" style="color: #0a66c2;">💼</span>
+                            <div class="tile-icon-wrap glow-linkedin">
+                                <span class="tile-icon">💼</span>
+                            </div>
                             <span class="tile-name">LinkedIn</span>
                             <span class="tile-sub">mr-swapnil</span>
                         </button>
 
                         <button class="dock-tile-btn" data-action="open-portfolio" title="Open Personal Portfolio at mrswapnil.me">
-                            <span class="tile-icon" style="color: #a855f7;">🌐</span>
+                            <div class="tile-icon-wrap glow-purple">
+                                <span class="tile-icon">✨</span>
+                            </div>
                             <span class="tile-name">Portfolio</span>
                             <span class="tile-sub">mrswapnil.me</span>
                         </button>
 
                         <button class="dock-tile-btn" data-action="open-n8n" title="Open Local n8n Automation Studio">
-                            <span class="tile-icon" style="color: #f97316;">⚙️</span>
+                            <div class="tile-icon-wrap glow-orange">
+                                <span class="tile-icon">⚙️</span>
+                            </div>
                             <span class="tile-name">n8n Studio</span>
                             <span class="tile-sub">localhost:5678</span>
                         </button>
 
                         <button class="dock-tile-btn" data-action="open-projects-folder" title="Open D:\Projects folder in Windows Explorer">
-                            <span class="tile-icon" style="color: #eab308;">📁</span>
+                            <div class="tile-icon-wrap glow-yellow">
+                                <span class="tile-icon">📁</span>
+                            </div>
                             <span class="tile-name">Projects</span>
                             <span class="tile-sub">D:\Projects</span>
                         </button>
 
                         <button class="dock-tile-btn" data-action="open-swapnil-folder" title="Open D:\Swapnil personal folder in Windows Explorer">
-                            <span class="tile-icon" style="color: #10b981;">📁</span>
+                            <div class="tile-icon-wrap glow-mint">
+                                <span class="tile-icon">📂</span>
+                            </div>
                             <span class="tile-name">Swapnil</span>
                             <span class="tile-sub">D:\Swapnil</span>
                         </button>
 
                         <button class="dock-tile-btn" data-action="open-discord" title="Open Discord in browser or desktop app">
-                            <span class="tile-icon" style="color: #818cf8;">🟣</span>
+                            <div class="tile-icon-wrap glow-indigo">
+                                <span class="tile-icon">💬</span>
+                            </div>
                             <span class="tile-name">Discord</span>
                             <span class="tile-sub">Web & App</span>
                         </button>
 
                         <button class="dock-tile-btn" data-action="open-crypto-sourcing" title="Live Crypto Sourcing Radar (DeFiLlama & CoinGecko)">
-                            <span class="tile-icon" style="color: #f59e0b;">💎</span>
+                            <div class="tile-icon-wrap glow-amber">
+                                <span class="tile-icon">💎</span>
+                            </div>
                             <span class="tile-name">Crypto Radar</span>
                             <span class="tile-sub">Sourcing</span>
                         </button>
                     </div>
 
-                    <!-- Quick Search Bar (Google / YouTube direct) -->
+                    <!-- Quick Omni-Search Bar (Direct Web Launcher) -->
                     <div class="quick-url-launcher-bar">
-                        <input type="text" id="input-quick-search" class="hud-input-text" placeholder="Search Google or YouTube directly (e.g. 'Next.js 15 tutorials', 'Agent OS architecture')...">
-                        <button class="btn-hud-primary" id="btn-quick-google">Google Search</button>
-                        <button class="btn-header-action" id="btn-quick-youtube" style="background: rgba(239, 68, 68, 0.2); border-color: rgba(239, 68, 68, 0.4); color: #f87171;">YouTube Search</button>
+                        <div class="omni-search-input-wrap">
+                            <span class="omni-search-icon">🔍</span>
+                            <input type="text" id="input-quick-search" class="hud-input-text omni-input" placeholder="Search Google or YouTube directly (e.g. 'Next.js 15 tutorials', 'Agent OS architecture')...">
+                        </div>
+                        <div class="omni-search-actions">
+                            <button class="btn-hud-primary btn-omni-google" id="btn-quick-google">
+                                <span class="btn-mini-symbol">🌐</span> Google Search
+                            </button>
+                            <button class="btn-header-action btn-omni-youtube" id="btn-quick-youtube">
+                                <span class="btn-mini-symbol">▶</span> YouTube Search
+                            </button>
+                        </div>
                     </div>
                 </div>
 
                 <!-- 3. HARDWARE & RESOURCE TELEMETRY GAUGES -->
-                <div class="hud-glass-card">
+                <div class="hud-glass-card telemetry-card-elevated">
                     <div class="card-hud-header">
                         <div class="card-hud-title">
-                            <span class="hud-icon">💻</span> Hardware & Resource Telemetry
+                            <span class="hud-icon-badge">💻</span>
+                            <span>Hardware & Resource Telemetry</span>
                         </div>
-                        <span class="card-hud-subtitle" id="pc-hostname-tag">Swapnil-PC (Windows)</span>
+                        <div class="telemetry-host-pill" id="pc-hostname-tag">
+                            <span class="pulse-beacon green"></span>
+                            <span>Swapnil-PC (win32)</span>
+                        </div>
                     </div>
 
                     <div class="hardware-telemetry-grid">
-                        <!-- CPU -->
-                        <div class="telemetry-gauge-card">
-                            <div class="gauge-header-row">
-                                <span>⚡ CPU Usage</span>
-                                <span class="gauge-val-highlight" id="gauge-cpu-load">-- %</span>
+                        <!-- CPU POD -->
+                        <div class="telemetry-gauge-card pod-cpu">
+                            <div class="gauge-top-row">
+                                <div class="gauge-label-wrap">
+                                    <span class="pulse-beacon cyan"></span>
+                                    <span class="gauge-label-text">CPU Usage</span>
+                                </div>
+                                <span class="gauge-val-digital digital-cyan" id="gauge-cpu-load">-- %</span>
                             </div>
-                            <div class="gauge-details-text" id="gauge-cpu-model">Loading CPU...</div>
+                            <div class="gauge-details-text" id="gauge-cpu-model">Scanning processor architecture...</div>
                             <div class="gauge-progress-bg">
-                                <div class="gauge-progress-bar" id="bar-cpu-load" style="width: 0%;"></div>
+                                <div class="gauge-progress-bar bar-laser-cyan" id="bar-cpu-load" style="width: 0%;"></div>
                             </div>
                         </div>
 
-                        <!-- RAM -->
-                        <div class="telemetry-gauge-card">
-                            <div class="gauge-header-row">
-                                <span>🧠 RAM Usage</span>
-                                <span class="gauge-val-highlight" style="color: #34d399;" id="gauge-ram-pct">-- %</span>
+                        <!-- RAM POD -->
+                        <div class="telemetry-gauge-card pod-ram">
+                            <div class="gauge-top-row">
+                                <div class="gauge-label-wrap">
+                                    <span class="pulse-beacon green"></span>
+                                    <span class="gauge-label-text">RAM Memory</span>
+                                </div>
+                                <span class="gauge-val-digital digital-emerald" id="gauge-ram-pct">-- %</span>
                             </div>
-                            <div class="gauge-details-text" id="gauge-ram-details">Loading RAM...</div>
+                            <div class="gauge-details-text" id="gauge-ram-details">Scanning memory banks...</div>
                             <div class="gauge-progress-bg">
-                                <div class="gauge-progress-bar bar-green" id="bar-ram-load" style="width: 0%;"></div>
+                                <div class="gauge-progress-bar bar-laser-emerald" id="bar-ram-load" style="width: 0%;"></div>
                             </div>
                         </div>
 
-                        <!-- DISKS -->
-                        <div class="telemetry-gauge-card">
-                            <div class="gauge-header-row">
-                                <span>💾 Disks (C: & D:)</span>
-                                <span class="gauge-val-highlight" style="color: #a78bfa;" id="gauge-uptime">Uptime: --</span>
+                        <!-- DISKS & STORAGE POD -->
+                        <div class="telemetry-gauge-card pod-disks">
+                            <div class="gauge-top-row">
+                                <div class="gauge-label-wrap">
+                                    <span class="pulse-beacon purple"></span>
+                                    <span class="gauge-label-text">Disks (C: & D:)</span>
+                                </div>
+                                <span class="uptime-badge-pill" id="gauge-uptime">Uptime: --</span>
                             </div>
-                            <div id="gauge-disks-list" style="font-size: 0.72rem; color: #cbd5e1; margin-top: 4px; line-height: 1.4;">
-                                Scanning drives...
+                            <div id="gauge-disks-list" class="disks-telemetry-pod-list">
+                                Scanning drive volumes...
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- 4. OPERATING MODE ARCHITECTURE (Section 26) -->
-                <div class="hud-glass-card">
+                <div class="hud-glass-card mode-architecture-card">
                     <div class="card-hud-header">
                         <div class="card-hud-title">
-                            <span class="hud-icon">🎭</span> Operating Mode Architecture (Section 26)
+                            <span class="hud-icon-badge">🎭</span>
+                            <span>Operating Mode Architecture</span>
+                            <span class="badge-mini-cyan">Section 26</span>
                         </div>
-                        <span style="font-size: 0.75rem; color: var(--sky-neon); font-family: var(--font-mono);" id="current-mode-badge">Active: PC Mode</span>
+                        <span class="current-mode-chip" id="current-mode-badge">
+                            <span class="pulse-beacon cyan"></span> Active: PC Mode
+                        </span>
                     </div>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px;" id="mode-buttons-container">
-                        <button class="btn-mode active" data-mode="PC">💻 PC</button>
-                        <button class="btn-mode" data-mode="Developer">🛠️ Developer</button>
-                        <button class="btn-mode" data-mode="Conversation">💬 Chat</button>
-                        <button class="btn-mode" data-mode="Research">🔍 Research</button>
-                        <button class="btn-mode" data-mode="Browser">🌐 Browser</button>
-                        <button class="btn-mode" data-mode="Automation">⚡ Automate</button>
-                        <button class="btn-mode" data-mode="Career">💼 Career</button>
-                        <button class="btn-mode" data-mode="Social">📱 Social</button>
-                        <button class="btn-mode" data-mode="Monitor">📡 Monitor</button>
-                        <button class="btn-mode" data-mode="Command">⚔️ Command</button>
+                    <div class="mode-buttons-dock" id="mode-buttons-container">
+                        <button class="btn-mode active" data-mode="PC"><span class="mode-icon">💻</span> PC</button>
+                        <button class="btn-mode" data-mode="Developer"><span class="mode-icon">🛠️</span> Developer</button>
+                        <button class="btn-mode" data-mode="Conversation"><span class="mode-icon">💬</span> Chat</button>
+                        <button class="btn-mode" data-mode="Research"><span class="mode-icon">🔍</span> Research</button>
+                        <button class="btn-mode" data-mode="Browser"><span class="mode-icon">🌐</span> Browser</button>
+                        <button class="btn-mode" data-mode="Automation"><span class="mode-icon">⚡</span> Automate</button>
+                        <button class="btn-mode" data-mode="Career"><span class="mode-icon">💼</span> Career</button>
+                        <button class="btn-mode" data-mode="Social"><span class="mode-icon">📱</span> Social</button>
+                        <button class="btn-mode" data-mode="Monitor"><span class="mode-icon">📡</span> Monitor</button>
+                        <button class="btn-mode" data-mode="Command"><span class="mode-icon">⚔️</span> Command</button>
                     </div>
                 </div>
 
                 <!-- 5. SECURITY & PRIVACY CONTROLS MATRIX (Section 33) -->
-                <div class="hud-glass-card">
+                <div class="hud-glass-card privacy-matrix-card">
                     <div class="card-hud-header">
                         <div class="card-hud-title">
-                            <span class="hud-icon">🛡️</span> Security & Privacy Controls Matrix (Section 33)
+                            <span class="hud-icon-badge">🛡️</span>
+                            <span>Security & Privacy Controls Matrix</span>
+                            <span class="badge-mini-cyan">Section 33</span>
                         </div>
                         <span class="card-hud-subtitle">Toggle permissions in real-time</span>
                     </div>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;">
-                        <div style="background: rgba(15, 23, 42, 0.5); padding: 10px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--border-subtle);">
-                            <span style="font-size: 0.8rem; color: #cbd5e1;">🎤 Microphone</span>
+                    <div class="privacy-controls-grid">
+                        <div class="privacy-control-pod">
+                            <div class="privacy-info-group">
+                                <span class="privacy-symbol">🎤</span>
+                                <span class="privacy-title">Microphone</span>
+                            </div>
                             <button class="privacy-toggle active" data-perm="microphone" id="toggle-microphone">ON</button>
                         </div>
-                        <div style="background: rgba(15, 23, 42, 0.5); padding: 10px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--border-subtle);">
-                            <span style="font-size: 0.8rem; color: #cbd5e1;">📷 Camera</span>
+                        <div class="privacy-control-pod">
+                            <div class="privacy-info-group">
+                                <span class="privacy-symbol">📷</span>
+                                <span class="privacy-title">Camera</span>
+                            </div>
                             <button class="privacy-toggle" data-perm="camera" id="toggle-camera">OFF</button>
                         </div>
-                        <div style="background: rgba(15, 23, 42, 0.5); padding: 10px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--border-subtle);">
-                            <span style="font-size: 0.8rem; color: #cbd5e1;">🖥️ Screen Capture</span>
+                        <div class="privacy-control-pod">
+                            <div class="privacy-info-group">
+                                <span class="privacy-symbol">🖥️</span>
+                                <span class="privacy-title">Screen Capture</span>
+                            </div>
                             <button class="privacy-toggle" data-perm="screen" id="toggle-screen">OFF</button>
                         </div>
-                        <div style="background: rgba(15, 23, 42, 0.5); padding: 10px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--border-subtle);">
-                            <span style="font-size: 0.8rem; color: #cbd5e1;">🔌 PC Access</span>
+                        <div class="privacy-control-pod">
+                            <div class="privacy-info-group">
+                                <span class="privacy-symbol">🔌</span>
+                                <span class="privacy-title">PC Access</span>
+                            </div>
                             <button class="privacy-toggle active" data-perm="pc_access" id="toggle-pc_access">ON</button>
                         </div>
-                        <div style="background: rgba(15, 23, 42, 0.5); padding: 10px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--border-subtle);">
-                            <span style="font-size: 0.8rem; color: #cbd5e1;">🌐 Browser Control</span>
+                        <div class="privacy-control-pod">
+                            <div class="privacy-info-group">
+                                <span class="privacy-symbol">🌐</span>
+                                <span class="privacy-title">Browser Control</span>
+                            </div>
                             <button class="privacy-toggle active" data-perm="browser" id="toggle-browser">ON</button>
                         </div>
-                        <div style="background: rgba(15, 23, 42, 0.5); padding: 10px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--border-subtle);">
-                            <span style="font-size: 0.8rem; color: #cbd5e1;">⚡ Terminal</span>
-                            <button class="privacy-toggle active" data-perm="terminal" id="toggle-terminal" style="background: #eab308; color: #000;">RESTRICTED</button>
+                        <div class="privacy-control-pod">
+                            <div class="privacy-info-group">
+                                <span class="privacy-symbol">⚡</span>
+                                <span class="privacy-title">Terminal</span>
+                            </div>
+                            <button class="privacy-toggle active restricted" data-perm="terminal" id="toggle-terminal">RESTRICTED</button>
                         </div>
                     </div>
                 </div>
 
                 <!-- 6. ALLOWED DIRECTORY FILE INTELLIGENCE (Section 4 & 5) -->
-                <div class="hud-glass-card">
+                <div class="hud-glass-card file-intelligence-card">
                     <div class="card-hud-header">
                         <div class="card-hud-title">
-                            <span class="hud-icon">📁</span> Allowed Directory File Intelligence (Section 4 & 5)
+                            <span class="hud-icon-badge">📁</span>
+                            <span>Allowed Directory File Intelligence</span>
+                            <span class="badge-mini-cyan">Section 4 & 5</span>
                         </div>
-                        <span class="card-hud-subtitle">D:\Projects, D:\Swapnil, D:\Final Year, D:\Documents</span>
+                        <div class="allowed-paths-chips">
+                            <span class="path-chip">D:\Projects</span>
+                            <span class="path-chip">D:\Swapnil</span>
+                            <span class="path-chip">D:\Final Year</span>
+                            <span class="path-chip">D:\Documents</span>
+                        </div>
                     </div>
-                    <div style="display: flex; gap: 10px; margin-bottom: 12px;">
-                        <input type="text" id="input-search-files" class="hud-input-text" placeholder="Search files by natural language or keyword (e.g. Edu51, CV, README, spec)...">
-                        <button class="btn-hud-primary" id="btn-search-files">Search Files</button>
+                    <div class="file-search-bar-row">
+                        <div class="omni-search-input-wrap">
+                            <span class="omni-search-icon">🔎</span>
+                            <input type="text" id="input-search-files" class="hud-input-text file-search-input" placeholder="Search files by natural language or keyword (e.g. Edu51, CV, README, spec)...">
+                        </div>
+                        <button class="btn-hud-primary btn-file-search" id="btn-search-files">
+                            <span class="btn-mini-symbol">⚡</span> Search Files
+                        </button>
                     </div>
-                    <div id="files-results-container" style="max-height: 220px; overflow-y: auto;">
-                        <div class="loading-state">
-                            Enter a search query to inspect allowed local files.
+                    <div id="files-results-container" class="files-results-container">
+                        <div class="loading-state file-empty-state">
+                            <span class="empty-state-icon">📂</span>
+                            <span>Enter a search query to inspect allowed local files.</span>
                         </div>
                     </div>
                 </div>
 
                 <!-- 7. CONTROLLED TERMINAL EXECUTION (Section 7 & 27) -->
-                <div class="hud-glass-card">
+                <div class="hud-glass-card terminal-exec-card">
                     <div class="card-hud-header">
                         <div class="card-hud-title">
-                            <span class="hud-icon">⚡</span> Controlled Terminal Agent (Permission Matrix Enforced)
+                            <div class="terminal-traffic-dots">
+                                <span class="dot-red"></span>
+                                <span class="dot-yellow"></span>
+                                <span class="dot-green"></span>
+                            </div>
+                            <span class="hud-icon-badge">⚡</span>
+                            <span>Controlled Terminal Agent</span>
                         </div>
-                        <span style="font-size: 0.72rem; color: #34d399; font-family: var(--font-mono);" id="terminal-perm-badge">Level: READ / APPROVED EXECUTE</span>
+                        <span class="terminal-perm-pill" id="terminal-perm-badge">
+                            <span class="pulse-beacon green"></span> Level: READ / APPROVED EXECUTE
+                        </span>
                     </div>
-                    <div style="display: flex; gap: 10px; margin-bottom: 12px;">
-                        <input type="text" id="input-terminal-cmd" class="hud-input-text" placeholder="Run approved command (e.g. git status, tasklist, npm test, dir)..." style="font-family: var(--font-mono); color: var(--sky-neon);">
-                        <button class="btn-header-action" id="btn-run-terminal">Execute</button>
+                    
+                    <div class="terminal-command-entry">
+                        <div class="terminal-prompt-box">
+                            <span class="terminal-prompt-sym">❯_</span>
+                            <input type="text" id="input-terminal-cmd" class="hud-input-text terminal-cmd-field" placeholder="Run approved command (e.g. git status, tasklist, npm test, dir)...">
+                        </div>
+                        <button class="btn-header-action btn-terminal-exec" id="btn-run-terminal">
+                            Execute
+                        </button>
                     </div>
+
+                    <!-- Quick Command Chips for Terminal -->
+                    <div class="terminal-quick-chips">
+                        <span class="quick-chip-hint">Quick commands:</span>
+                        <button type="button" class="term-chip" data-cmd="git status">git status</button>
+                        <button type="button" class="term-chip" data-cmd="tasklist">tasklist</button>
+                        <button type="button" class="term-chip" data-cmd="dir D:\Projects">dir D:\Projects</button>
+                        <button type="button" class="term-chip" data-cmd="npm test">npm test</button>
+                    </div>
+
                     <pre id="terminal-output-console" class="terminal-hud-console">[Terminal Ready] Type an approved command or test 'git status'.</pre>
                 </div>
 
                 <!-- 8. WEBSITE & SERVICE HEALTH RADAR (Section 19) -->
-                <div class="hud-glass-card">
+                <div class="hud-glass-card infrastructure-radar-card">
                     <div class="card-hud-header">
                         <div class="card-hud-title">
-                            <span class="hud-icon">🌐</span> Proactive Website & Infrastructure Monitors (Section 19)
+                            <span class="hud-icon-badge">🌐</span>
+                            <span>Proactive Website & Infrastructure Monitors</span>
+                            <span class="badge-mini-cyan">Section 19</span>
                         </div>
-                        <button class="btn-header-action" id="btn-refresh-monitors" style="font-size: 0.72rem; padding: 4px 10px;">
-                            ⚡ Ping All Services
+                        <button class="btn-header-action btn-ping-all-services" id="btn-refresh-monitors">
+                            <span class="pulse-beacon amber"></span> Ping All Services
                         </button>
                     </div>
-                    <div id="monitors-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;">
+                    <div id="monitors-grid" class="monitors-cards-grid">
                         <div class="loading-state" style="grid-column: 1/-1;">
                             Pinging monitored services...
                         </div>

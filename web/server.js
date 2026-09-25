@@ -65,6 +65,8 @@ function getSessionUuid(id = 'web_commander') {
 const {
     getGeminiApiKey,
     pcmToWav,
+    stripEmojis,
+    toSpokenEnglish,
     synthesizeGeminiVoice
 } = require('../voice_synthesizer');
 
@@ -705,7 +707,7 @@ const server = http.createServer(async (req, res) => {
             return sendJson(res, 200, resLaunch);
         }
 
-        // Native Gemini Cute Female Voice TTS API ("Kore" voice, spoken in English)
+        // Native Gemini Cute Female Voice TTS API ("Kore" voice, spoken in English without emojis)
         if (pathname === '/api/voice/tts' && (req.method === 'GET' || req.method === 'POST')) {
             let textToSpeak = '';
             if (req.method === 'GET') {
@@ -715,7 +717,7 @@ const server = http.createServer(async (req, res) => {
                 textToSpeak = body.text || '';
             }
 
-            textToSpeak = (textToSpeak || '').trim().replace(/[*_#`~\[\]\(\)]/g, ' ').replace(/\s+/g, ' ').slice(0, 350);
+            textToSpeak = stripEmojis(textToSpeak || '').slice(0, 350);
             if (!textToSpeak) {
                 return sendJson(res, 400, { error: 'No text provided' });
             }
@@ -723,11 +725,12 @@ const server = http.createServer(async (req, res) => {
             try {
                 const resSynth = await synthesizeGeminiVoice(textToSpeak, 'Kore');
                 const wavBuffer = Buffer.isBuffer(resSynth) ? resSynth : resSynth.wav;
-                const spokenText = resSynth.speechText || textToSpeak;
+                const spokenText = stripEmojis(resSynth.speechText || textToSpeak);
                 res.writeHead(200, {
                     'Content-Type': 'audio/wav',
                     'Content-Length': wavBuffer.length,
                     'X-Spoken-English': encodeURIComponent(spokenText),
+                    'X-TTS-Model': resSynth.model || 'gemini-3.8-flash-lite-tts',
                     'Cache-Control': 'no-cache'
                 });
                 return res.end(wavBuffer);
@@ -737,11 +740,12 @@ const server = http.createServer(async (req, res) => {
             }
         }
 
-        // Fast endpoint to convert any Banglish/Bengali text into spoken English for fallback
+        // Fast endpoint to convert any Banglish/Bengali text into clean spoken English (emojis stripped)
         if (pathname === '/api/voice/to-english' && (req.method === 'GET' || req.method === 'POST')) {
-            const text = req.method === 'GET' ? (parsedUrl.searchParams.get('text') || '') : ((await parseBody(req)).text || '');
+            const rawText = req.method === 'GET' ? (parsedUrl.searchParams.get('text') || '') : ((await parseBody(req)).text || '');
+            const text = stripEmojis(rawText);
             const english = await toSpokenEnglish(text);
-            return sendJson(res, 200, { original: text, english });
+            return sendJson(res, 200, { original: text, english: stripEmojis(english) });
         }
 
         // --- STATIC FILE & PAGE ROUTING ---

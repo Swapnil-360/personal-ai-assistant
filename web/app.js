@@ -1688,6 +1688,16 @@ async function handleVoiceCommand(spokenText) {
     }
 }
 
+function stripVoiceText(text) {
+    if (!text) return '';
+    return text
+        .replace(/[\p{Extended_Pictographic}\u200d\ufe0f\u203c-\u3299\u{1f000}-\u{1f9ff}]/gu, '')
+        .replace(/https?:\/\/\S+/g, '')
+        .replace(/[*_#`~\[\]\(\)\{\}\<\>\\\/|]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
 function playCuteFemaleVoice(text) {
     if (!text || !text.trim() || !speechSynthEnabled) return;
 
@@ -1704,18 +1714,13 @@ function playCuteFemaleVoice(text) {
     }
 
     const visualizerBars = document.getElementById('audio-visualizer-bars');
-    const cleanVoiceText = text
-        .replace(/[*_#`~\[\]\(\)]/g, ' ')
-        .replace(/https?:\/\/\S+/g, '')
-        .replace(/\s+/g, ' ')
-        .trim()
-        .slice(0, 320);
+    const cleanVoiceText = stripVoiceText(text).slice(0, 320);
 
     if (!cleanVoiceText) return;
 
     if (visualizerBars) visualizerBars.classList.add('speaking');
 
-    // 1. Primary: Gemini Native Cute Female Voice ("Kore" model)
+    // 1. Primary: Gemini Native Cute Female Voice ("Kore" model on Gemini 3.8 Flash Lite)
     const audioUrl = `/api/voice/tts?text=${encodeURIComponent(cleanVoiceText)}`;
     const audio = new Audio(audioUrl);
     activeAudioPlayer = audio;
@@ -1746,15 +1751,15 @@ async function fallbackBrowserFemaleVoice(cleanText) {
     if (!window.speechSynthesis) return;
     const visualizerBars = document.getElementById('audio-visualizer-bars');
 
-    let textToSpeak = cleanText;
-    const hasBanglish = /\b(?:ami|tumi|amake|tomake|amar|tomar|kemon|acho|achhen|ache|shob|ekhane|koro|korba|korecho|bolo|bolte|parbo|hobe|khete|dekho|shunba|shunar|jonno|bhalo|kharap|khobor|obsta|chaile|shamil|eita|eta)\b/i.test(cleanText) || /[\u0980-\u09FF]/.test(cleanText);
+    let textToSpeak = stripVoiceText(cleanText);
+    const hasBanglish = /\b(?:ami|tumi|apni|amake|tomake|amar|tomar|kemon|acho|achen|achhen|ache|ase|shob|sob|ekhane|koro|korcho|korchi|kora|korba|korben|korecho|korar|bolo|bolte|bolchi|bolba|parbo|parbe|hobe|khete|dekho|dekhbo|shunba|shunar|shunte|jonno|bhalo|valo|kharap|khobor|obostha|obsta|chaile|shamil|eita|eta|eti|ota|oita|kalke|agamikal|rate|shokal|ekhon|ekhankar|tai|ki|baire|ber|howar|howa|thanda|mathay|lagbe|naki|darun|bepar|boshe|bose|thako|shune|ar|aar|o|oi|kon|keno|kivabe|kibhabe|koi|jabo|jacchi|gecho|gechi|ashbo|asho|dhaka|dhakar)\b/i.test(textToSpeak) || /[\u0980-\u09FF]/.test(textToSpeak) || /[a-z]+-(?:r|e|te|er)\b/i.test(textToSpeak);
 
     if (hasBanglish) {
         try {
-            const trRes = await fetch(`/api/voice/to-english?text=${encodeURIComponent(cleanText)}`);
+            const trRes = await fetch(`/api/voice/to-english?text=${encodeURIComponent(textToSpeak)}`);
             const trData = await trRes.json();
             if (trData && trData.english) {
-                textToSpeak = trData.english;
+                textToSpeak = stripVoiceText(trData.english);
             }
         } catch (e) {}
     }

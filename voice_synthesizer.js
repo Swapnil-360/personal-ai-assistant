@@ -35,16 +35,27 @@ function pcmToWav(pcmBuffer, sampleRate = 24000, numChannels = 1, bitDepth = 16)
     return buffer;
 }
 
+function stripEmojis(text) {
+    if (!text) return '';
+    return text
+        .replace(/[\p{Extended_Pictographic}\u200d\ufe0f\u203c-\u3299\u{1f000}-\u{1f9ff}]/gu, '')
+        .replace(/[*_#`~\[\]\(\)\{\}\<\>\\\/|]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
 // Convert any Banglish or Bengali text into natural, sweet spoken English for clean TTS
 async function toSpokenEnglish(text) {
     if (!text || !text.trim()) return '';
-    const clean = text.replace(/[*_#`~\[\]\(\)]/g, ' ').replace(/\s+/g, ' ').trim();
+    const clean = stripEmojis(text);
+    if (!clean) return '';
 
     // Check if text contains non-English / Banglish / Bengali patterns
     const hasBengali = /[\u0980-\u09FF]/.test(clean);
-    const hasBanglishWords = /\b(?:ami|tumi|amake|tomake|amar|tomar|kemon|acho|achhen|ache|shob|ekhane|koro|korba|korecho|bolo|bolte|parbo|hobe|khete|dekho|shunba|shunar|jonno|bhalo|kharap|khobor|obsta|chaile|shamil|eita|eta|kalke|agamikal|rate|shokal|ekhon|tai|hobe|korbo)\b/i.test(clean);
+    const hasBanglishWords = /\b(?:ami|tumi|apni|amake|tomake|amar|tomar|kemon|acho|achen|achhen|ache|ase|shob|sob|ekhane|koro|korcho|korchi|kora|korba|korben|korecho|korar|bolo|bolte|bolchi|bolba|parbo|parbe|hobe|khete|dekho|dekhbo|shunba|shunar|shunte|jonno|bhalo|valo|kharap|khobor|obostha|obsta|chaile|shamil|eita|eta|eti|ota|oita|kalke|agamikal|rate|shokal|ekhon|ekhankar|tai|ki|baire|ber|howar|howa|thanda|mathay|lagbe|naki|darun|bepar|boshe|bose|thako|shune|ar|aar|o|oi|kon|keno|kivabe|kibhabe|koi|jabo|jacchi|gecho|gechi|ashbo|asho|dhaka|dhakar|bangla|banglish)\b/i.test(clean);
+    const hasBanglaSuffix = /[a-z]+-(?:r|e|te|er)\b/i.test(clean);
 
-    if (!hasBengali && !hasBanglishWords) {
+    if (!hasBengali && !hasBanglishWords && !hasBanglaSuffix) {
         return clean;
     }
 
@@ -58,14 +69,14 @@ async function toSpokenEnglish(text) {
                     role: 'user',
                     parts: [
                         {
-                            text: 'Translate this message into short, sweet, natural spoken English from Mikasa to Swapnil for text-to-speech voice output. Keep her devoted, caring companion tone. Return ONLY the spoken English sentence without quotes or commentary:\n\n' + clean
+                            text: 'You are Mikasa speaking directly to Swapnil. Translate and rephrase this Banglish/Bengali text into short, natural, warm spoken English for voice output. Do NOT include any emojis or markdown symbols. Return ONLY the spoken English sentence without commentary or quotes:\n\n' + clean
                         }
                     ]
                 }
             ],
             generationConfig: {
                 temperature: 0.2,
-                maxOutputTokens: 120
+                maxOutputTokens: 100
             }
         });
 
@@ -86,7 +97,7 @@ async function toSpokenEnglish(text) {
                     try {
                         const j = JSON.parse(d);
                         const out = j.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-                        resolve(out || clean);
+                        resolve(stripEmojis(out || clean));
                     } catch (e) {
                         resolve(clean);
                     }
@@ -98,19 +109,13 @@ async function toSpokenEnglish(text) {
             req.end();
         });
 
-        return translated || clean;
+        return stripEmojis(translated || clean);
     } catch (e) {
         return clean;
     }
 }
 
-async function synthesizeGeminiVoice(text, voiceName = 'Kore') {
-    const apiKey = getGeminiApiKey();
-    if (!apiKey) return Promise.reject(new Error('GEMINI_API_KEY not configured'));
-
-    // Convert Banglish to spoken English so speech synthesis sounds fluent and clear
-    const speechText = await toSpokenEnglish(text);
-
+async function callSingleTtsModel(modelName, speechText, voiceName, apiKey) {
     return new Promise((resolve, reject) => {
         const ttsPrompt = `Read the following text directly as audio: ${speechText}`;
         const payload = JSON.stringify({
@@ -129,7 +134,7 @@ async function synthesizeGeminiVoice(text, voiceName = 'Kore') {
 
         const req = https.request({
             hostname: 'generativelanguage.googleapis.com',
-            path: `/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`,
+            path: `/v1beta/models/${modelName}:generateContent?key=${apiKey}`,
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -142,12 +147,16 @@ async function synthesizeGeminiVoice(text, voiceName = 'Kore') {
             res.on('end', () => {
                 try {
                     const json = JSON.parse(data);
-                    if (json.error) return reject(new Error(json.error.message || 'Gemini TTS error'));
+                    if (json.error) {
+                        return reject(new Error(json.error.message || `TTS error on ${modelName}`));
+                    }
                     const base64 = json.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-                    if (!base64) return reject(new Error('No audio data returned'));
+                    if (!base64) {
+                        return reject(new Error(`No audio data returned from ${modelName}`));
+                    }
                     const pcm = Buffer.from(base64, 'base64');
                     const wav = pcmToWav(pcm, 24000, 1, 16);
-                    resolve({ wav, speechText });
+                    resolve({ wav, speechText, model: modelName });
                 } catch (e) {
                     reject(e);
                 }
@@ -157,16 +166,46 @@ async function synthesizeGeminiVoice(text, voiceName = 'Kore') {
         req.on('error', reject);
         req.on('timeout', () => {
             req.destroy();
-            reject(new Error('Gemini TTS timed out'));
+            reject(new Error(`Gemini TTS timed out on ${modelName}`));
         });
         req.write(payload);
         req.end();
     });
 }
 
+async function synthesizeGeminiVoice(text, voiceName = 'Kore') {
+    const apiKey = getGeminiApiKey();
+    if (!apiKey) return Promise.reject(new Error('GEMINI_API_KEY not configured'));
+
+    // Convert Banglish to spoken English so speech synthesis sounds fluent, sweet, and human
+    const speechText = await toSpokenEnglish(text);
+    if (!speechText) return Promise.reject(new Error('No speech text available'));
+
+    // Multi-model fallback list with Gemini 3.8 as top priority
+    const models = [
+        'gemini-3.8-flash-lite-tts',
+        'gemini-3.8-flash-tts',
+        'gemini-3.1-flash-tts-preview'
+    ];
+
+    let lastError = null;
+    for (const model of models) {
+        try {
+            const result = await callSingleTtsModel(model, speechText, voiceName, apiKey);
+            return result;
+        } catch (err) {
+            console.warn(`[Gemini TTS ${model} failed, trying next fallback]:`, err.message);
+            lastError = err;
+        }
+    }
+
+    throw (lastError || new Error('All Gemini TTS models failed'));
+}
+
 module.exports = {
     getGeminiApiKey,
     pcmToWav,
+    stripEmojis,
     toSpokenEnglish,
     synthesizeGeminiVoice
 };

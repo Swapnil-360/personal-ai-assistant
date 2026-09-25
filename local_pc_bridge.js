@@ -258,6 +258,62 @@ async function sendTelegramDocument(chatId, filePath, caption = '') {
     });
 }
 
+// Streams an in-memory document buffer to Telegram chat via multipart/form-data
+async function sendTelegramDocumentBuffer(chatId, buffer, fileName, caption = '') {
+    const token = getEnv('TELEGRAM_BOT_TOKEN', '8896311503:AAEuL6P-6yvnkjs1_v9L3buyck-pwZuT_9M');
+    if (!token) throw new Error('TELEGRAM_BOT_TOKEN is not configured.');
+
+    const boundary = '----WebKitFormBoundary' + Math.random().toString(16).slice(2);
+
+    const parts = [];
+    parts.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="chat_id"\r\n\r\n${chatId}\r\n`));
+    if (caption) {
+        parts.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="caption"\r\n\r\n${caption}\r\n`));
+    }
+    parts.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="document"; filename="${fileName}"\r\nContent-Type: application/pdf\r\n\r\n`));
+    parts.push(buffer);
+    parts.push(Buffer.from(`\r\n--${boundary}--\r\n`));
+
+    const payload = Buffer.concat(parts);
+
+    return new Promise((resolve, reject) => {
+        const req = https.request({
+            hostname: 'api.telegram.org',
+            path: `/bot${token}/sendDocument`,
+            method: 'POST',
+            headers: {
+                'Content-Type': `multipart/form-data; boundary=${boundary}`,
+                'Content-Length': payload.length
+            }
+        }, (res) => {
+            let data = '';
+            res.on('data', c => data += c);
+            res.on('end', async () => {
+                try {
+                    const parsed = JSON.parse(data);
+                    if (parsed.ok) {
+                        await recordAuditLog({
+                            action: 'remote_buffer_transferred',
+                            target: fileName,
+                            details: `Sent buffer ${fileName} (${(buffer.length / 1024).toFixed(1)} KB) to Telegram chat ${chatId}`,
+                            verified: true
+                        });
+                        resolve({ success: true, messageId: parsed.result.message_id, file: fileName });
+                    } else {
+                        reject(new Error(`Telegram sendDocument failed: ${parsed.description || data}`));
+                    }
+                } catch (e) {
+                    reject(new Error(`Failed to parse Telegram response: ${data}`));
+                }
+            });
+        });
+
+        req.on('error', reject);
+        req.write(payload);
+        req.end();
+    });
+}
+
 // 4. LOCAL SYSTEM INFORMATION & TELEMETRY (Section 6)
 async function getSystemInfo() {
     const totalMem = os.totalmem();
@@ -319,13 +375,21 @@ async function getSystemInfo() {
         }
     } catch (e) {}
 
-    // Check n8n health on port 5678
+    // Check n8n health on port 5678 (try 127.0.0.1 first for zero-latency IPv4, fallback to localhost)
     try {
         n8nRunning = await new Promise((resolve) => {
-            const req = http.get('http://localhost:5678/healthz', { timeout: 1500 }, (res) => {
+            const req = http.get('http://127.0.0.1:5678/healthz', { timeout: 3000 }, (res) => {
+                res.resume();
                 resolve(res.statusCode === 200);
             });
-            req.on('error', () => resolve(false));
+            req.on('error', () => {
+                const req2 = http.get('http://localhost:5678/healthz', { timeout: 2000 }, (res2) => {
+                    res2.resume();
+                    resolve(res2.statusCode === 200);
+                });
+                req2.on('error', () => resolve(false));
+                req2.on('timeout', () => { req2.destroy(); resolve(false); });
+            });
             req.on('timeout', () => { req.destroy(); resolve(false); });
         });
     } catch (e) {
@@ -483,6 +547,7 @@ async function checkServiceMonitors() {
         const resObj = await new Promise((resolve) => {
             try {
                 const req = client.get(service.url, { timeout: 4000 }, (res) => {
+                    res.resume();
                     const latency = Date.now() - start;
                     resolve({
                         name: service.name,
@@ -699,6 +764,7 @@ module.exports = {
     isPathAllowed,
     searchAllowedFiles,
     sendTelegramDocument,
+    sendTelegramDocumentBuffer,
     getSystemInfo,
     executeControlledTerminal,
     checkServiceMonitors,

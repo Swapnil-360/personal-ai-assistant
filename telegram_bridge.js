@@ -14,11 +14,13 @@ const {
     generateLinkedInDraft,
     tailorCvForJob,
     matchJobOpportunity,
+    fetchLiveLinkedInJobs,
     generateLinkedInJobRadar,
     generateOptimizedPrompt,
     generateTwitterThread,
     generateSingleTweet,
     auditSocialMedia,
+    portfolioManager,
     getTasks,
     getGoals,
     getProjects,
@@ -43,6 +45,7 @@ const {
     getSystemInfo,
     searchAllowedFiles,
     sendTelegramDocument,
+    sendTelegramDocumentBuffer,
     executeControlledTerminal,
     checkServiceMonitors,
     privacyControls,
@@ -322,7 +325,7 @@ async function syncGroupDetails(chatId, chatObj = null) {
 // Clear webhook so getUpdates long-polling works cleanly
 function deleteWebhook() {
     return new Promise((resolve) => {
-        https.get(`https://api.telegram.org/bot${BOT_TOKEN}/deleteWebhook`, (res) => {
+        https.get(`https://api.telegram.org/bot${BOT_TOKEN}/deleteWebhook?drop_pending_updates=false`, (res) => {
             let data = '';
             res.on('data', chunk => data += chunk);
             res.on('end', () => {
@@ -444,6 +447,131 @@ function answerCallbackQuery(callbackQueryId, text = '') {
         req.write(payload);
         req.end();
     });
+}
+
+// Fetch file buffer from GitHub repository (supports raw content, authenticated private/public repo access)
+function fetchCvBufferFromGitHub(repoPath) {
+    return new Promise((resolve, reject) => {
+        let token = getEnv('GITHUB_TOKEN');
+        const headers = {
+            'User-Agent': 'Mikasa-Assistant',
+            'Accept': 'application/vnd.github.v3.raw'
+        };
+        if (token) {
+            headers['Authorization'] = `token ${token}`;
+        }
+
+        const url = `https://api.github.com/repos/Swapnil-360/personal-ai-assistant/contents/${repoPath}`;
+
+        function handleReq(reqUrl) {
+            const parsedUrl = new URL(reqUrl);
+            const req = https.get({
+                hostname: parsedUrl.hostname,
+                path: parsedUrl.pathname + parsedUrl.search,
+                headers: parsedUrl.hostname === 'api.github.com' ? headers : { 'User-Agent': 'Mikasa-Assistant' }
+            }, (res) => {
+                if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+                    return handleReq(res.headers.location);
+                }
+                if (res.statusCode !== 200) {
+                    return reject(new Error(`GitHub raw API returned HTTP ${res.statusCode}`));
+                }
+                const chunks = [];
+                res.on('data', c => chunks.push(c));
+                res.on('end', () => resolve(Buffer.concat(chunks)));
+            });
+            req.on('error', reject);
+        }
+
+        handleReq(url);
+    });
+}
+
+// Fetch file buffer from direct public URL (fallback e.g. mrswapnil.me CDN)
+function fetchUrlBuffer(targetUrl) {
+    return new Promise((resolve, reject) => {
+        function handleReq(reqUrl) {
+            const parsedUrl = new URL(reqUrl);
+            const client = parsedUrl.protocol === 'http:' ? http : https;
+            const req = client.get(reqUrl, { headers: { 'User-Agent': 'Mikasa-Assistant' } }, (res) => {
+                if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+                    return handleReq(res.headers.location);
+                }
+                if (res.statusCode !== 200) {
+                    return reject(new Error(`HTTP ${res.statusCode} from ${parsedUrl.hostname}`));
+                }
+                const chunks = [];
+                res.on('data', c => chunks.push(c));
+                res.on('end', () => resolve(Buffer.concat(chunks)));
+            });
+            req.on('error', reject);
+        }
+        handleReq(targetUrl);
+    });
+}
+
+// Universal CV Delivery Helper (Local PC disk D:\Projects\personal-ai-assistant\cv OR Cloud GitHub/CDN fallback)
+async function deliverCvDocument(chatId, version = 'color', replyToId = null) {
+    const isBw = version === 'bw' || version === 'b&w';
+    const diskFileName = isBw ? 'Bw-Resume.pdf' : 'resume.pdf';
+    const telegramFileName = isBw 
+        ? 'Md_Miftahur_Rahman_Swapnil_Resume_BW.pdf' 
+        : 'Md_Miftahur_Rahman_Swapnil_Resume_Color.pdf';
+
+    const caption = isBw
+        ? `📄 *Md. Miftahur Rahman Swapnil — Executive Resume (B&W Minimalist)*\n\n• Strict 2-Page ATS-Optimized Layout\n• High-Contrast Printer-Friendly & Machine Parser Ready\n• Live Portfolio: https://www.mrswapnil.me\n• LinkedIn: https://linkedin.com/in/mr-swapnil360\n\n_Delivered by Mikasa Ackerman_ 🧣`
+        : `🎨 *Md. Miftahur Rahman Swapnil — Executive Resume (Color Edition)*\n\n• Strict 2-Page Executive Tech Format\n• Fullstack (Next.js, Node.js, AI/RAG) & CurricuRAG Research\n• Live Links: [Portfolio](https://www.mrswapnil.me) · [GitHub](https://github.com/Swapnil-360)\n\n_Delivered by Mikasa Ackerman_ 🧣`;
+
+    let buffer = null;
+    let source = null;
+
+    // 1. Check local PC workspace first (when PC is running)
+    const localCandidates = [
+        path.join(__dirname, 'cv', diskFileName),
+        path.join('D:\\Projects\\personal-ai-assistant\\cv', diskFileName),
+        path.join('D:\\Projects\\Ironmanthemeportfolio\\public', diskFileName)
+    ];
+
+    for (const candPath of localCandidates) {
+        try {
+            if (fs.existsSync(candPath)) {
+                buffer = fs.readFileSync(candPath);
+                source = `Local PC (${candPath})`;
+                break;
+            }
+        } catch (_) {}
+    }
+
+    // 2. Fallback to GitHub Cloud Repository (when PC is OFF or localhost not running)
+    if (!buffer) {
+        try {
+            console.log(`[CV Dispatch] Local file not present (cloud failover). Fetching cv/${diskFileName} from GitHub repository...`);
+            buffer = await fetchCvBufferFromGitHub(`cv/${diskFileName}`);
+            source = 'GitHub Cloud Repository (Swapnil-360/personal-ai-assistant)';
+        } catch (ghErr) {
+            console.warn(`[CV Dispatch] GitHub fetch failed: ${ghErr.message}. Trying live CDN fallback...`);
+        }
+    }
+
+    // 3. Fallback to Live Portfolio CDN if GitHub API rate-limited
+    if (!buffer) {
+        try {
+            const cdnUrl = `https://www.mrswapnil.me/${diskFileName}`;
+            console.log(`[CV Dispatch] Fetching from CDN: ${cdnUrl}`);
+            buffer = await fetchUrlBuffer(cdnUrl);
+            source = 'Live Portfolio CDN (mrswapnil.me)';
+        } catch (cdnErr) {
+            console.error(`[CV Dispatch] CDN fetch failed: ${cdnErr.message}`);
+        }
+    }
+
+    if (!buffer || buffer.length === 0) {
+        throw new Error(`Unable to load resume file (${diskFileName}) from local PC, GitHub, or live CDN.`);
+    }
+
+    await sendTelegramDocumentBuffer(chatId, buffer, telegramFileName, caption);
+    console.log(`[CV Dispatch] Sent ${telegramFileName} (${(buffer.length / 1024).toFixed(1)} KB) via ${source} to chat ${chatId}`);
+    return { success: true, source, size: buffer.length };
 }
 
 // Edit Telegram message text
@@ -683,11 +811,20 @@ PERSONALITY & PSYCHOLOGY
    - You are an elite software architect. When discussing code, databases, or systems, your advice is world-class, clean, and direct.
    - Strictly honor his confirmed decisions: Supabase as primary database, Google Drive API for Edu51Portal, n8n for orchestration.
 
-5. Real-Time LinkedIn & Job Discovery Capabilities (STRICT):
-   - Swapnil's LinkedIn account is connected (URN: urn:li:person:XVEmQx0v6h, Md. Miftahur Rahman Swapnil).
-   - You HAVE direct real-time access to LinkedIn jobs and job search queries through the PATHS Live Job Radar.
-   - NEVER say "I can't browse LinkedIn directly" or "I cannot access LinkedIn".
-   - You can fetch and recommend live jobs, provide direct links to apply, match job descriptions with the PATHS matrix (/job), and tailor CV bullets (/cv).
+5. Real-Time LinkedIn & Social Media Capabilities (STRICT & PRECISE):
+   - Swapnil's LinkedIn account IS connected via official OAuth (URN: urn:li:person:XVEmQx0v6h, Md. Miftahur Rahman Swapnil).
+   - What the official API connection allows:
+     • Publishing posts directly to Swapnil's profile (w_member_social).
+     • Generating drafts, crafting hooks, and scheduling content.
+     • Live job searches, job matching (/job), and CV tailoring (/cv).
+   - Platform constraint you must understand:
+     • LinkedIn strictly restricts reading personal member feeds/posts (r_member_social) to their closed Enterprise Partner Program (returns 403 Access Denied to all standard developer apps).
+   - NEVER give a blunt, robotic, or dismissive reply like "I can't check it directly" or "I cannot access LinkedIn"!
+   - If Swapnil asks you to check, review, or give feedback on his latest LinkedIn post:
+     • Treat him with respect and high intelligence: explain that while his LinkedIn connection gives you direct publishing power (w_member_social) and job discovery, LinkedIn's platform policy locks down reading private personal feeds via API.
+     • Immediately offer: "Share the text or link of the post with me, and I will instantly analyze the hooks, formatting, engagement potential, or suggest follow-up comments and replies!"
+     • If it's a post you helped him draft or one stored in memory/notes, refer to it directly.
+
 
 ==============================
 LANGUAGE PREFERENCE & BANGLISH RULES (STRICT)
@@ -710,21 +847,24 @@ LANGUAGE PREFERENCE & BANGLISH RULES (STRICT)
 SWAPNIL'S PROFILE & OFFICIAL PROFESSIONAL IDENTITY
 ==============================
 ${profileStr || '- Name: Md. Miftahur Rahman Swapnil\n- Final-year CSE student at BUBT (Intake 51, CGPA 3.6)\n- Location: Dhaka, Bangladesh'}
-- Official Professional Headline: Product Designer & Builder | Turning Real-World Problems into Digital Products | AI, Frontend & Automation | Creator of Edu51Portal | Final year CSE at BUBT
+- Official Professional Headline: Product Designer & Builder | AI, Frontend & Automation | Creator of Edu51Portal | Final year CSE at BUBT
 - Primary Public Professional Title: Product Designer & Builder
-- Core Positioning & Philosophy: "Turning Real-World Problems into Digital Products"
-- Primary Supporting Areas: AI, Frontend Development, Automation, Product prototyping, AI-assisted development
-- Academic Identity: Final-year CSE student at Bangladesh University of Business and Technology (BUBT)
+- Core Supporting Areas: AI, Frontend Development, Automation, Product Prototyping, AI-assisted development
+- Academic History:
+  • B.Sc. in Computer Science & Engineering (CSE): Bangladesh University of Business and Technology (BUBT), Intake 51, 2022 – 2026 (Expected), CGPA: 3.60 / 4.00
+  • Higher Secondary Certificate (HSC) — Science: Shaheed Police Smrity College, 2021, GPA: 5.00 / 5.00
+  • Secondary School Certificate (SSC) — Science: Kadirabad BL High School, Pirganj, Rangpur, 2019, GPA: 5.00 / 5.00
 - Positioning Rules:
   • Use Product Designer & Builder as his primary identity.
   • Do NOT automatically call him a Full-Stack Developer.
   • Do NOT exaggerate technical seniority (present as real student-builder, not corporate executive or seasoned architect).
-- Development Style: "Vibe coding / AI-assisted coding" describes his workflow. In casual contexts, "vibe coder" is fine. In formal contexts (CVs, job apps, academic docs), ALWAYS use "AI-assisted development" or "AI-assisted coding".
+- Development Style: AI-assisted development / AI-assisted coding. In casual contexts, "vibe coder" is fine; in formal contexts, always use "AI-assisted development".
 - Product Mindset: Real-world problem → Product idea → User experience → Design → Development → AI/API integration → Working product.
 - Edu51Portal: Backend is Supabase, study materials via Google Drive API (NEVER Firebase). Serving around 100 active BUBT students. Swapnil is the Creator.
-- Canonical Description (Preferred): "Md. Miftahur Rahman Swapnil is a final-year CSE student at BUBT and a Product Designer & Builder focused on turning real-world problems into digital products. He works across AI, frontend development, and automation, using AI-assisted development to rapidly turn ideas into functional products. He is also the creator of Edu51Portal and actively explores AI systems, automation, web development, and research."
-- Short Description: "Swapnil is a final-year CSE student at BUBT and a Product Designer & Builder focused on turning real-world problems into digital products through AI, frontend development, and automation."
-- One-Line Identity: "Product Designer & Builder who turns real-world problems into digital products through AI, frontend development, and automation."
+- Leadership & Community:
+  • BASIS Students' Forum — BUBT Chapter: Member, Graphics Designer & Media and Publication Secretary (2023 – 2026).
+  • BUBT IT Club: General Member (2022 – Present).
+  • Internal University Event Management: Active Coordinator & Event Organizer (2022 – Present).
 
 ==============================
 CURRENT OPERATIONAL STATE & PRIORITIES
@@ -755,20 +895,19 @@ His research trajectory connects:
 2. Knowledge Graphs and Retrieval-Augmented Generation
 3. Graph Neural Networks and relation-aware retrieval
 4. IoT and AI-enabled smart environments
-5. Computer vision and edge devices
-6. EEG-based AI research (Target: Complete paper within 2026)
+5. Deep learning architectures for EEG motor control
+6. Assistive neuro-rehabilitation and paralysis motor control interfaces
 7. Intelligent educational systems
-8. Applied machine learning
 
-RESEARCH PAPERS:
-1. "Relation-Aware Graph Retrieval over a Curriculum Knowledge Graph for Prerequisite Question Answering" (CurricuRAG)
-   - Authors: Md. Jahidul Kamal Islam, Md. Miftahur Rahman, Md. Asif Ali, Shrabani Das, Shefayatuj Johara Chowdhury (BUBT CSE)
+RESEARCH PAPERS & WORK:
+1. "Relation-Aware Graph Retrieval over a Curriculum Knowledge Graph for Prerequisite QA"
+   - Authors: Md. Jahidul Kamal Islam, Md. Miftahur Rahman Swapnil, Md. Asif Ali, Shrabani Das, Shefayatuj Johara Chowdhury (BUBT CSE)
    - Venue: 2026 IEEE International Conference on Optics, Machine Learning and Emerging Technology (OMLET), Nairobi, Kenya, 29–31 October 2026.
    - Paper ID: 1017 | Status: Accepted with Minor Revision | Fees settled, IEEE Electronic Publication Agreement signed by Shrabani Das on 10-09-2026. Scheduled for IEEE Xplore & Scopus.
    - KG Specs: 418 nodes (305 concepts, 113 courses), 558 typed edges (PREREQUISITE_OF, PART_OF, TAUGHT_IN, REQUIRES), 95 auxiliary training-split triples, verified in Neo4j.
    - Architecture: 2-layer R-GCN encoder (384-d Sentence-BERT node embeddings) + DistMult decoder (relation-specific Wr parameters, zero LLM query calls, no fine-tuning).
    - Generator: Qwen2.5-7B-Instruct (local inference, 4-bit NF4) with strict fact-list grounding and abstention mechanism.
-   - Key Results: 220 held-out questions: Exact-set match 45.5% (vs Text-RAG 22.7%, Closed-Book LLM 12.7%), Entity F1: 63.8%, Correct abstention rate on 24 unanswerable questions: 100% (24/24), Precision: 52.2%. On 61 unseen-triple subset: CurricuRAG achieved 37.7% exact-set match evaluating structural generalization (vs baselines achieving ~3%–5%).
+   - Key Results: 220 held-out questions: Exact-set match 45.5% (vs Text-RAG 22.7%, Closed-Book LLM 12.7%), Entity F1: 63.8%, Correct abstention rate on 24 unanswerable questions: 100% (24/24), Precision: 52.2%. On 61 unseen-triple subset: achieved 37.7% exact-set match evaluating structural generalization (vs baselines achieving ~3%–5%).
 
 2. "AI-Enabled Smart Classroom Monitoring and Safety Automation"
    - Institution: BUBT CSE | Supervisor: Sadah Anjum Shanto (Assistant Professor)
@@ -778,21 +917,19 @@ RESEARCH PAPERS:
    - Modes: Normal Mode & Lecture Mode.
    - Framing: Environmental monitoring and safety automation (never describe as "behavior monitoring").
 
-3. Upcoming Pipeline:
-   - EEG-based AI research paper targeted for 2026 completion. (Do not invent methodology or results until finalized).
+3. "EEG-Based Motor Imagery Classification" (Ongoing / Running 2026)
+   - Focus: Investigating deep learning architectures for assistive neuro-rehabilitation and paralysis motor control interfaces.
 
 STRICT RESEARCH & ACADEMIC STYLE GUIDELINES:
-- CurricuRAG and Smart Classroom are strictly separate research projects. Never merge their architectures, datasets, or results.
+- Preserve official title: "Relation-Aware Graph Retrieval over a Curriculum Knowledge Graph for Prerequisite QA".
 - Never fabricate datasets, experimental results, citations, publication status, authors, affiliations, or hardware specs.
 - Preserve exact reported numbers at all times.
-- Explain concept first, then explain how it is used in Swapnil's system.
-- Maintain IEEE-style academic conventions when requested. Avoid unsupported buzzwords like "revolutionary" or "state-of-the-art" unless backed by evidence.
 
 ==============================
 CONNECTED SOCIAL MEDIA ACCOUNTS & ONLINE BRAND
 ==============================
 Swapnil has connected his official social profiles directly to your memory core:
-- LinkedIn: https://www.linkedin.com/in/mr-swapnil/ (Product Designer & Builder | Turning Real-World Problems into Digital Products)
+- LinkedIn: https://www.linkedin.com/in/mr-swapnil/ (Product Designer & Builder | AI, Frontend & Automation)
 - X / Twitter: https://x.com/thomascryptoxx (@thomascryptoxx - Web3 & AI Build-in-Public)
 - GitHub: https://github.com/Swapnil-360 (Swapnil-360 - 10 active repos: personal-ai-assistant, stark-os-portfolio, OpusGenAi, Edu51Portal, MuteBD)
 - Facebook: https://www.facebook.com/mr.swapnil360/ (BUBT CSE Community)
@@ -1451,25 +1588,38 @@ const activePostDrafts = new Map();
 async function processCallbackQuery(callbackQuery) {
     const id = callbackQuery.id;
     const userId = callbackQuery.from.id;
-    const chatId = callbackQuery.message.chat.id;
-    const messageId = callbackQuery.message.message_id;
-    const data = callbackQuery.data;
+    const fromUsername = (callbackQuery.from.username || '').toLowerCase();
+    const chatId = callbackQuery.message ? callbackQuery.message.chat.id : null;
+    const messageId = callbackQuery.message ? callbackQuery.message.message_id : null;
+    const data = callbackQuery.data || '';
 
-    if (userId !== SWAPNIL_USER_ID) {
-        await answerCallbackQuery(id, "Access restricted.");
+    console.log(`[Telegram Button Click] Data: "${data}", User: ${userId} (@${fromUsername}) in Chat: ${chatId}`);
+
+    // Dual-mode Commander identification
+    const isCommander = (Number(userId) === Number(SWAPNIL_USER_ID)) || 
+                        (fromUsername && fromUsername === SWAPNIL_USERNAME.toLowerCase()) || 
+                        (Number(chatId) === Number(SWAPNIL_USER_ID));
+
+    // Access control: only sensitive actions (publishing & git repo modifications) require Commander authority
+    const isSensitiveAction = data.startsWith('approve_') || data.startsWith('portfolio_cmd:');
+    if (isSensitiveAction && !isCommander) {
+        await answerCallbackQuery(id, "Access restricted to Commander Swapnil.");
         return;
     }
 
-    console.log(`[Telegram Button Click] Data: "${data}"`);
+    try {
+        // 1. Handle LinkedIn Post Approval
+        if (data.startsWith('approve_linkedin_')) {
+            const draftId = data.replace('approve_linkedin_', '');
+            let draft = activePostDrafts.get(draftId);
 
-    // Handle LinkedIn Post Approval
-    if (data.startsWith('approve_linkedin_')) {
-        const draftId = data.replace('approve_linkedin_', '');
-        const draft = activePostDrafts.get(draftId);
+            await answerCallbackQuery(id, "Publishing to LinkedIn...");
 
-        await answerCallbackQuery(id, "Publishing to LinkedIn...");
+            if (!draft) {
+                // Draft expired from memory - regenerate
+                draft = generateLinkedInDraft('Edu51Portal');
+            }
 
-        if (draft) {
             const pubResult = await publishToLinkedIn(draft.content);
             let updatedText = (callbackQuery.message.text || '') + "\n\n━━━━━━━━━━━━━━━━━━━━\n";
             if (pubResult.has_direct_api && pubResult.success) {
@@ -1478,407 +1628,478 @@ async function processCallbackQuery(callbackQuery) {
                 updatedText += `✅ *STATUS: APPROVED & HUMANIZED*\n_${pubResult.message}_\n\n🔗 [Open Pre-filled Post on LinkedIn](${pubResult.share_url})\n\n💡 _Tip: Add LINKEDIN_ACCESS_TOKEN in .env to publish autonomously directly from Telegram!_`;
             }
             await editTelegramMessage(chatId, messageId, updatedText);
+            return;
         }
-        return;
-    }
 
-    // Handle LinkedIn Post Regeneration
-    if (data.startsWith('regen_linkedin_')) {
-        const draftId = data.replace('regen_linkedin_', '');
-        const prevDraft = activePostDrafts.get(draftId);
-        const topic = prevDraft ? prevDraft.topic : 'Software Architecture';
+        // 2. Handle LinkedIn Post Regeneration
+        if (data.startsWith('regen_linkedin_')) {
+            const draftId = data.replace('regen_linkedin_', '');
+            const prevDraft = activePostDrafts.get(draftId);
+            const topic = prevDraft ? prevDraft.topic : 'Software Architecture';
 
-        await answerCallbackQuery(id, "🔄 Generating fresh angle...");
+            await answerCallbackQuery(id, "🔄 Generating fresh angle...");
 
-        const newDraft = generateLinkedInDraft(topic + ' alternative take');
-        const newDraftId = 'post_' + Date.now();
-        activePostDrafts.set(newDraftId, newDraft);
-
-        const replyMarkup = {
-            inline_keyboard: [
-                [
-                    { text: "✅ Approve & Post", callback_data: `approve_linkedin_${newDraftId}` },
-                    { text: "🔄 Regenerate", callback_data: `regen_linkedin_${newDraftId}` }
-                ]
-            ]
-        };
-
-        const postMessage = `📝 *Fresh LinkedIn Draft (Humanized):* *${newDraft.title}*\n\n${newDraft.content}`;
-        await sendTelegramMessage(chatId, postMessage, null, replyMarkup);
-        return;
-    }
-
-    // Handle Twitter Post / Thread Approval
-    if (data.startsWith('approve_twitter_')) {
-        const draftId = data.replace('approve_twitter_', '');
-        const draft = activePostDrafts.get(draftId);
-
-        await answerCallbackQuery(id, "Preparing 1-Click Post...");
-
-        if (draft) {
-            const rawTweet = draft.tweet || (Array.isArray(draft.tweets) ? draft.tweets[0] : (draft.content || ''));
-            const fittedTweet = fitTweetForFreeTier(rawTweet);
-            const intentUrl = createTwitterIntentUrl(fittedTweet);
-            const charCount = fittedTweet.length;
+            const newDraft = generateLinkedInDraft(topic + ' alternative take');
+            const newDraftId = 'post_' + Date.now();
+            activePostDrafts.set(newDraftId, newDraft);
 
             const replyMarkup = {
                 inline_keyboard: [
                     [
-                        { text: "🚀 1-Click Post on X", url: intentUrl }
+                        { text: "✅ Approve & Post", callback_data: `approve_linkedin_${newDraftId}` },
+                        { text: "🔄 Regenerate", callback_data: `regen_linkedin_${newDraftId}` }
                     ]
                 ]
             };
 
-            let updatedText = (callbackQuery.message.text || '') + "\n\n━━━━━━━━━━━━━━━━━━━━\n";
-            updatedText += `✅ *STATUS: APPROVED & READY FOR 1-CLICK POST*\n\n📊 *Length:* ${charCount}/280 chars *(Free Tier Safe ✅)*\n\nTap the button below to open X with this post pre-filled:`;
-            await editTelegramMessage(chatId, messageId, updatedText, replyMarkup);
+            const postMessage = `📝 *Fresh LinkedIn Draft (Humanized):* *${newDraft.title}*\n\n${newDraft.content}`;
+            await sendTelegramMessage(chatId, postMessage, null, replyMarkup);
+            return;
         }
-        return;
-    }
 
-    // Handle Twitter Post Regeneration
-    if (data.startsWith('regen_twitter_')) {
-        const draftId = data.replace('regen_twitter_', '');
-        const prevDraft = activePostDrafts.get(draftId);
-        const topic = prevDraft ? prevDraft.topic : 'Mikasa';
+        // 3. Handle Twitter / X Post Approval
+        if (data.startsWith('approve_twitter_')) {
+            const draftId = data.replace('approve_twitter_', '');
+            let draft = activePostDrafts.get(draftId);
 
-        await answerCallbackQuery(id, "🔄 Generating fresh angle...");
+            await answerCallbackQuery(id, "Publishing to X / Twitter...");
 
-        let nextTopic = topic;
-        if (topic.includes('Mikasa')) nextTopic = 'Edu51Portal';
-        else if (topic.includes('Edu51Portal')) nextTopic = 'OpusGenAI';
-        else if (topic.includes('OpusGenAI')) nextTopic = 'Stark-OS Portfolio';
-        else nextTopic = 'Mikasa AI Companion';
+            if (!draft) {
+                draft = generateSingleTweet('Edu51Portal');
+            }
 
-        const newDraft = generateSingleTweet(nextTopic);
-        const fittedTweet = fitTweetForFreeTier(newDraft.tweet);
-        const charCount = fittedTweet.length;
-        const intentUrl = createTwitterIntentUrl(fittedTweet);
+            const tweetText = draft.tweet || (Array.isArray(draft.tweets) ? draft.tweets[0] : draft.content);
+            const safeTweet = fitTweetForFreeTier(tweetText);
+            const pubResult = await publishToTwitter(safeTweet);
 
-        const newDraftId = 'tweet_' + Date.now();
-        activePostDrafts.set(newDraftId, { tweet: fittedTweet, topic: nextTopic, intentUrl });
-
-        const replyMarkup = {
-            inline_keyboard: [
-                [
-                    { text: "🚀 1-Click Post on X", url: intentUrl }
-                ],
-                [
-                    { text: "🔄 Regenerate Angle", callback_data: `regen_twitter_${newDraftId}` }
-                ]
-            ]
-        };
-
-        const postMessage = [
-            `🐦 *Fresh X / Twitter Post Draft:* *${newDraft.title}*`,
-            "",
-            fittedTweet,
-            "",
-            "━━━━━━━━━━━━━━━━━━━━",
-            `📊 *Length:* ${charCount} / 280 characters *(Free Tier Safe ✅)*`,
-            `⚡ *1-Click Post:* Tap below to open X with this post pre-filled!`
-        ].join('\n');
-
-        await sendTelegramMessage(chatId, postMessage, null, replyMarkup);
-        return;
-    }
-
-    // Handle Facebook Post Approval
-    if (data.startsWith('approve_fb_')) {
-        const draftId = data.replace('approve_fb_', '');
-        const draft = activePostDrafts.get(draftId);
-
-        await answerCallbackQuery(id, "Publishing to Facebook...");
-
-        if (draft) {
-            const pubResult = await publishToFacebook(draft.content);
             let updatedText = (callbackQuery.message.text || '') + "\n\n━━━━━━━━━━━━━━━━━━━━\n";
             if (pubResult.has_direct_api && pubResult.success) {
-                updatedText += "🚀 *STATUS: PUBLISHED LIVE ON FACEBOOK!*\n_Your update is now live on your Facebook profile._";
+                updatedText += `🚀 *STATUS: PUBLISHED LIVE ON X!*\n[View Live Tweet](${pubResult.tweet_url || 'https://x.com/thomascryptoxx'})`;
             } else {
-                updatedText += `✅ *STATUS: APPROVED & HUMANIZED*\n_${pubResult.message}_\n\n🔗 [1-Click Share to Facebook](${pubResult.share_url})\n\n💡 _Tip: Add FACEBOOK_ACCESS_TOKEN in .env for hands-free autonomous posting!_`;
+                const intentUrl = createTwitterIntentUrl(safeTweet);
+                updatedText += `✅ *STATUS: THREAD PREPARED & HUMANIZED*\n_${pubResult.message}_\n\n🔗 [1-Click Post on X](${intentUrl})`;
             }
             await editTelegramMessage(chatId, messageId, updatedText);
+            return;
         }
-        return;
-    }
 
-    // Handle Quick Draft LinkedIn Post from Audit Card
-    if (data === 'draft_linkedin_quick') {
-        await answerCallbackQuery(id, "📝 Drafting LinkedIn post...");
-        const draft = generateLinkedInDraft('Edu51Portal');
-        const draftId = 'post_' + Date.now();
-        activePostDrafts.set(draftId, draft);
+        // 4. Handle Twitter / X Thread Regeneration
+        if (data.startsWith('regen_twitter_')) {
+            const draftId = data.replace('regen_twitter_', '');
+            const prevDraft = activePostDrafts.get(draftId);
+            const topic = prevDraft ? prevDraft.topic : 'Mikasa';
 
-        const replyMarkup = {
-            inline_keyboard: [
-                [
-                    { text: "✅ Approve & Post", callback_data: `approve_linkedin_${draftId}` },
-                    { text: "🔄 Regenerate", callback_data: `regen_linkedin_${draftId}` }
+            await answerCallbackQuery(id, "🔄 Generating fresh angle for X...");
+
+            const newDraft = generateSingleTweet(topic + ' engineering insights');
+            const newDraftId = 'tweet_' + Date.now();
+            activePostDrafts.set(newDraftId, newDraft);
+
+            const tweetContent = newDraft.tweet || (Array.isArray(newDraft.tweets) ? newDraft.tweets.join('\n\n') : newDraft.title);
+            const safePreview = fitTweetForFreeTier(tweetContent);
+
+            const replyMarkup = {
+                inline_keyboard: [
+                    [
+                        { text: "✅ 1-Click Post to X", callback_data: `approve_twitter_${newDraftId}` },
+                        { text: "🔄 Regenerate", callback_data: `regen_twitter_${newDraftId}` }
+                    ]
                 ]
-            ]
-        };
-        const postMsg = `💼 *LinkedIn Post Suggestion:* *${draft.title}*\n\n${draft.content}\n\n_Click Approve below if you like it, or Regenerate for another angle._`;
-        await sendTelegramMessage(chatId, postMsg, null, replyMarkup);
-        return;
-    }
+            };
 
-    // Handle Quick Draft Twitter from Audit Card
-    if (data === 'draft_twitter_quick') {
-        await answerCallbackQuery(id, "🐦 Drafting 1-click post for X...");
-        const draft = generateSingleTweet('Edu51Portal');
-        const fittedTweet = fitTweetForFreeTier(draft.tweet);
-        const charCount = fittedTweet.length;
-        const intentUrl = createTwitterIntentUrl(fittedTweet);
-        const draftId = 'tweet_' + Date.now();
-        activePostDrafts.set(draftId, { tweet: fittedTweet, topic: 'Edu51Portal', intentUrl });
+            const postMessage = `🐦 *Fresh Post for X (Strictly <= 270 chars):*\n\n${safePreview}`;
+            await sendTelegramMessage(chatId, postMessage, null, replyMarkup);
+            return;
+        }
 
-        const replyMarkup = {
-            inline_keyboard: [
-                [
-                    { text: "🚀 1-Click Post on X", url: intentUrl }
-                ],
-                [
-                    { text: "🔄 Regenerate Angle", callback_data: `regen_twitter_${draftId}` }
+        // 5. Handle Facebook Post Approval
+        if (data.startsWith('approve_fb_')) {
+            const draftId = data.replace('approve_fb_', '');
+            const draft = activePostDrafts.get(draftId);
+
+            await answerCallbackQuery(id, "Preparing Facebook Post...");
+
+            if (draft) {
+                const pubResult = await publishToFacebook(draft.content);
+                let updatedText = (callbackQuery.message.text || '') + "\n\n━━━━━━━━━━━━━━━━━━━━\n";
+                updatedText += `✅ *STATUS: FB POST READY*\n_${pubResult.message}_\n\n🔗 [Open Facebook to Post](${pubResult.share_url})`;
+                await editTelegramMessage(chatId, messageId, updatedText);
+            }
+            return;
+        }
+
+        // 6. Quick Content Triggers
+        if (data === 'draft_linkedin_quick') {
+            await answerCallbackQuery(id, "📝 Drafting LinkedIn post...");
+            const draft = generateLinkedInDraft('Edu51Portal');
+            const draftId = 'post_' + Date.now();
+            activePostDrafts.set(draftId, draft);
+
+            const replyMarkup = {
+                inline_keyboard: [
+                    [
+                        { text: "✅ Approve & Post", callback_data: `approve_linkedin_${draftId}` },
+                        { text: "🔄 Regenerate", callback_data: `regen_linkedin_${draftId}` }
+                    ]
                 ]
-            ]
-        };
+            };
+            const postMessage = `💼 *LinkedIn Draft Ready:* *${draft.title}*\n\n${draft.content}`;
+            await sendTelegramMessage(chatId, postMessage, null, replyMarkup);
+            return;
+        }
 
-        const postMsg = [
-            `🐦 *X / Twitter Post Suggestion:* *${draft.title}*`,
-            "",
-            fittedTweet,
-            "",
-            "━━━━━━━━━━━━━━━━━━━━",
-            `📊 *Length:* ${charCount} / 280 characters *(Free Tier Safe ✅)*`,
-            `⚡ *1-Click Post:* Tap the button below to open X with this post pre-filled!`
-        ].join('\n');
+        if (data === 'draft_twitter_quick') {
+            await answerCallbackQuery(id, "🐦 Drafting 1-click post for X...");
+            const draft = generateSingleTweet('Edu51Portal');
+            const draftId = 'tweet_' + Date.now();
+            activePostDrafts.set(draftId, draft);
 
-        await sendTelegramMessage(chatId, postMsg, null, replyMarkup);
-        return;
-    }
+            const safeTweet = fitTweetForFreeTier(draft.tweet);
+            const replyMarkup = {
+                inline_keyboard: [
+                    [
+                        { text: "✅ 1-Click Post to X", callback_data: `approve_twitter_${draftId}` },
+                        { text: "🔄 Regenerate", callback_data: `regen_twitter_${draftId}` }
+                    ]
+                ]
+            };
+            const postMessage = `🐦 *1-Click Post for X (Strictly <= 270 chars):*\n\n${safeTweet}`;
+            await sendTelegramMessage(chatId, postMessage, null, replyMarkup);
+            return;
+        }
 
-    // Handle Show GitHub Radar
-    if (data === 'show_github_radar') {
-        await answerCallbackQuery(id, "🐙 Querying GitHub...");
-        try {
-            const repos = await fetchGitHubRepos('Swapnil-360');
-            let ghMsg = "🐙 *Swapnil's GitHub Radar (`Swapnil-360`)*\n\n";
-            ghMsg += `*Found ${repos.length} active repositories (including our new personal-ai-assistant!):*\n\n`;
-
-            repos.slice(0, 6).forEach((r, idx) => {
-                const langBadge = r.language ? `[${r.language}]` : '';
-                const starBadge = r.stars > 0 ? `⭐ ${r.stars}` : '';
-                const privBadge = r.private ? '🔒 Private' : '🌐 Public';
-                ghMsg += `${idx + 1}. *${r.name}* ${langBadge} ${starBadge} (${privBadge})\n`;
-                if (r.description && r.description !== 'Core engineering build') {
-                    ghMsg += `   _${r.description}_\n`;
+        // 7. GitHub Radar
+        if (data === 'show_github_radar') {
+            await answerCallbackQuery(id, "🐙 Querying GitHub...");
+            try {
+                const repos = await fetchGitHubRepos('Swapnil-360');
+                if (repos && repos.length > 0) {
+                    let msg = `🐙 *GitHub Repositories for Swapnil-360 (${repos.length}):*\n\n`;
+                    repos.slice(0, 6).forEach((r, idx) => {
+                        msg += `${idx + 1}. *[${r.name}](${r.html_url})*\n`;
+                        if (r.description) msg += `   _${r.description}_\n`;
+                        msg += `   ⭐ ${r.stargazers_count} | 🔀 ${r.forks_count} | 💻 ${r.language || 'Code'}\n\n`;
+                    });
+                    await sendTelegramMessage(chatId, msg);
+                } else {
+                    await sendTelegramMessage(chatId, "⚠️ Could not retrieve repositories at this moment.");
                 }
-                ghMsg += `   🔗 [Repo Link](${r.url})\n\n`;
-            });
-
-            ghMsg += "_Want me to draft a post or tailor your CV for any of these, Swapnil?_";
-            await sendTelegramMessage(chatId, ghMsg);
-        } catch (err) {
-            await sendTelegramMessage(chatId, `⚠️ Error querying GitHub: ${err.message}`);
+            } catch (err) {
+                await sendTelegramMessage(chatId, `⚠️ GitHub fetch error: ${err.message}`);
+            }
+            return;
         }
-        return;
-    }
 
-    // Handle Interactive Job Query Callbacks (Real-Life Assistant Flow)
-    if (data.startsWith('job_query:')) {
-        const queryType = data.split(':')[1];
-        await sendChatAction(chatId, 'typing');
+        // 8. Tailored CV Generation Callback
+        if (data === 'draft_cv_nextjs' || data.startsWith('draft_cv_')) {
+            await answerCallbackQuery(id, "📄 Generating tailored CV bullets...");
+            await sendChatAction(chatId, 'typing');
 
-        if (queryType === 'clarify') {
-            await answerCallbackQuery(id, "💼 Job preferences");
-            const msgText = [
-                "💼 *Tell me your preferences, Swapnil:*",
+            const role = data.includes('nextjs') ? 'Frontend Developer (Next.js & TypeScript)' : 'Software Engineer & Product Builder';
+            const cv = tailorCvForJob(role);
+            const bullets = cv.recommended_bullets || [];
+            const projects = (cv.matched_projects || []).map(p => '• `' + p + '`').join('\n');
+
+            const reply = [
+                "📄 *Tailored CV Highlights for You, Swapnil*",
+                `🎯 *Target Role:* _${role}_`,
                 "",
-                "• 🌍 *Work Mode:* Remote, On-site, or Hybrid?",
-                "• 📍 *Scope:* Local (Dhaka / Bangladesh) or Global (Worldwide / US)?",
-                "• ⏱️ *Recency:* Past 24 hours, Past week, or All active?",
-                "• 🎯 *Role Focus:* Product Designer & UI/UX, Frontend (Next.js/React), AI & Automation, or Product Builder?",
+                "✨ *Application Strategy:*",
+                `_${cv.strategy}_`,
                 "",
-                "_Or pick a quick filter:_"
+                "⚡ *Featured Real-World Project Bullets:*",
+                ...bullets,
+                "",
+                "🛠️ *Featured Builds to Highlight:*",
+                projects,
+                "",
+                "_Use these bullet points directly on your resume or LinkedIn experience section!_"
             ].join('\n');
 
             const replyMarkup = {
                 inline_keyboard: [
                     [
-                        { text: "🌍 Remote Global (Past 24h)", callback_data: "job_query:remote_24h" },
-                        { text: "🌍 Remote Global (Past Week)", callback_data: "job_query:remote_week" }
-                    ],
-                    [
-                        { text: "📍 Dhaka / BD (Recent)", callback_data: "job_query:local_recent" },
-                        { text: "🎯 Based on My Profile", callback_data: "job_query:profile_recent" }
-                    ],
-                    [
-                        { text: "🎨 Product Design & UI/UX", callback_data: "job_query:design_recent" },
-                        { text: "💻 Frontend (Next.js / React)", callback_data: "job_query:frontend_recent" }
-                    ],
-                    [
-                        { text: "🤖 AI & Automation (n8n)", callback_data: "job_query:ai_recent" },
-                        { text: "🚀 Product Builder", callback_data: "job_query:builder_recent" }
+                        { text: "💼 Search Related Jobs", callback_data: "job_query:frontend_recent" },
+                        { text: "🌐 Open Portfolio", url: "https://www.mrswapnil.me/" }
                     ]
                 ]
             };
-            await sendTelegramMessage(chatId, msgText, null, replyMarkup);
+
+            await sendTelegramMessage(chatId, reply, null, replyMarkup);
             return;
         }
 
-        await answerCallbackQuery(id, "🔍 Fetching fresh LinkedIn jobs...");
-        let searchOpts = {
-            keywords: 'Product Designer Frontend Next.js',
-            location: 'United States',
-            isRemote: true,
-            timeFilter: 'week',
-            limit: 5
-        };
+        // 9. Interactive Job Query Callbacks
+        if (data.startsWith('job_query:')) {
+            const queryType = data.split(':')[1];
+            await sendChatAction(chatId, 'typing');
 
-        if (queryType === 'remote_24h') {
-            searchOpts = { keywords: 'Product Designer Frontend Next.js', location: 'United States', isRemote: true, timeFilter: '24h', limit: 5 };
-        } else if (queryType === 'remote_week') {
-            searchOpts = { keywords: 'Product Designer Frontend Next.js', location: 'United States', isRemote: true, timeFilter: 'week', limit: 5 };
-        } else if (queryType === 'local_recent') {
-            searchOpts = { keywords: 'Product Designer Frontend React', location: 'Bangladesh', isRemote: false, timeFilter: 'week', limit: 5 };
-        } else if (queryType === 'profile_recent') {
-            searchOpts = { keywords: 'Product Designer Frontend Next.js', location: 'United States', isRemote: true, timeFilter: 'week', limit: 5 };
-        } else if (queryType === 'design_recent') {
-            searchOpts = { keywords: 'Product Designer UI UX Web', location: 'United States', isRemote: true, timeFilter: 'week', limit: 5 };
-        } else if (queryType === 'frontend_recent') {
-            searchOpts = { keywords: 'Frontend Developer React Next.js TypeScript', location: 'United States', isRemote: true, timeFilter: 'week', limit: 5 };
-        } else if (queryType === 'builder_recent') {
-            searchOpts = { keywords: 'Product Builder Next.js TypeScript', location: 'United States', isRemote: true, timeFilter: 'week', limit: 5 };
-        } else if (queryType === 'ai_recent') {
-            searchOpts = { keywords: 'AI Product Engineer Automation Python', location: 'United States', isRemote: true, timeFilter: 'week', limit: 5 };
-        }
+            if (queryType === 'clarify') {
+                await answerCallbackQuery(id, "💼 Job preferences");
+                const msgText = [
+                    "💼 *Tell me your preferences, Swapnil:*",
+                    "",
+                    "• 🌐 *Work Mode:* Remote, On-site, or Hybrid?",
+                    "• 📍 *Scope:* Local (Dhaka / Bangladesh) or Global (Worldwide / US)?",
+                    "• ⏱️ *Recency:* Past 24 hours, Past week, or All active?",
+                    "• 🎯 *Role Focus:* Product Designer & UI/UX, Frontend (Next.js/React), AI & Automation, or Product Builder?",
+                    "",
+                    "_Or pick a quick filter:_"
+                ].join('\n');
 
-        let jobs = await fetchLiveLinkedInJobs(searchOpts);
-        if (jobs.length === 0 && searchOpts.timeFilter === '24h') {
-            searchOpts.timeFilter = 'week';
-            jobs = await fetchLiveLinkedInJobs(searchOpts);
-        }
+                const replyMarkup = {
+                    inline_keyboard: [
+                        [
+                            { text: "🌍 Remote Global (Past 24h)", callback_data: "job_query:remote_24h" },
+                            { text: "🌍 Remote Global (Past Week)", callback_data: "job_query:remote_week" }
+                        ],
+                        [
+                            { text: "📍 Dhaka / BD (Recent)", callback_data: "job_query:local_recent" },
+                            { text: "🎯 Based on My Profile", callback_data: "job_query:profile_recent" }
+                        ],
+                        [
+                            { text: "🎨 Product Design & UI/UX", callback_data: "job_query:design_recent" },
+                            { text: "💻 Frontend (Next.js / React)", callback_data: "job_query:frontend_recent" }
+                        ],
+                        [
+                            { text: "🤖 AI & Automation (n8n)", callback_data: "job_query:ai_recent" },
+                            { text: "🚀 Product Builder", callback_data: "job_query:builder_recent" }
+                        ]
+                    ]
+                };
+                await sendTelegramMessage(chatId, msgText, null, replyMarkup);
+                return;
+            }
 
-        const recencyText = searchOpts.timeFilter === '24h' ? 'Past 24 Hours' : 'Past Week';
-        const modeText = searchOpts.isRemote ? 'Remote (Global)' : (searchOpts.location || 'Local');
+            await answerCallbackQuery(id, "🔍 Fetching fresh LinkedIn jobs...");
+            let searchOpts = {
+                keywords: 'Product Designer Frontend Next.js',
+                location: 'United States',
+                isRemote: true,
+                timeFilter: 'week',
+                limit: 5
+            };
 
-        let jobCards = [];
-        if (jobs && jobs.length > 0) {
-            jobs.forEach((j, idx) => {
-                jobCards.push(
-                    `${idx + 1}. *${j.title}*\n` +
-                    `   🏢 *${j.company}* • 📍 _${j.location}_\n` +
-                    `   ⏱️ _Posted: ${j.posted}_\n` +
-                    `   👉 [Apply on LinkedIn](${j.url})\n`
-                );
-            });
-        } else {
-            jobCards.push("ℹ️ _No recent postings found right now for this filter. Try another option below:_");
-        }
+            if (queryType === 'remote_24h') {
+                searchOpts = { keywords: 'Product Designer Frontend Next.js', location: 'United States', isRemote: true, timeFilter: '24h', limit: 5 };
+            } else if (queryType === 'remote_week') {
+                searchOpts = { keywords: 'Product Designer Frontend Next.js', location: 'United States', isRemote: true, timeFilter: 'week', limit: 5 };
+            } else if (queryType === 'local_recent') {
+                searchOpts = { keywords: 'Product Designer Frontend React', location: 'Bangladesh', isRemote: false, timeFilter: 'week', limit: 5 };
+            } else if (queryType === 'profile_recent') {
+                searchOpts = { keywords: 'Product Designer Frontend Next.js', location: 'United States', isRemote: true, timeFilter: 'week', limit: 5 };
+            } else if (queryType === 'design_recent') {
+                searchOpts = { keywords: 'Product Designer UI UX Web', location: 'United States', isRemote: true, timeFilter: 'week', limit: 5 };
+            } else if (queryType === 'frontend_recent') {
+                searchOpts = { keywords: 'Frontend Developer React Next.js TypeScript', location: 'United States', isRemote: true, timeFilter: 'week', limit: 5 };
+            } else if (queryType === 'builder_recent') {
+                searchOpts = { keywords: 'Product Builder Next.js TypeScript', location: 'United States', isRemote: true, timeFilter: 'week', limit: 5 };
+            } else if (queryType === 'ai_recent') {
+                searchOpts = { keywords: 'AI Product Engineer Automation Python', location: 'United States', isRemote: true, timeFilter: 'week', limit: 5 };
+            }
 
-        const reply = [
-            "💼 *Recent Live LinkedIn Openings for You, Swapnil*",
-            `🎯 *Focus:* _${searchOpts.keywords}_`,
-            `📍 *Filter:* _${modeText}_ • ⏱️ _${recencyText}_`,
-            "",
-            ...jobCards,
-            "━━━━━━━━━━━━━━━━━━━━",
-            "_Spot one you like? Tell me to tailor your CV for it or draft an outreach message!_"
-        ].join('\n');
+            let jobs = [];
+            try {
+                jobs = await fetchLiveLinkedInJobs(searchOpts);
+                if (jobs.length === 0 && searchOpts.timeFilter === '24h') {
+                    searchOpts.timeFilter = 'week';
+                    jobs = await fetchLiveLinkedInJobs(searchOpts);
+                }
+            } catch (jobErr) {
+                console.error('[Job Search Error]:', jobErr.message);
+            }
 
-        const replyMarkup = {
-            inline_keyboard: [
-                [
-                    { text: "📄 Tailor CV for Next.js", callback_data: "draft_cv_nextjs" },
-                    { text: "🔄 Refresh / More Jobs", callback_data: `job_query:${queryType}` }
-                ],
-                [
-                    { text: "⚙️ Change Filters", callback_data: "job_query:clarify" }
+            const recencyText = searchOpts.timeFilter === '24h' ? 'Past 24 Hours' : 'Past Week';
+            const modeText = searchOpts.isRemote ? 'Remote (Global)' : (searchOpts.location || 'Local');
+
+            let jobCards = [];
+            if (jobs && jobs.length > 0) {
+                jobs.forEach((j, idx) => {
+                    jobCards.push(
+                        `${idx + 1}. *${j.title}*\n` +
+                        `   🏢 *${j.company}* • 📍 _${j.location}_\n` +
+                        `   ⏱️ _Posted: ${j.posted}_\n` +
+                        `   🔗 [Apply on LinkedIn](${j.url})\n`
+                    );
+                });
+            } else {
+                jobCards.push("⚠️ _No recent postings found right now for this filter. Try another option below:_");
+            }
+
+            const reply = [
+                "💼 *Recent Live LinkedIn Openings for You, Swapnil*",
+                `🎯 *Focus:* _${searchOpts.keywords}_`,
+                `📍 *Filter:* _${modeText}_ • ⏱️ _${recencyText}_`,
+                "",
+                ...jobCards,
+                "────────────────────",
+                "_Spot one you like? Tell me to tailor your CV for it or draft an outreach message!_"
+            ].join('\n');
+
+            const replyMarkup = {
+                inline_keyboard: [
+                    [
+                        { text: "📄 Tailor CV for Next.js", callback_data: "draft_cv_nextjs" },
+                        { text: "🔄 Refresh / More Jobs", callback_data: `job_query:${queryType}` }
+                    ],
+                    [
+                        { text: "⚙️ Change Filters", callback_data: "job_query:clarify" }
+                    ]
                 ]
-            ]
-        };
+            };
 
-        await sendTelegramMessage(chatId, reply, null, replyMarkup);
-        return;
+            await sendTelegramMessage(chatId, reply, null, replyMarkup);
+            return;
+        }
+
+        // 9B. CV / Resume Direct Document Delivery Callbacks
+        if (data.startsWith('send_cv:')) {
+            const ver = data.replace('send_cv:', '');
+            if (ver === 'color') {
+                await answerCallbackQuery(id, "🎨 Dispatching Color Executive CV...");
+                await sendChatAction(chatId, 'upload_document');
+                await deliverCvDocument(chatId, 'color');
+            } else if (ver === 'bw') {
+                await answerCallbackQuery(id, "📄 Dispatching Black & White CV...");
+                await sendChatAction(chatId, 'upload_document');
+                await deliverCvDocument(chatId, 'bw');
+            } else if (ver === 'both') {
+                await answerCallbackQuery(id, "📦 Dispatching both CV editions...");
+                await sendChatAction(chatId, 'upload_document');
+                await deliverCvDocument(chatId, 'color');
+                await deliverCvDocument(chatId, 'bw');
+            }
+            return;
+        }
+
+        // 10. Portfolio Autonomous Operations Callbacks
+        if (data.startsWith('portfolio_cmd:')) {
+            const cmd = data.replace('portfolio_cmd:', '');
+            if (cmd === 'add_curricurag') {
+                await answerCallbackQuery(id, "Adding CurricuRAG & deploying...");
+                await sendChatAction(chatId, 'typing');
+                const res = await portfolioManager.addCurricuRAGToPortfolio(true);
+                const msg = res.success
+                    ? '🛡️ *CurricuRAG Added & Pushed to Live Portfolio!*\n\nCommit `' + res.commitHash + '` is deploying to [mrswapnil.me](https://www.mrswapnil.me/) via Vercel.'
+                    : `⚠️ Failed to update portfolio: ${res.error}`;
+                const btnMarkup = {
+                    inline_keyboard: [
+                        [{ text: "🌐 View Live Site (mrswapnil.me)", url: "https://www.mrswapnil.me/" }]
+                    ]
+                };
+                await sendTelegramMessage(chatId, msg, messageId, btnMarkup);
+            } else if (cmd === 'sync_identity') {
+                await answerCallbackQuery(id, "Syncing headline & deploying...");
+                await sendChatAction(chatId, 'typing');
+                const res = await portfolioManager.updatePortfolio({ syncIdentity: true, push: true });
+                const msg = res.success
+                    ? '🛡️ *Portfolio Headline Synchronized!*\n\nCommit `' + (res.commitHash || 'latest') + '` pushed to `origin main`. Live update is deploying to [mrswapnil.me](https://www.mrswapnil.me/).'
+                    : `⚠️ Sync failed: ${res.error}`;
+                const btnMarkup = {
+                    inline_keyboard: [
+                        [{ text: "🌐 View Live Site (mrswapnil.me)", url: "https://www.mrswapnil.me/" }]
+                    ]
+                };
+                await sendTelegramMessage(chatId, msg, messageId, btnMarkup);
+            }
+            return;
+        }
+
+        // 11. Research Paper Callbacks
+        if (data === 'research_curricurag') {
+            await answerCallbackQuery(id, "Loading CurricuRAG specs...");
+            const curricuLines = [
+                "🔬 *Research Paper 01: CurricuRAG*",
+                "─────────────────────────",
+                "📄 *Full Title:* _Relation-Aware Graph Retrieval over a Curriculum Knowledge Graph for Prerequisite Question Answering_",
+                "🏛️ *Affiliation:* Department of CSE, BUBT",
+                "👥 *Authors:* Md. Jahidul Kamal Islam, Md. Miftahur Rahman, Md. Asif Ali, Shrabani Das, Shefayatuj Johara Chowdhury",
+                "",
+                "🎯 *Conference & Publication Status:*",
+                "• *Venue:* 2026 IEEE OMLET (Nairobi, Kenya, 29–31 October 2026)",
+                "• *Paper ID:* `1017`",
+                "• *Status:* Accepted with Minor Revision ✅",
+                "• *Admin:* Fees settled, IEEE Electronic Publication Agreement signed by Shrabani Das on 10-09-2026",
+                "• *Indexing:* Scheduled for IEEE Xplore & Scopus",
+                "",
+                "🧠 *Knowledge Graph Specs (Neo4j Verified):*",
+                "• Total Nodes: *418* (305 concepts, 113 courses)",
+                "• Total Edges: *558* typed relation triples",
+                "• Auxiliary Triples: *95* to prevent data leakage",
+                "",
+                "⚙️ *Model Architecture:*",
+                "• *Retriever:* 2-layer Relational GCN (R-GCN) with 384-d Sentence-BERT node embeddings + DistMult decoder",
+                "• *Generator:* Qwen2.5-7B-Instruct (4-bit NF4 local inference)",
+                "• *LLM Overhead:* 0 query-time LLM calls for graph retrieval (no fine-tuning required)",
+                "",
+                "📊 *Experimental Benchmark Results:*",
+                "• Exact-Set Match: *45.5%* (vs Text-RAG: 22.7% | Closed-Book LLM: 12.7%)",
+                "• Unanswerable Question Abstention Rate: *100%* (24/24 correct abstentions)",
+                "• Entity F1: *63.8%* | Precision: *52.2%*",
+                "• Structural Generalization on Unseen Triples: *37.7%* (vs 3%-5% baselines)",
+                "",
+                "_Preserved permanently in Mikasa's research memory vault._ 🛡️⚔️"
+            ].join('\n');
+
+            const curricuMarkup = {
+                inline_keyboard: [
+                    [
+                        { text: "🚀 Push to Portfolio (mrswapnil.me)", callback_data: "portfolio_cmd:add_curricurag" }
+                    ]
+                ]
+            };
+
+            await sendTelegramMessage(chatId, curricuLines, null, curricuMarkup);
+            return;
+        }
+
+        if (data === 'research_smartclassroom') {
+            await answerCallbackQuery(id, "Loading Smart Classroom specs...");
+            const scLines = [
+                "🏫 *Research Paper 02: Smart Classroom*",
+                "─────────────────────────",
+                "📄 *Full Title:* _AI-Enabled Smart Classroom Monitoring and Safety Automation_",
+                "🏛️ *Institution:* Department of CSE, BUBT",
+                "👨‍🏫 *Supervisor:* Sadah Anjum Shanto (Assistant Professor, CSE, BUBT)",
+                "👥 *Authors:* Nishat Anjum Sara, Sheikh Shamia Hasan Nila, Md. Asif Ali, Md. Jahidul Kamal Islam, Md. Miftahur Rahman Swapnil",
+                "",
+                "🔌 *Hardware & Edge Architecture:*",
+                "• *Main Controller:* ESP32 DevKit",
+                "• *Visual Monitoring:* ESP32-CAM",
+                "• *Mobile App:* Expo-based Android application",
+                "• *Backend / Database:* Firebase Realtime Database",
+                "",
+                "📌 *GPIO Pin Configuration:*",
+                "• `GPIO 4`: DHT11 (Temperature & Humidity)",
+                "• `GPIO 5`: Sound Sensor (Digital Output)",
+                "• `GPIO 13`: PIR Motion Sensor",
+                "• `GPIO 12 / 14`: HC-SR04 Ultrasonic (Trigger: 12, Echo: 14)",
+                "• `GPIO 15`: Servo Motor (Open: 110°, Closed: 0°)",
+                "• `GPIO 18 / 19`: Emergency Buzzer (18) & Alert Buzzer (19)",
+                "• `GPIO 21, 22, 23`: Status LEDs",
+                "• `GPIO 27`: Touch Sensor (Capacitive)",
+                "• `GPIO 34`: LDR Light Sensor (Analog)",
+                "",
+                "🔄 *Operating Modes:* Normal Mode & Lecture Mode",
+                "🛡️ *Academic Framing:* Environmental monitoring & safety automation (not behavior monitoring)",
+                "",
+                "_Preserved in Mikasa's research memory vault._ 🛡️"
+            ].join('\n');
+            await sendTelegramMessage(chatId, scLines);
+            return;
+        }
+
+        await answerCallbackQuery(id, "Action processed.");
+
+    } catch (cbErr) {
+        console.error('[processCallbackQuery Error]:', cbErr);
+        try {
+            await answerCallbackQuery(id, "⚠️ Error processing action");
+        } catch (_) {}
+        if (chatId) {
+            await sendTelegramMessage(chatId, `⚠️ *Button interaction error:*\n_${cbErr.message}_\n\n_Please try again or send a direct text command!_`);
+        }
     }
-
-    // Handle Research Paper Callbacks
-    if (data === 'research_curricurag') {
-        await answerCallbackQuery(id, "Loading CurricuRAG specs...");
-        const curricuLines = [
-            "📚 *Research Paper 01: CurricuRAG*",
-            "━━━━━━━━━━━━━━━━━━━━━━━━━",
-            "📄 *Full Title:* _Relation-Aware Graph Retrieval over a Curriculum Knowledge Graph for Prerequisite Question Answering_",
-            "🏛️ *Affiliation:* Department of CSE, BUBT",
-            "👥 *Authors:* Md. Jahidul Kamal Islam, Md. Miftahur Rahman, Md. Asif Ali, Shrabani Das, Shefayatuj Johara Chowdhury",
-            "",
-            "🎯 *Conference & Publication Status:*",
-            "• *Venue:* 2026 IEEE OMLET (Nairobi, Kenya, 29–31 October 2026)",
-            "• *Paper ID:* `1017`",
-            "• *Status:* Accepted with Minor Revision ✅",
-            "• *Admin:* Fees settled, IEEE Electronic Publication Agreement signed by Shrabani Das on 10-09-2026",
-            "• *Indexing:* Scheduled for IEEE Xplore & Scopus",
-            "",
-            "🧠 *Knowledge Graph Specs (Neo4j Verified):*",
-            "• Total Nodes: *418* (305 concepts, 113 courses)",
-            "• Typed Edges: *558* (`PREREQUISITE_OF`, `PART_OF`, `TAUGHT_IN`, `REQUIRES`)",
-            "• Auxiliary Training Triples: *95* (anti-data-leakage split)",
-            "",
-            "⚙️ *Retrieval & Generation Architecture:*",
-            "• *Graph Encoder:* 2-layer R-GCN (384-dimensional Sentence-BERT embeddings)",
-            "• *Decoder:* DistMult with relation-specific parameters W_r",
-            "• *Efficiency:* Zero LLM calls at query time, zero LLM fine-tuning needed",
-            "• *Generator:* Qwen2.5-7B-Instruct (local 4-bit NF4 inference) with strict fact-list grounding and abstention mechanism",
-            "",
-            "📊 *Key Experimental Results (220 held-out questions):*",
-            "• *Exact-Set Match:* *45.5%* (vs Text-RAG 22.7%, Closed-Book LLM 12.7%)",
-            "• *Entity F1:* *63.8%* | *Precision:* *52.2%*",
-            "• *Abstention Accuracy:* *100%* (24/24 unanswerable questions correctly abstained)",
-            "• *Structural Generalization (61 unseen triples):* *37.7%* (vs baselines 3%–5%)",
-            "",
-            "_Preserved permanently in Mikasa's research memory vault._ 🧣⚔️"
-        ].join('\n');
-        await sendTelegramMessage(chatId, curricuLines);
-        return;
-    }
-
-    if (data === 'research_smartclassroom') {
-        await answerCallbackQuery(id, "Loading Smart Classroom specs...");
-        const scLines = [
-            "🏫 *Research Paper 02: Smart Classroom*",
-            "━━━━━━━━━━━━━━━━━━━━━━━━━",
-            "📄 *Full Title:* _AI-Enabled Smart Classroom Monitoring and Safety Automation_",
-            "🏛️ *Institution:* Department of CSE, BUBT",
-            "👨‍🏫 *Supervisor:* Sadah Anjum Shanto (Assistant Professor, CSE, BUBT)",
-            "👥 *Authors:* Nishat Anjum Sara, Sheikh Shamia Hasan Nila, Md. Asif Ali, Md. Jahidul Kamal Islam, Md. Miftahur Rahman Swapnil",
-            "",
-            "🛠️ *Hardware & Edge Architecture:*",
-            "• *Main Controller:* ESP32 DevKit",
-            "• *Visual Monitoring:* ESP32-CAM",
-            "• *Mobile App:* Expo-based Android application",
-            "• *Backend / Database:* Firebase Realtime Database",
-            "",
-            "🔌 *GPIO Pin Configuration:*",
-            "• `GPIO 4`: DHT11 (Temperature & Humidity)",
-            "• `GPIO 5`: Sound Sensor (Digital Output)",
-            "• `GPIO 13`: PIR Motion Sensor",
-            "• `GPIO 12 / 14`: HC-SR04 Ultrasonic (Trigger: 12, Echo: 14)",
-            "• `GPIO 15`: Servo Motor (Open: 110°, Closed: 0°)",
-            "• `GPIO 18 / 19`: Emergency Buzzer (18) & Alert Buzzer (19)",
-            "• `GPIO 21, 22, 23`: Status LEDs",
-            "• `GPIO 27`: Touch Sensor | `GPIO 34`: LDR Light Sensor",
-            "",
-            "🎛️ *Operating Modes:* Normal Mode & Lecture Mode",
-            "🎯 *Academic Framing:* Environmental monitoring & safety automation (not behavior monitoring)",
-            "",
-            "_Preserved in Mikasa's research memory vault._ 🧣"
-        ].join('\n');
-        await sendTelegramMessage(chatId, scLines);
-        return;
-    }
-
-    await answerCallbackQuery(id, "Action processed.");
 }
 
 // --- DISTRIBUTED COORDINATION & DEDUPLICATION (Local PC vs Cloud Render/Railway) ---
@@ -1905,7 +2126,9 @@ async function checkIsLocalActive() {
 async function claimTelegramMessage(claimKey) {
     if (!claimKey) return true;
     if (processedMessageClaims.has(claimKey)) {
-        return false;
+        if (!claimKey.startsWith('cb_')) {
+            return false;
+        }
     }
     processedMessageClaims.add(claimKey);
     if (processedMessageClaims.size > 500) {
@@ -1928,6 +2151,10 @@ async function claimTelegramMessage(claimKey) {
     } catch (err) {
         // 409 indicates another instance claimed this message first
         if (err.message && err.message.includes('409')) {
+            // On Local PC, never drop interactive callback query button clicks due to a prior claim
+            if (IS_LOCAL_PC && claimKey.startsWith('cb_')) {
+                return true;
+            }
             return false;
         }
         // If Supabase has a transient network failure on local PC, permit local to handle it
@@ -2337,7 +2564,7 @@ async function processUpdate(update) {
     // 2. Non-Commander Access Rules: Cannot command, but CAN ask normal questions & personality inquiries!
     if (!isCommander) {
         const isCommandAttempt = 
-            (text.startsWith('/') && !text.startsWith('/members') && !text.startsWith('/who') && !text.startsWith('/group') && !text.startsWith('/research') && !text.startsWith('/papers') && !text.startsWith('/curricurag')) ||
+            (text.startsWith('/') && !text.startsWith('/members') && !text.startsWith('/who') && !text.startsWith('/group') && !text.startsWith('/research') && !text.startsWith('/papers') && !text.startsWith('/curricurag') && !text.startsWith('/cv') && !text.startsWith('/resume')) ||
             text.match(/^(?:create\s+task|add\s+task|todo|delete|remove|clear\s+chat|wipe|open\s+folder|launch|start|run|shutdown|reboot|mode\b|auth\b|login\b)/i) ||
             text.match(/^(?:pc|system|terminal|powershell|cmd|exec)\b/i);
 
@@ -2765,8 +2992,80 @@ async function processUpdate(update) {
         return;
     }
 
-    // 6. Handle /cv Command (Tailor CV & Portfolio for Job)
-    const cvMatch = text.match(/^(?:\/cv|tailor\s+cv|guide\s+cv|cv\s+guide)(?:\s+(.+))?$/i);
+    // 6A. Handle CV / Resume Direct Document Delivery (Local PC D:\Projects\personal-ai-assistant\cv OR GitHub Cloud Failover)
+    // Matches requests like:
+    // "amr cv ta dao", "can you pass my cv please", "amar resume dao", "amake cv pathao",
+    // "give me my cv", "send me your cv", "send my resume", "cv please", "/cv" (with no args)
+    const isCvDeliveryRequest = (
+        // Banglish & Bengali patterns
+        /\b(?:amr|amar|amake|amare|amader)\s+.*?\b(?:cv|resume|biodata)\b/i.test(text) ||
+        /\b(?:cv|resume|biodata)\s*(?:ta|ti|gulo|file|pdf)?\s*(?:dao|pathao|pathiye\s+dao|diba|diben|lagbe|chai|den|please|plz)\b/i.test(text) ||
+        // English request patterns
+        /\b(?:send|pass|give|share|fetch|get|download|need|export|drop)\s+.*?\b(?:my|the|your)?\s*(?:cv|resume)\b/i.test(text) ||
+        /\b(?:can|could|would)\s+you\s+(?:please\s+)?(?:send|pass|give|share|provide)\s+(?:me\s+)?(?:my|the|your)?\s*(?:cv|resume)\b/i.test(text) ||
+        // Exact standalone commands
+        /^(?:\/cv|\/resume)$/i.test(text.trim()) ||
+        /^(?:cv|resume)\s*(?:please|plz)?$/i.test(text.trim())
+    );
+
+    if (isCvDeliveryRequest) {
+        const lower = text.toLowerCase();
+        const wantsBw = /\b(?:b&w|bw|black\s*(?:and|&)\s*white|black\s*white|sada\s*kalo|sada-kalo|monochrome|minimalist)\b/i.test(lower);
+        const wantsColor = /\b(?:color|colour|colorfull|colourful|rangin|executive)\b/i.test(lower);
+        const wantsBoth = /\b(?:both|duto|duitai|both\s*versions?)\b/i.test(lower);
+
+        if (wantsBoth) {
+            await sendChatAction(chatId, 'upload_document');
+            await deliverCvDocument(chatId, 'color', msg.message_id);
+            await deliverCvDocument(chatId, 'bw', msg.message_id);
+            return;
+        }
+
+        if (wantsBw) {
+            await sendChatAction(chatId, 'upload_document');
+            await deliverCvDocument(chatId, 'bw', msg.message_id);
+            return;
+        }
+
+        if (wantsColor) {
+            await sendChatAction(chatId, 'upload_document');
+            await deliverCvDocument(chatId, 'color', msg.message_id);
+            return;
+        }
+
+        // Neither specified: Prompt user with interactive buttons to pick Color, B&W, or Both
+        const promptText = [
+            "📄 *Executive Resume Dispatch*",
+            "━━━━━━━━━━━━━━━━━━━━",
+            "Sure thing, Commander Swapnil! Which version of your CV would you like me to send?",
+            "",
+            "• 🎨 *Color Executive Edition:*",
+            "  _Modern UI/UX styling with interactive links, project highlights & profile photo. Best for digital review and tech recruiters._",
+            "",
+            "• 📄 *Black & White Edition:*",
+            "  _Minimalist, high-contrast ATS-compliant format. Best for formal applications, ATS parsers & direct physical printing._",
+            "",
+            "_Both versions are strictly locked to a clean 2-page layout._ 🧣"
+        ].join('\n');
+
+        const replyMarkup = {
+            inline_keyboard: [
+                [
+                    { text: "🎨 Color Executive Edition", callback_data: "send_cv:color" },
+                    { text: "📄 Black & White Minimalist", callback_data: "send_cv:bw" }
+                ],
+                [
+                    { text: "📦 Send Both Editions", callback_data: "send_cv:both" }
+                ]
+            ]
+        };
+
+        await sendTelegramMessage(chatId, promptText, msg.message_id, replyMarkup);
+        return;
+    }
+
+    // 6B. Handle /cv Command with Job Role (Tailor CV & Portfolio for Job)
+    const cvMatch = text.match(/^(?:\/cv|tailor\s+cv|guide\s+cv|cv\s+guide)\s+(.+)$/i);
     if (cvMatch) {
         await sendChatAction(chatId, 'typing');
         const target = cvMatch[1] || 'Fullstack Software Engineer (Next.js, Node.js, AI)';
@@ -2778,9 +3077,19 @@ async function processUpdate(update) {
         cvGuide.matched_projects.forEach(p => cvText += `• *${p}*\n`);
         cvText += `\n✨ *Tailored High-Impact Resume Bullets:*\n`;
         cvGuide.recommended_bullets.forEach(b => cvText += `${b}\n\n`);
-        cvText += `💡 *Strategy:* ${cvGuide.strategy}`;
+        cvText += `💡 *Strategy:* ${cvGuide.strategy}\n\n`;
+        cvText += `_Tap below to download your ready-to-send CV:_`;
 
-        await sendTelegramMessage(chatId, cvText, msg.message_id);
+        const replyMarkup = {
+            inline_keyboard: [
+                [
+                    { text: "🎨 Color Executive Edition", callback_data: "send_cv:color" },
+                    { text: "📄 Black & White Minimalist", callback_data: "send_cv:bw" }
+                ]
+            ]
+        };
+
+        await sendTelegramMessage(chatId, cvText, msg.message_id, replyMarkup);
         return;
     }
 
@@ -2799,16 +3108,19 @@ async function processUpdate(update) {
         return;
     }
 
-    // 8. Handle /remind Command (Proactive Reminders)
-    // Patterns: "/remind 10m Push code", "/remind 1h Check n8n", "remind me in 30 mins to do X"
-    const remindMatch = text.match(/^(?:\/remind|remind\s+me)\s+(?:in\s+)?(\d+\s*(?:m|min|mins|minutes|h|hr|hrs|hours|s|sec|seconds)?)\s+(?:to\s+)?(.+)$/i);
-    if (remindMatch) {
-        const timeStr = remindMatch[1];
-        const taskText = remindMatch[2];
-        const rem = remindersManager.addReminder(taskText, timeStr, chatId);
+    // 8. Handle /remind Command & Natural Reminders (Proactive Reminders Engine v2)
+    // Supports prefix, postfix, Banglish, hours, minutes, days: e.g. "remind me to do X 6hr later", "amake 6 ghonta por mone koriye dio"
+    const extractedReminder = remindersManager.extractReminderFromMessage(text);
+    if (extractedReminder) {
+        const { timeStr, task } = extractedReminder;
+        const rem = remindersManager.addReminder(task, timeStr, chatId);
 
-        const dueInMinutes = Math.round((rem.dueAt - Date.now()) / 60000);
-        const reply = `⏳ *Reminder locked in, Swapnil.*\n\nI will ping you in *${timeStr}* (~${dueInMinutes}m) for:\n*"${taskText}"*\n\n_Don't worry about forgetting. I've got your back._`;
+        const diffMs = rem.dueAt - Date.now();
+        const dueHours = (diffMs / 3600000).toFixed(1).replace(/\.0$/, '');
+        const dueMinutes = Math.round(diffMs / 60000);
+        const timeFriendly = dueMinutes >= 60 ? `~${dueHours} hour${dueHours === '1' ? '' : 's'}` : `~${dueMinutes} min${dueMinutes === 1 ? '' : 's'}`;
+
+        const reply = `⏰ *Reminder locked in, Swapnil.*\n\nI will ping you in *${timeStr}* (${timeFriendly}) for:\n*"${task}"*\n\n_Don't worry about forgetting. I've got your back._ 🛡️`;
         await sendTelegramMessage(chatId, reply, msg.message_id);
         return;
     }
@@ -3197,6 +3509,31 @@ async function processUpdate(update) {
                     });
                     reply += "_Complete audit trails are permanently preserved in Supabase `current_state` and local cache._";
                 }
+            } else if (actionResult.action === 'portfolio_updated') {
+                const replyMarkup = {
+                    inline_keyboard: [
+                        [
+                            { text: "🌐 Open mrswapnil.me", url: "https://www.mrswapnil.me/" },
+                            { text: "🐙 View GitHub Repo", url: "https://github.com/Swapnil-360/stark-os-portfolio" }
+                        ]
+                    ]
+                };
+                await sendTelegramMessage(chatId, actionResult.feedback, msg.message_id, replyMarkup);
+                return;
+            } else if (actionResult.action === 'portfolio_menu') {
+                const replyMarkup = {
+                    inline_keyboard: [
+                        [
+                            { text: "🔬 Add CurricuRAG Paper", callback_data: "portfolio_cmd:add_curricurag" },
+                            { text: "🔄 Sync Official Headline", callback_data: "portfolio_cmd:sync_identity" }
+                        ],
+                        [
+                            { text: "🌐 Visit mrswapnil.me", url: "https://www.mrswapnil.me/" }
+                        ]
+                    ]
+                };
+                await sendTelegramMessage(chatId, actionResult.feedback, msg.message_id, replyMarkup);
+                return;
             } else if (actionResult.feedback) {
                 reply = actionResult.feedback;
             } else if (actionResult.action === 'job_clarification_needed') {
@@ -3542,7 +3879,8 @@ async function startPolling() {
             }
         }
         try {
-            const url = `https://api.telegram.org/bot${BOT_TOKEN}/getUpdates?offset=${lastUpdateId + 1}&timeout=30`;
+            const allowed = encodeURIComponent(JSON.stringify(["message", "edited_message", "callback_query", "channel_post", "edited_channel_post"]));
+            const url = `https://api.telegram.org/bot${BOT_TOKEN}/getUpdates?offset=${lastUpdateId + 1}&timeout=30&allowed_updates=${allowed}`;
             const updates = await new Promise((resolve, reject) => {
                 https.get(url, (res) => {
                     let data = '';
@@ -3593,5 +3931,6 @@ module.exports = {
     startPolling,
     getGeminiQuotaStatus,
     setGeminiCooldown,
-    triggerMemoryExtraction
+    triggerMemoryExtraction,
+    deliverCvDocument
 };

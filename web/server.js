@@ -705,7 +705,7 @@ const server = http.createServer(async (req, res) => {
             return sendJson(res, 200, resLaunch);
         }
 
-        // Native Gemini Cute Female Voice TTS API ("Kore" voice)
+        // Native Gemini Cute Female Voice TTS API ("Kore" voice, spoken in English)
         if (pathname === '/api/voice/tts' && (req.method === 'GET' || req.method === 'POST')) {
             let textToSpeak = '';
             if (req.method === 'GET') {
@@ -721,10 +721,13 @@ const server = http.createServer(async (req, res) => {
             }
 
             try {
-                const wavBuffer = await synthesizeGeminiVoice(textToSpeak, 'Kore');
+                const resSynth = await synthesizeGeminiVoice(textToSpeak, 'Kore');
+                const wavBuffer = Buffer.isBuffer(resSynth) ? resSynth : resSynth.wav;
+                const spokenText = resSynth.speechText || textToSpeak;
                 res.writeHead(200, {
                     'Content-Type': 'audio/wav',
                     'Content-Length': wavBuffer.length,
+                    'X-Spoken-English': encodeURIComponent(spokenText),
                     'Cache-Control': 'no-cache'
                 });
                 return res.end(wavBuffer);
@@ -732,6 +735,13 @@ const server = http.createServer(async (req, res) => {
                 console.warn('[Gemini TTS Voice Error]:', err.message);
                 return sendJson(res, 502, { error: 'TTS synthesis error', message: err.message });
             }
+        }
+
+        // Fast endpoint to convert any Banglish/Bengali text into spoken English for fallback
+        if (pathname === '/api/voice/to-english' && (req.method === 'GET' || req.method === 'POST')) {
+            const text = req.method === 'GET' ? (parsedUrl.searchParams.get('text') || '') : ((await parseBody(req)).text || '');
+            const english = await toSpokenEnglish(text);
+            return sendJson(res, 200, { original: text, english });
         }
 
         // --- STATIC FILE & PAGE ROUTING ---

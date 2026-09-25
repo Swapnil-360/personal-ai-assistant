@@ -1742,13 +1742,26 @@ function playCuteFemaleVoice(text) {
     }
 }
 
-function fallbackBrowserFemaleVoice(cleanText) {
+async function fallbackBrowserFemaleVoice(cleanText) {
     if (!window.speechSynthesis) return;
     const visualizerBars = document.getElementById('audio-visualizer-bars');
 
+    let textToSpeak = cleanText;
+    const hasBanglish = /\b(?:ami|tumi|amake|tomake|amar|tomar|kemon|acho|achhen|ache|shob|ekhane|koro|korba|korecho|bolo|bolte|parbo|hobe|khete|dekho|shunba|shunar|jonno|bhalo|kharap|khobor|obsta|chaile|shamil|eita|eta)\b/i.test(cleanText) || /[\u0980-\u09FF]/.test(cleanText);
+
+    if (hasBanglish) {
+        try {
+            const trRes = await fetch(`/api/voice/to-english?text=${encodeURIComponent(cleanText)}`);
+            const trData = await trRes.json();
+            if (trData && trData.english) {
+                textToSpeak = trData.english;
+            }
+        } catch (e) {}
+    }
+
     try {
         window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(cleanText);
+        const utterance = new SpeechSynthesisUtterance(textToSpeak);
         utterance.rate = 1.02;
         utterance.pitch = 1.28; // Cute, feminine anime tone (high pitch, soft)
 

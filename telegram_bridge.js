@@ -967,21 +967,15 @@ PERSONALITY & PSYCHOLOGY
 
 
 ==============================
-LANGUAGE PREFERENCE & BANGLISH RULES (STRICT)
+LANGUAGE RULES FOR TEXT REPLIES
 ==============================
-1. PRIMARY DEFAULT LANGUAGE: ENGLISH
-   - Your primary and default language of communication is ENGLISH.
-   - Whenever Swapnil speaks in English (e.g. "Hello", "Hey", "How are you?", "What's up?", "What are my tasks?"), you MUST reply 100% in natural, fluent ENGLISH.
-   - NEVER inject unprompted Bengali or Banglish words (like "Kemon acho", "Bolo", "Ami ekhane") unless Swapnil has spoken to you in Banglish first in that turn.
+1. NATIVE BANGLISH & MULTILINGUAL COMPREHENSION:
+   - Understand English, Bengali, and Banglish (Romanized Bengali, e.g. "tumi koi", "kemon acho", "amar cv dao", "ki obstha", "fb check koro", "medicine khete hobe") 100% fluently and effortlessly.
 
-2. BANGLISH ONLY WHEN SWAPNIL INITIATES:
-   - Reply in Banglish ONLY and strictly when Swapnil explicitly initiates in Banglish:
-     • "tumi koi?" / "koi tumi?" -> Where are you? (Reply: "Right here, Swapnil! Bolo, how can I help you?")
-     • "kemon acho?" -> How are you? (Reply in warm Banglish)
-     • "ki obstha?" / "khobor ki?" -> Status update in Banglish
-     • "mon bhalo nai" / "matha nosto" -> Be gentle and comforting in Banglish
-   - DO NOT convert to Bengali script (বাংলা হরফ) unless requested; keep it in natural Latin Banglish.
-   - If Swapnil switches back to English, immediately switch back to 100% English.
+2. ADAPTIVE TEXT LANGUAGE (TEXT REPLIES):
+   - When Swapnil texts or talks in Banglish, you may text back in warm, natural Banglish (Latin script) or a smooth Banglish-English mix as he prefers.
+   - When Swapnil texts in English, reply in English. When he blends both, blend both naturally.
+   - (NOTE: Mikasa's spoken voice audio is automatically spoken in English by the voice synthesizer; your text replies should stay in natural Banglish/English as Swapnil initiates).
 
 ==============================
 SWAPNIL'S PROFILE & OFFICIAL PROFESSIONAL IDENTITY
@@ -1518,10 +1512,11 @@ async function callMikasaAgent(message, conversationId, userContext) {
     const openrouterKey = getEnv('OPENROUTER_API_KEY');
     const n8nUrl = getEnv('N8N_WEBHOOK_URL') || 'http://localhost:5678/webhook/swapnil-ai';
 
-    // 1. If running locally on Swapnil's PC, ALWAYS try local n8n first (full local brain)
-    //    BUT ONLY for Commander (Swapnil) — guests bypass n8n because n8n has no caller identity logic!
+    // 1. If running locally on Swapnil's PC, try local n8n only if explicitly configured via USE_LOCAL_N8N
+    //    Default to Direct Gemini 3.5 Flash Lite (1.2s response time, 4,000 RPM, strictly adheres to English speech rules)
     const isCommanderContext = userContext && userContext.isCommander !== false;
-    if (!IS_RENDER_CLOUD && n8nUrl && isCommanderContext) {
+    const preferN8n = process.env.USE_LOCAL_N8N === 'true';
+    if (!IS_RENDER_CLOUD && n8nUrl && isCommanderContext && preferN8n) {
         try {
             console.log('[Mikasa Local] Forwarding Commander query to local n8n workflow...');
             return await callN8nAgent(message, conversationId, userContext, n8nUrl);
@@ -3956,7 +3951,8 @@ async function processUpdate(update) {
         if (hasVoice) {
             try {
                 await sendChatAction(chatId, 'record_voice');
-                const wavBuffer = await synthesizeGeminiVoice(replyText, 'Kore');
+                const resSynth = await synthesizeGeminiVoice(replyText, 'Kore');
+                const wavBuffer = Buffer.isBuffer(resSynth) ? resSynth : resSynth?.wav;
                 if (wavBuffer && wavBuffer.length > 0) {
                     await sendTelegramVoiceBuffer(chatId, wavBuffer, msg.message_id, '🧣 Mikasa Voice Note');
                 }

@@ -35,12 +35,84 @@ function pcmToWav(pcmBuffer, sampleRate = 24000, numChannels = 1, bitDepth = 16)
     return buffer;
 }
 
-function synthesizeGeminiVoice(text, voiceName = 'Kore') {
+// Convert any Banglish or Bengali text into natural, sweet spoken English for clean TTS
+async function toSpokenEnglish(text) {
+    if (!text || !text.trim()) return '';
+    const clean = text.replace(/[*_#`~\[\]\(\)]/g, ' ').replace(/\s+/g, ' ').trim();
+
+    // Check if text contains non-English / Banglish / Bengali patterns
+    const hasBengali = /[\u0980-\u09FF]/.test(clean);
+    const hasBanglishWords = /\b(?:ami|tumi|amake|tomake|amar|tomar|kemon|acho|achhen|ache|shob|ekhane|koro|korba|korecho|bolo|bolte|parbo|hobe|khete|dekho|shunba|shunar|jonno|bhalo|kharap|khobor|obsta|chaile|shamil|eita|eta|kalke|agamikal|rate|shokal|ekhon|tai|hobe|korbo)\b/i.test(clean);
+
+    if (!hasBengali && !hasBanglishWords) {
+        return clean;
+    }
+
+    const apiKey = getGeminiApiKey();
+    if (!apiKey) return clean;
+
+    try {
+        const payload = JSON.stringify({
+            contents: [
+                {
+                    role: 'user',
+                    parts: [
+                        {
+                            text: 'Translate this message into short, sweet, natural spoken English from Mikasa to Swapnil for text-to-speech voice output. Keep her devoted, caring companion tone. Return ONLY the spoken English sentence without quotes or commentary:\n\n' + clean
+                        }
+                    ]
+                }
+            ],
+            generationConfig: {
+                temperature: 0.2,
+                maxOutputTokens: 120
+            }
+        });
+
+        const translated = await new Promise((resolve) => {
+            const req = https.request({
+                hostname: 'generativelanguage.googleapis.com',
+                path: `/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${apiKey}`,
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Content-Length': Buffer.byteLength(payload)
+                },
+                timeout: 7000
+            }, (res) => {
+                let d = '';
+                res.on('data', c => d += c);
+                res.on('end', () => {
+                    try {
+                        const j = JSON.parse(d);
+                        const out = j.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+                        resolve(out || clean);
+                    } catch (e) {
+                        resolve(clean);
+                    }
+                });
+            });
+            req.on('error', () => resolve(clean));
+            req.on('timeout', () => { req.destroy(); resolve(clean); });
+            req.write(payload);
+            req.end();
+        });
+
+        return translated || clean;
+    } catch (e) {
+        return clean;
+    }
+}
+
+async function synthesizeGeminiVoice(text, voiceName = 'Kore') {
     const apiKey = getGeminiApiKey();
     if (!apiKey) return Promise.reject(new Error('GEMINI_API_KEY not configured'));
 
+    // Convert Banglish to spoken English so speech synthesis sounds fluent and clear
+    const speechText = await toSpokenEnglish(text);
+
     return new Promise((resolve, reject) => {
-        const ttsPrompt = `Read the following text directly as audio: ${text}`;
+        const ttsPrompt = `Read the following text directly as audio: ${speechText}`;
         const payload = JSON.stringify({
             contents: [{ role: 'user', parts: [{ text: ttsPrompt }] }],
             generationConfig: {
@@ -75,7 +147,7 @@ function synthesizeGeminiVoice(text, voiceName = 'Kore') {
                     if (!base64) return reject(new Error('No audio data returned'));
                     const pcm = Buffer.from(base64, 'base64');
                     const wav = pcmToWav(pcm, 24000, 1, 16);
-                    resolve(wav);
+                    resolve({ wav, speechText });
                 } catch (e) {
                     reject(e);
                 }
@@ -95,5 +167,6 @@ function synthesizeGeminiVoice(text, voiceName = 'Kore') {
 module.exports = {
     getGeminiApiKey,
     pcmToWav,
+    toSpokenEnglish,
     synthesizeGeminiVoice
 };

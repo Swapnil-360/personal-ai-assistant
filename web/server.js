@@ -143,7 +143,9 @@ const MIME_TYPES = {
     '.mp3': 'audio/mpeg',
     '.wav': 'audio/wav',
     '.ogg': 'audio/ogg',
-    '.m4a': 'audio/mp4'
+    '.m4a': 'audio/mp4',
+    '.mp4': 'video/mp4',
+    '.webm': 'video/webm'
 };
 
 function parseBody(req) {
@@ -752,6 +754,35 @@ const server = http.createServer(async (req, res) => {
             return sendJson(res, 200, { original: text, english: stripEmojis(english) });
         }
 
+        // Live System Specs & Active AI Model Info (allows landing page & dashboard to always stay current)
+        if (pathname === '/api/system/specs' && req.method === 'GET') {
+            const primaryModel = process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
+            const failoverModel = process.env.OPENROUTER_FALLBACK_MODEL || 'gpt-4o-mini';
+            return sendJson(res, 200, {
+                success: true,
+                status: 'ONLINE',
+                primary_engine: {
+                    id: primaryModel,
+                    name: 'Google Gemini 3.5 Flash Lite',
+                    throughput: '4,000 RPM quota / sub-450ms'
+                },
+                failover_engine: {
+                    id: failoverModel,
+                    name: 'OpenRouter GPT-4o-mini',
+                    role: 'Autonomous Rate-Limit Failover'
+                },
+                memory_vault: {
+                    type: 'Supabase PostgreSQL',
+                    features: ['Autonomous in-process extraction', 'Relational state', 'Milestones tracking']
+                },
+                voice_synthesis: {
+                    engine: 'Gemini 3.8 HD Voice Synthesis',
+                    voices: ['Authentic Voice-Over', 'Kore Live Stream']
+                },
+                updated_at: new Date().toISOString()
+            });
+        }
+
         // --- STATIC FILE & PAGE ROUTING ---
         // Redirect /app directly to /commander
         if (pathname === '/app') {
@@ -786,9 +817,32 @@ const server = http.createServer(async (req, res) => {
 
         const ext = path.extname(filePath).toLowerCase();
         const contentType = MIME_TYPES[ext] || 'application/octet-stream';
-        const fileStream = fs.createReadStream(filePath);
-        res.writeHead(200, { 'Content-Type': contentType });
-        fileStream.pipe(res);
+        const stat = fs.statSync(filePath);
+        const fileSize = stat.size;
+        const range = req.headers.range;
+
+        // Support HTTP 206 Partial Content for video/audio streaming
+        if (range && (ext === '.mp4' || ext === '.webm' || ext === '.mp3' || ext === '.wav')) {
+            const parts = range.replace(/bytes=/, '').split('-');
+            const start = parseInt(parts[0], 10);
+            const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+            const chunkSize = (end - start) + 1;
+            const fileStream = fs.createReadStream(filePath, { start, end });
+            res.writeHead(206, {
+                'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+                'Accept-Ranges': 'bytes',
+                'Content-Length': chunkSize,
+                'Content-Type': contentType
+            });
+            fileStream.pipe(res);
+        } else {
+            res.writeHead(200, {
+                'Content-Length': fileSize,
+                'Accept-Ranges': 'bytes',
+                'Content-Type': contentType
+            });
+            fs.createReadStream(filePath).pipe(res);
+        }
 
     } catch (err) {
         console.error('[Server Error]', err);

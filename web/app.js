@@ -221,11 +221,41 @@ function initQuotaClick() {
     });
 }
 
+function initHeaderDropdown() {
+    const trigger = document.getElementById('btn-actions-dropdown');
+    const panel = document.getElementById('actions-dropdown-menu');
+    const wrap = document.getElementById('actions-dropdown-wrap');
+
+    if (!trigger || !panel) return;
+
+    trigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isOpen = panel.classList.contains('active');
+        panel.classList.toggle('active', !isOpen);
+        trigger.classList.toggle('active', !isOpen);
+    });
+
+    document.addEventListener('click', (e) => {
+        if (wrap && !wrap.contains(e.target)) {
+            panel.classList.remove('active');
+            trigger.classList.remove('active');
+        }
+    });
+
+    panel.querySelectorAll('.dropdown-menu-item').forEach(item => {
+        item.addEventListener('click', () => {
+            panel.classList.remove('active');
+            trigger.classList.remove('active');
+        });
+    });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     checkUrlToken();
     initAuthHandlers();
     initTabs();
     initModals();
+    initHeaderDropdown();
     initFilters();
     initChat();
     initCopilotHub();
@@ -1508,8 +1538,8 @@ function initPCHub() {
     // Initial Telemetry & Monitors Load
     loadPCTelemetry();
     loadServiceMonitors();
-    // Poll PC telemetry every 30s
-    setInterval(loadPCTelemetry, 30000);
+    // Poll PC telemetry every 15s
+    setInterval(loadPCTelemetry, 15000);
 }
 
 function initJarvisVoice() {
@@ -1659,6 +1689,12 @@ async function loadPCTelemetry() {
 
         const textN8n = document.getElementById('text-n8n');
         if (textN8n) textN8n.textContent = `n8n: :${data.n8n.port} (${data.n8n.running ? 'Running' : 'Offline'})`;
+
+        const dotN8n = document.getElementById('dot-n8n');
+        if (dotN8n) {
+            dotN8n.style.background = data.n8n.running ? '#10b981' : '#f87171';
+            dotN8n.style.boxShadow = data.n8n.running ? '0 0 8px #10b981' : '0 0 8px #f87171';
+        }
 
         // Telemetry cards
         const tagHost = document.getElementById('pc-hostname-tag');

@@ -53,6 +53,10 @@ const {
     currentAgentMode,
     setAgentMode
 } = require('./local_pc_bridge');
+const {
+    synthesizeGeminiVoice,
+    pcmToWav
+} = require('./voice_synthesizer');
 
 const fs = require('fs');
 const path = require('path');
@@ -444,6 +448,142 @@ function answerCallbackQuery(callbackQueryId, text = '') {
             }
         }, () => resolve());
         req.on('error', () => resolve());
+        req.write(payload);
+        req.end();
+    });
+}
+
+// Download media/voice file from Telegram Bot API
+function downloadTelegramFile(fileId) {
+    return new Promise((resolve, reject) => {
+        const getFileUrl = `https://api.telegram.org/bot${BOT_TOKEN}/getFile?file_id=${fileId}`;
+        https.get(getFileUrl, (res) => {
+            let data = '';
+            res.on('data', c => data += c);
+            res.on('end', () => {
+                try {
+                    const json = JSON.parse(data);
+                    if (!json.ok || !json.result || !json.result.file_path) {
+                        return reject(new Error(json.description || 'Could not get file path from Telegram'));
+                    }
+                    const downloadUrl = `https://api.telegram.org/file/bot${BOT_TOKEN}/${json.result.file_path}`;
+                    https.get(downloadUrl, (dlRes) => {
+                        const chunks = [];
+                        dlRes.on('data', c => chunks.push(c));
+                        dlRes.on('end', () => resolve(Buffer.concat(chunks)));
+                        dlRes.on('error', reject);
+                    }).on('error', reject);
+                } catch (e) {
+                    reject(e);
+                }
+            });
+        }).on('error', reject);
+    });
+}
+
+// Transcribe audio using Gemini Multimodal Audio
+function transcribeAudioWithGemini(audioBuffer, mimeType = 'audio/ogg') {
+    const apiKey = getEnv('GEMINI_API_KEY');
+    if (!apiKey) return Promise.reject(new Error('GEMINI_API_KEY not configured'));
+
+    const cleanMime = (mimeType || 'audio/ogg').split(';')[0].trim();
+    const payload = JSON.stringify({
+        contents: [
+            {
+                role: 'user',
+                parts: [
+                    {
+                        inlineData: {
+                            mimeType: cleanMime,
+                            data: audioBuffer.toString('base64')
+                        }
+                    },
+                    {
+                        text: 'Listen to this voice message from Commander Swapnil. Transcribe what he said verbatim. If he speaks in Bengali or Banglish, transcribe it accurately in Banglish or Bengali as spoken. Return ONLY the transcribed text with no explanations, conversational filler, or formatting.'
+                    }
+                ]
+            }
+        ],
+        generationConfig: {
+            temperature: 0.1,
+            maxOutputTokens: 256
+        }
+    });
+
+    return new Promise((resolve, reject) => {
+        const model = getEnv('GEMINI_MODEL') || 'gemini-3.5-flash-lite';
+        const req = https.request({
+            hostname: 'generativelanguage.googleapis.com',
+            path: `/v1beta/models/${model}:generateContent?key=${apiKey}`,
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Content-Length': Buffer.byteLength(payload)
+            },
+            timeout: 25000
+        }, (res) => {
+            let data = '';
+            res.on('data', chunk => data += chunk);
+            res.on('end', () => {
+                try {
+                    const json = JSON.parse(data);
+                    if (json.error) return reject(new Error(json.error.message || 'Gemini audio transcription error'));
+                    const transcript = json.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+                    resolve(transcript);
+                } catch (e) {
+                    reject(e);
+                }
+            });
+        });
+        req.on('error', reject);
+        req.on('timeout', () => {
+            req.destroy();
+            reject(new Error('Audio transcription timed out'));
+        });
+        req.write(payload);
+        req.end();
+    });
+}
+
+// Sends voice note buffer to Telegram chat via multipart/form-data
+function sendTelegramVoiceBuffer(chatId, buffer, replyToMessageId = null, caption = '') {
+    return new Promise((resolve, reject) => {
+        const boundary = '----WebKitFormBoundary' + Math.random().toString(16).slice(2);
+        const parts = [];
+        parts.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="chat_id"\r\n\r\n${chatId}\r\n`));
+        if (replyToMessageId) {
+            parts.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="reply_to_message_id"\r\n\r\n${replyToMessageId}\r\n`));
+        }
+        if (caption) {
+            parts.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="caption"\r\n\r\n${caption}\r\n`));
+        }
+        parts.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="voice"; filename="mikasa_voice.ogg"\r\nContent-Type: audio/ogg\r\n\r\n`));
+        parts.push(buffer);
+        parts.push(Buffer.from(`\r\n--${boundary}--\r\n`));
+
+        const payload = Buffer.concat(parts);
+        const req = https.request({
+            hostname: 'api.telegram.org',
+            path: `/bot${BOT_TOKEN}/sendVoice`,
+            method: 'POST',
+            headers: {
+                'Content-Type': `multipart/form-data; boundary=${boundary}`,
+                'Content-Length': payload.length
+            }
+        }, (res) => {
+            let data = '';
+            res.on('data', c => data += c);
+            res.on('end', () => {
+                try {
+                    const parsed = JSON.parse(data);
+                    if (parsed.ok) resolve(parsed.result);
+                    else reject(new Error(parsed.description || data));
+                } catch (e) {
+                    reject(e);
+                }
+            });
+        });
+        req.on('error', reject);
         req.write(payload);
         req.end();
     });
@@ -2200,13 +2340,40 @@ async function processUpdate(update) {
     }
 
     const msg = update.message;
-    if (!msg || !msg.text) return;
+    if (!msg) return;
+
+    const hasVoice = Boolean(msg.voice || msg.audio);
+    if (!msg.text && !hasVoice) return;
 
     const chatId = msg.chat.id;
     const userId = msg.from.id;
     const telegramUsername = (msg.from.username || '').toLowerCase();
     const userName = msg.from.first_name || msg.from.username || 'Friend';
-    let text = msg.text.trim();
+    let text = (msg.text || '').trim();
+    let voiceTranscript = '';
+
+    if (hasVoice) {
+        await sendChatAction(chatId, 'record_voice');
+        const voiceObj = msg.voice || msg.audio;
+        try {
+            console.log(`[Telegram Voice] Inbound voice note from ${userName} (${voiceObj.duration || 0}s, ${voiceObj.file_size || 0} bytes). Transcribing via Gemini...`);
+            const audioBuffer = await downloadTelegramFile(voiceObj.file_id);
+            if (audioBuffer && audioBuffer.length > 0) {
+                voiceTranscript = await transcribeAudioWithGemini(audioBuffer, voiceObj.mime_type || 'audio/ogg');
+                console.log(`[Telegram Voice Transcript]: "${voiceTranscript}"`);
+                if (voiceTranscript && voiceTranscript.trim()) {
+                    text = voiceTranscript.trim();
+                }
+            }
+        } catch (vErr) {
+            console.warn('[Telegram Voice Processing Error]:', vErr.message);
+        }
+
+        if (!text) {
+            await sendTelegramMessage(chatId, "Swapnil, tomar voice message ta thik shuna jayni ba empty chilo. Abar ektu bole pathabe? 🧣", msg.message_id);
+            return;
+        }
+    }
     const isGroup = msg.chat.type === 'group' || msg.chat.type === 'supergroup';
     // Dual-mode Commander identification: numeric user ID (primary) OR Telegram username (fallback)
     const isCommander = (userId === SWAPNIL_USER_ID) || (telegramUsername && telegramUsername === SWAPNIL_USERNAME);
@@ -2601,7 +2768,11 @@ async function processUpdate(update) {
                 group: currentGroup
             });
             const replyText = response.reply || response.text || `Hello ${userName}, I am here with Swapnil.`;
-            await sendTelegramMessage(chatId, replyText, msg.message_id);
+            let finalText = replyText;
+            if (hasVoice) {
+                finalText = `🎤 *[Voice Transcribed]*: _"${text}"_\n\n${replyText}`;
+            }
+            await sendTelegramMessage(chatId, finalText, msg.message_id);
         } catch (err) {
             await sendTelegramMessage(chatId, `Hello ${userName}, I am Mikasa Ackerman, Swapnil's AI companion. 🧣`, msg.message_id);
         }
@@ -3775,7 +3946,24 @@ async function processUpdate(update) {
             }
         }
 
-        await sendTelegramMessage(chatId, replyText, msg.message_id, replyMarkup);
+        let finalText = replyText;
+        if (hasVoice) {
+            finalText = `🎤 *[Voice Transcribed]*: _"${text}"_\n\n${replyText}`;
+        }
+        await sendTelegramMessage(chatId, finalText, msg.message_id, replyMarkup);
+
+        // Attempt to synthesize and send Mikasa's cute Kore voice note
+        if (hasVoice) {
+            try {
+                await sendChatAction(chatId, 'record_voice');
+                const wavBuffer = await synthesizeGeminiVoice(replyText, 'Kore');
+                if (wavBuffer && wavBuffer.length > 0) {
+                    await sendTelegramVoiceBuffer(chatId, wavBuffer, msg.message_id, '🧣 Mikasa Voice Note');
+                }
+            } catch (ttsErr) {
+                console.warn('[Telegram Voice Reply Notice]:', ttsErr.message);
+            }
+        }
 
         // Proactive low-quota warning: ONLY warn when limit is critically close to finishing (<=2 remaining this minute, or daily >= 1485)
         // Rate-limited to once every 3 minutes so it never spams. Full stats always viewable via /quota.

@@ -3,6 +3,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const portfolioManager = require('./portfolio_manager');
+const { getLiveWeather, formatWeatherReport } = require('./weather_service');
 
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqaHJtY3Ricm9icG5vdW16bWp1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTkxNTc3NywiZXhwIjoyMTA1NDkxNzc3fQ.0_xov-GTLYTFGnm_gXxO2lmS1w_9Kc-pnWc0-T17UJ8';
 
@@ -1339,6 +1340,42 @@ async function handleActionIntent(message, context = { isCommander: true }) {
         };
     }
 
+    // 0C. Live Weather & Forecast (100% Free: wttr.in + Open-Meteo failover)
+    const isWeatherQuery = 
+        text.match(/\b(?:weather|forecast|temperature|abohawa|climate|rain|raining|brishti|bristi)\b/i) ||
+        text.match(/(?:ajke|today)\s+ki\s+(?:brishti|rain)\s+hobe/i);
+    if (isWeatherQuery) {
+        try {
+            const isBanglish = /\b(?:ami|tumi|amake|tomake|amar|tomar|kemon|acho|ache|shob|koro|korcho|bolo|bolte|hobe|dekho|bhalo|kharap|obostha|eita|eta|kalke|ajke|ekhon|ki|baire|brishti|abohawa|naki)\b/i.test(text);
+
+            let city = 'Dhaka';
+            const cityMatch = text.match(/\b(?:in|for|at)\s+([A-Za-z]+)\b/i) ||
+                              text.match(/([A-Za-z]+)(?:-r|'s|\s+er|\s+r)?\s+(?:weather|forecast|abohawa)/i);
+            if (cityMatch) {
+                const potential = (cityMatch[1] || cityMatch[2] || '').trim();
+                const ignore = ['today', 'tomorrow', 'now', 'ajke', 'kalke', 'the', 'my', 'live', 'realtime', 'current', 'me', 'us', 'in', 'for', 'at'];
+                if (potential && !ignore.includes(potential.toLowerCase())) {
+                    city = potential;
+                }
+            }
+
+            const weatherData = await getLiveWeather(city);
+            const feedbackText = formatWeatherReport(weatherData, {
+                isCommander: context && context.isCommander !== false,
+                isBanglish
+            });
+
+            return {
+                action: 'weather_report',
+                success: true,
+                weather: weatherData,
+                feedback: feedbackText
+            };
+        } catch (wErr) {
+            console.warn('[Weather Intent Error]:', wErr.message);
+        }
+    }
+
     // 0. Local Browser & Desktop PC Control (PATHS v2)
     const { openBrowserUrl, launchDesktopApp, openLocalFolder } = require('./local_pc_bridge');
 
@@ -1926,6 +1963,8 @@ module.exports = {
     getProjects,
     getDecisions,
     getMemories,
+    getLiveWeather,
+    formatWeatherReport,
     matchProject,
     recordAuditLog,
     getRecentAuditLogs,

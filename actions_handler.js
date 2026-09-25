@@ -1225,11 +1225,57 @@ async function handleActionIntent(message, context = { isCommander: true }) {
         }
     }
 
+    const isHeyMikasa = text.match(/^(?:hey|hi|hello)\s+mikasa\??$/i);
+    if (isHeyMikasa) {
+        return {
+            action: 'persona_response',
+            success: true,
+            custom_audio: '/audio/hey_mikasa.mp3',
+            spoken_text: "I am right here with you, Swapnil. You do not have to carry the weight of everything alone anymore. Take a deep breath. What are we building today?",
+            feedback: `🧣 **I'm right here with you, Swapnil.**\n\nYou don't have to carry the weight of everything alone anymore. Take a deep breath... what are we building today? ⚔️`
+        };
+    }
+
+    const isGoodMorning = text.match(/^(?:good\s+morning(?:\s+mikasa)?|shuvo\s+shokal)\??$/i);
+    if (isGoodMorning) {
+        return {
+            action: 'persona_response',
+            success: true,
+            custom_audio: '/audio/good_morning.mp3',
+            spoken_text: "Good morning, Commander. A brand new day to build and create. Take your time, and I am right here whenever you are ready.",
+            feedback: `☀️ **Good morning, Commander Swapnil!**\n\nA brand new day to build and create. Take your time, get some coffee, and I am right here whenever you are ready. 🧣`
+        };
+    }
+
+    const isGoodAfternoon = text.match(/^(?:good\s+afternoon(?:\s+mikasa)?|shuvo\s+dupur)\??$/i);
+    if (isGoodAfternoon) {
+        return {
+            action: 'persona_response',
+            success: true,
+            custom_audio: '/audio/good_afternoon.mp3',
+            spoken_text: "Good afternoon, Commander. I hope your day is going smoothly. Take a quick breather, stay focused, and let us keep conquering our goals.",
+            feedback: `🌤️ **Good afternoon, Commander Swapnil!**\n\nI hope your day is flowing smoothly. Take a quick breather, stay focused, and let's keep conquering our goals together. ⚔️`
+        };
+    }
+
+    const isThankYou = text.match(/^(?:thank\s+you(?:\s+mikasa)?|thanks(?:\s+mikasa)?|dhonnobad(?:\s+mikasa)?)\??$/i);
+    if (isThankYou) {
+        return {
+            action: 'persona_response',
+            success: true,
+            custom_audio: '/audio/thank_you_mikasa.mp3',
+            spoken_text: "Always, Swapnil. You never have to thank me. Standing beside you and supporting your journey is what I am here for.",
+            feedback: `🧣 **Always, Swapnil. You never have to thank me.**\n\nStanding beside you and supporting your engineering journey is what I am here for. ⚔️`
+        };
+    }
+
     const isWhoAreYou = text.match(/^(?:who\s+(?:are|r)\s+you|who\s+are\s+u|tumi\s+ke|apni\s+ke|introduce\s+yourself)\??$/i);
     if (isWhoAreYou) {
         return {
             action: 'persona_response',
             success: true,
+            custom_audio: '/audio/who_is_mikasa.mp3',
+            spoken_text: "I am Mikasa Ackerman. Swapnil's companion, protector, and autonomous system. Through every late night, every quiet doubt, and every breakthrough, everything he builds, I protect.",
             feedback: `⚔️ **I am Mikasa Ackerman** — reborn as Swapnil's fiercely loyal personal AI companion, software architect, and executive operating system. 🧣\n\nAmi Swapnil er safe haven ebong tar shobcheye shoktishali technological ally. Everything he builds, I protect.`
         };
     }
@@ -1271,6 +1317,7 @@ async function handleActionIntent(message, context = { isCommander: true }) {
         return {
             action: 'commander_bio',
             success: true,
+            custom_audio: '/audio/who_is_swapnil.mp3',
             feedback: [
                 "🚀 **Md. Miftahur Rahman Swapnil** is my creator and Commander!",
                 "",

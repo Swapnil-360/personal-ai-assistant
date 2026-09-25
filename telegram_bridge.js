@@ -1160,8 +1160,8 @@ function callGeminiApi(systemPrompt, userMessage, apiKey) {
             }
         });
 
-        // Use gemini-2.5-flash as the primary state-of-the-art model
-        const model = 'gemini-2.5-flash';
+        // Use gemini-3.5-flash-lite as the primary high-throughput model (4,000 RPM quota)
+        const model = getEnv('GEMINI_MODEL') || 'gemini-3.5-flash-lite';
         const req = https.request({
             hostname: 'generativelanguage.googleapis.com',
             path: `/v1beta/models/${model}:generateContent?key=${apiKey}`,
@@ -1418,8 +1418,8 @@ async function callMikasaAgent(message, conversationId, userContext) {
                 console.log('[Mikasa Agent] Calling Gemini Cloud directly (Primary Engine)...');
                 const reply = await callGeminiApi(systemPrompt, message, geminiKey);
                 if (reply) {
-                    lastUsedEngine = 'gemini';
-                    return { reply, engine: 'gemini-2.5-flash' };
+                    const usedModel = getEnv('GEMINI_MODEL') || 'gemini-3.5-flash-lite';
+                    return { reply, engine: usedModel };
                 }
             } catch (err) {
                 console.warn('[Direct Gemini Call Failed, switching instantly to OpenRouter]:', err.message || err);
@@ -3794,7 +3794,7 @@ async function processUpdate(update) {
             try {
                 await supabaseRequest('/messages', 'POST', [
                     { conversation_id: conversationId, role: 'user', content: text, timestamp: new Date().toISOString() },
-                    { conversation_id: conversationId, role: 'assistant', content: replyText, model: 'gemini-2.5-flash', timestamp: new Date().toISOString() }
+                    { conversation_id: conversationId, role: 'assistant', content: replyText, model: response.engine || 'gemini-3.5-flash-lite', timestamp: new Date().toISOString() }
                 ]);
             } catch (e) {}
         }

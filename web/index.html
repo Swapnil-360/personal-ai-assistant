@@ -563,27 +563,28 @@
             position: absolute;
             top: 14px;
             left: 14px;
-            right: 14px;
-            background: rgba(9, 11, 17, 0.85);
+            width: fit-content;
+            background: rgba(9, 11, 17, 0.72);
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            padding: 7px 12px;
-            border-radius: 7px;
-            display: flex;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            padding: 5px 11px;
+            border-radius: 20px;
+            display: inline-flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
             font-family: var(--font-mono);
-            font-size: 10.5px;
-            color: #ff7675;
+            font-size: 10px;
+            color: #ff8a80;
             font-weight: 600;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.6px;
             z-index: 2;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
         }
 
         .portrait-status-dot {
-            width: 7px;
-            height: 7px;
+            width: 6px;
+            height: 6px;
             background: #10b981;
             border-radius: 50%;
             box-shadow: 0 0 6px #10b981;
@@ -1398,7 +1399,7 @@
                         <div class="portrait-glow"></div>
                         <div class="portrait-badge-top">
                             <span class="portrait-status-dot"></span>
-                            <span>DESIGNATION: GUARDIAN // SWAPNIL-CORE</span>
+                            <span>SWAPNIL-CORE</span>
                         </div>
                         <video autoplay loop muted playsinline poster="/Mikasa.jpeg" class="hero-portrait-img" id="heroPortraitVideo">
                             <source src="/Mikasa_video_pfp.mp4" type="video/mp4">

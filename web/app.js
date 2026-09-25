@@ -1153,7 +1153,7 @@ function initChat() {
     });
 }
 
-async function sendMessageToMikasa(text) {
+async function sendMessageToMikasa(text, isSpoken = false) {
     const messagesContainer = document.getElementById('chat-messages-container');
 
     // 1. Append User Bubble
@@ -1191,7 +1191,7 @@ async function sendMessageToMikasa(text) {
             typingBubble.remove();
             appendMikasaChatMessage("🔒 *Public Observer Mode.* Direct command dispatch and state alterations are reserved for Commander Swapnil. You are observing Mikasa's live telemetry and performance.");
             showToast("🔒 Observer Mode: Only verified Commander can dispatch commands.", "warning");
-            return;
+            return null;
         }
 
         const data = await res.json();
@@ -1203,6 +1203,11 @@ async function sendMessageToMikasa(text) {
         }
         appendMikasaChatMessage(reply);
         loadQuotaTelemetry();
+
+        // Speak reply automatically if triggered by voice and audio synthesis is active
+        if (speechSynthEnabled && isSpoken) {
+            playCuteFemaleVoice(reply);
+        }
 
         // If intent opened a browser URL, open tab directly in active browser
         if (data.actionResult && data.actionResult.action === 'browser_opened' && data.actionResult.url) {
@@ -1226,9 +1231,12 @@ async function sendMessageToMikasa(text) {
             loadQuotaTelemetry();
         }, 1500);
 
+        return reply;
+
     } catch (err) {
         typingBubble.remove();
         appendMikasaChatMessage(`⚠️ Could not reach neural core: ${err.message}`);
+        return null;
     }
 }
 
@@ -1238,10 +1246,20 @@ function appendMikasaChatMessage(text) {
     bubble.className = 'chat-bubble-hud bubble-mikasa';
     bubble.innerHTML = `
         <div style="display: flex; align-items: flex-start; gap: 10px;">
-            <img src="/Mikasa-logo.jpeg" alt="Mikasa" class="companion-avatar" style="width: 26px; height: 26px; flex-shrink: 0;">
+            <img src="/Mikasa-logo.jpeg" alt="Mikasa" class="companion-avatar" style="width: 26px; height: 26px; flex-shrink: 0; border-radius: 50%; object-fit: cover;">
             <div style="flex: 1; line-height: 1.5;">${formatMarkdown(text)}</div>
+            <button class="btn-bubble-speak" title="Hear Mikasa speak (Cute Female Voice)" style="background: none; border: none; color: rgba(255,255,255,0.4); cursor: pointer; padding: 2px 5px; font-size: 14px; border-radius: 4px; transition: all 0.2s;" onmouseover="this.style.color='#00ffcc'; this.style.background='rgba(0,255,204,0.1)'" onmouseout="this.style.color='rgba(255,255,255,0.4)'; this.style.background='none'">
+                🔊
+            </button>
         </div>
     `;
+    const btnSpeak = bubble.querySelector('.btn-bubble-speak');
+    if (btnSpeak) {
+        btnSpeak.addEventListener('click', (e) => {
+            e.stopPropagation();
+            playCuteFemaleVoice(text);
+        });
+    }
     messagesContainer.appendChild(bubble);
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 }
@@ -1645,6 +1663,17 @@ function initJarvisVoice() {
     });
 }
 
+// ── CUTE FEMALE VOICE SYNTHESIS (GEMINI NATIVE "KORE" + FEMALE BROWSER FALLBACK) ──
+let activeAudioPlayer = null;
+
+// Preload browser voices for fallback
+if (typeof window !== 'undefined' && window.speechSynthesis) {
+    window.speechSynthesis.getVoices();
+    window.speechSynthesis.onvoiceschanged = () => {
+        try { window.speechSynthesis.getVoices(); } catch (e) {}
+    };
+}
+
 async function handleVoiceCommand(spokenText) {
     if (!spokenText || !spokenText.trim()) return;
     const voiceFeedback = document.getElementById('voice-feedback');
@@ -1653,27 +1682,114 @@ async function handleVoiceCommand(spokenText) {
     const chatInput = document.getElementById('chat-input');
     if (chatInput) chatInput.value = spokenText;
 
-    await sendMessageToMikasa(spokenText);
+    const reply = await sendMessageToMikasa(spokenText, true);
+    if (voiceFeedback && reply) {
+        voiceFeedback.textContent = `Mikasa: "${reply.slice(0, 50)}..."`;
+    }
+}
 
-    if (speechSynthEnabled && window.speechSynthesis) {
-        setTimeout(() => {
-            const visualizerBars = document.getElementById('audio-visualizer-bars');
-            const bubbles = document.querySelectorAll('.chat-bubble-hud.bubble-mikasa, .chat-bubble.bubble-mikasa');
-            const lastBubble = bubbles[bubbles.length - 1];
-            if (lastBubble) {
-                const cleanVoiceText = lastBubble.textContent.replace(/[*_#`~\[\]\(\)]/g, ' ').replace(/\s+/g, ' ').trim();
-                const utterance = new SpeechSynthesisUtterance(cleanVoiceText.slice(0, 280));
-                utterance.rate = 1.05;
-                if (visualizerBars) visualizerBars.classList.add('speaking');
-                utterance.onend = () => {
-                    if (visualizerBars) visualizerBars.classList.remove('speaking');
-                };
-                utterance.onerror = () => {
-                    if (visualizerBars) visualizerBars.classList.remove('speaking');
-                };
-                window.speechSynthesis.speak(utterance);
-            }
-        }, 1200);
+function playCuteFemaleVoice(text) {
+    if (!text || !text.trim() || !speechSynthEnabled) return;
+
+    // Stop any ongoing audio or speech
+    if (activeAudioPlayer) {
+        try {
+            activeAudioPlayer.pause();
+            activeAudioPlayer.currentTime = 0;
+        } catch (e) {}
+        activeAudioPlayer = null;
+    }
+    if (window.speechSynthesis) {
+        try { window.speechSynthesis.cancel(); } catch (e) {}
+    }
+
+    const visualizerBars = document.getElementById('audio-visualizer-bars');
+    const cleanVoiceText = text
+        .replace(/[*_#`~\[\]\(\)]/g, ' ')
+        .replace(/https?:\/\/\S+/g, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 320);
+
+    if (!cleanVoiceText) return;
+
+    if (visualizerBars) visualizerBars.classList.add('speaking');
+
+    // 1. Primary: Gemini Native Cute Female Voice ("Kore" model)
+    const audioUrl = `/api/voice/tts?text=${encodeURIComponent(cleanVoiceText)}`;
+    const audio = new Audio(audioUrl);
+    activeAudioPlayer = audio;
+
+    audio.onplay = () => {
+        if (visualizerBars) visualizerBars.classList.add('speaking');
+    };
+    audio.onended = () => {
+        if (visualizerBars) visualizerBars.classList.remove('speaking');
+        if (activeAudioPlayer === audio) activeAudioPlayer = null;
+    };
+    audio.onerror = (err) => {
+        console.warn('[Gemini TTS Unavailable -> Switching to Browser Cute Female Fallback]:', err);
+        if (visualizerBars) visualizerBars.classList.remove('speaking');
+        fallbackBrowserFemaleVoice(cleanVoiceText);
+    };
+
+    const playPromise = audio.play();
+    if (playPromise !== undefined) {
+        playPromise.catch((e) => {
+            console.warn('[Autoplay policy or network error -> Browser Voice Fallback]:', e);
+            fallbackBrowserFemaleVoice(cleanVoiceText);
+        });
+    }
+}
+
+function fallbackBrowserFemaleVoice(cleanText) {
+    if (!window.speechSynthesis) return;
+    const visualizerBars = document.getElementById('audio-visualizer-bars');
+
+    try {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(cleanText);
+        utterance.rate = 1.02;
+        utterance.pitch = 1.28; // Cute, feminine anime tone (high pitch, soft)
+
+        const voices = window.speechSynthesis.getVoices() || [];
+        
+        // Priority 1: Known cute / sweet female voices
+        let femaleVoice = voices.find(v => {
+            const n = (v.name || '').toLowerCase();
+            return (n.includes('zira') || n.includes('jenny') || n.includes('aria') || 
+                    n.includes('samantha') || n.includes('victoria') || n.includes('female') || 
+                    n.includes('natural') || n.includes('google us english') || 
+                    n.includes('google uk english female')) &&
+                   !n.includes('david') && !n.includes('mark') && !n.includes('male') && 
+                   !n.includes('george') && !n.includes('guy');
+        });
+
+        // Priority 2: Any non-male voice
+        if (!femaleVoice) {
+            femaleVoice = voices.find(v => {
+                const n = (v.name || '').toLowerCase();
+                return !n.includes('david') && !n.includes('male') && !n.includes('mark') && 
+                       !n.includes('george') && !n.includes('richard');
+            });
+        }
+
+        if (femaleVoice) {
+            utterance.voice = femaleVoice;
+        }
+
+        if (visualizerBars) visualizerBars.classList.add('speaking');
+        utterance.onend = () => {
+            if (visualizerBars) visualizerBars.classList.remove('speaking');
+        };
+        utterance.onerror = () => {
+            if (visualizerBars) visualizerBars.classList.remove('speaking');
+        };
+
+        window.speechSynthesis.speak(utterance);
+    } catch (e) {
+        console.warn('[Browser voice fallback error]:', e);
+        if (visualizerBars) visualizerBars.classList.remove('speaking');
     }
 }
 

@@ -1202,12 +1202,13 @@ async function sendMessageToMikasa(text, isSpoken = false) {
             reply += `\n\n⚡ *[Action Executed]*: ${data.actionResult.feedback}`;
         }
         const customAudio = data.actionResult?.custom_audio || null;
-        appendMikasaChatMessage(reply, customAudio);
+        const spokenText = data.actionResult?.spoken_text || null;
+        appendMikasaChatMessage(reply, customAudio, spokenText);
         loadQuotaTelemetry();
 
         // Speak reply automatically if triggered by voice and audio synthesis is active
         if (speechSynthEnabled && isSpoken) {
-            playCuteFemaleVoice(reply, customAudio);
+            playCuteFemaleVoice(spokenText || reply, customAudio);
         }
 
         // If intent opened a browser URL, open tab directly in active browser
@@ -1241,7 +1242,7 @@ async function sendMessageToMikasa(text, isSpoken = false) {
     }
 }
 
-function appendMikasaChatMessage(text, customAudio = null) {
+function appendMikasaChatMessage(text, customAudio = null, spokenText = null) {
     const messagesContainer = document.getElementById('chat-messages-container');
     const bubble = document.createElement('div');
     bubble.className = 'chat-bubble-hud bubble-mikasa';
@@ -1258,7 +1259,7 @@ function appendMikasaChatMessage(text, customAudio = null) {
     if (btnSpeak) {
         btnSpeak.addEventListener('click', (e) => {
             e.stopPropagation();
-            playCuteFemaleVoice(text, customAudio);
+            playCuteFemaleVoice(spokenText || text, customAudio);
         });
     }
     messagesContainer.appendChild(bubble);

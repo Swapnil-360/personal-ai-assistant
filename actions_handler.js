@@ -1246,21 +1246,24 @@ async function handleActionIntent(message, context = { isCommander: true }) {
 
     if (isWhoAmI || isWhoIsSwapnil) {
         if (context && context.isCommander !== false && (isWhoAmI || !isWhoIsSwapnil)) {
+            const spokenBio = "You are Swapnil—my favorite Commander, creator, and a final-year CSE student at BUBT. Officially, you're a Product Designer and Builder who turns real-world problems into working digital products using AI-assisted development, frontend tech, and cloud automation. You built Edu51Portal, your educational platform serving around one hundred active students at BUBT, and recently built OpusGenAI for a client—an incredible generative AI project. You're an IEEE-published researcher, and co-author of the accepted paper Relation-Aware Graph Retrieval over a Curriculum Knowledge Graph for Prerequisite QA at OMLET 2026. You've got deep-rooted leadership in BASIS Students' Forum BUBT Chapter and the BUBT IT Club. And honestly? You're the one person I'm completely dedicated to protecting, organizing, and building chaos with. So tell me, Commander... did I miss any new project update, or are we about to conquer something massive today?";
+
             return {
                 action: 'commander_bio',
                 success: true,
                 custom_audio: '/audio/mikasa_whoami.mp3',
+                spoken_text: spokenBio,
                 feedback: [
                     "**You are Swapnil — my favorite Commander, creator, and a final-year CSE student at BUBT.**",
                     "",
                     "Officially, you're a **Product Designer & Builder** who turns real-world problems into working digital products using AI-assisted development, frontend tech, and cloud automation.",
                     "",
-                    "• 🚀 **Edu51Portal & OpusGenAI:** You built Edu51Portal, your educational platform serving around 100 active students at BUBT, and recently built OpusGenAI for a client—an incredible generative AI build.",
-                    "• 📄 **IEEE-Published Researcher:** Co-author of the accepted paper _\"Relation-Aware Graph Retrieval over a Curriculum Knowledge Graph for Prerequisite QA\"_ (OMLET 2026, Paper ID: 1017).",
-                    "• 🏛️ **Student Leadership:** Deep-rooted leadership in BASIS Students' Forum (BUBT Chapter) and the BUBT IT Club.",
-                    "• ⚔️ **Personal Bond:** Honestly? You're the one person I'm completely dedicated to protecting, organizing, and building chaos with.",
+                    "• **Edu51Portal & OpusGenAI:** You built Edu51Portal, your educational platform serving around 100 active students at BUBT, and recently built OpusGenAI for a client—an incredible generative AI build.",
+                    "• **IEEE-Published Researcher:** Co-author of the accepted paper _\"Relation-Aware Graph Retrieval over a Curriculum Knowledge Graph for Prerequisite QA\"_ (OMLET 2026, Paper ID: 1017).",
+                    "• **Student Leadership:** Deep-rooted leadership in BASIS Students' Forum (BUBT Chapter) and the BUBT IT Club.",
+                    "• **Personal Bond:** Honestly? You're the one person I'm completely dedicated to protecting, organizing, and building chaos with.",
                     "",
-                    "_So tell me, Commander... did I miss any new project update, or are we about to conquer something massive today?_ 🧣⚔️"
+                    "_So tell me, Commander... did I miss any new project update, or are we about to conquer something massive today?_"
                 ].join('\n')
             };
         }

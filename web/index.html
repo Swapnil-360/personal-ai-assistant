@@ -1294,27 +1294,28 @@
             }
         }
 
-        /* Voice Matrix Showcase Section */
+        /* Voice Matrix Showcase Section (Compact & Minimal) */
         section.voice-section {
-            padding: 80px 0;
+            padding: 50px 0;
             position: relative;
         }
 
         .voice-cards-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 24px;
-            margin-top: 36px;
+            gap: 16px;
+            margin-top: 28px;
         }
 
         .voice-card {
             background: var(--bg-surface);
             border: 1px solid var(--border-subtle);
             border-radius: var(--radius-md);
-            padding: 24px;
+            padding: 14px 18px;
             display: flex;
-            flex-direction: column;
-            gap: 16px;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
             transition: var(--transition-smooth);
             position: relative;
             overflow: hidden;
@@ -1323,19 +1324,28 @@
         .voice-card:hover {
             border-color: rgba(0, 229, 255, 0.4);
             background: var(--bg-surface-elevated);
-            transform: translateY(-3px);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4), 0 0 20px rgba(0, 229, 255, 0.1);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 16px rgba(0, 229, 255, 0.1);
         }
 
         .voice-card.active-playing {
-            border-color: rgba(229, 57, 53, 0.6);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 25px rgba(229, 57, 53, 0.25);
+            border-color: rgba(229, 57, 53, 0.7);
+            background: rgba(229, 57, 53, 0.06);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5), 0 0 20px rgba(229, 57, 53, 0.25);
         }
 
-        .voice-card-header {
+        .voice-card-info {
             display: flex;
-            justify-content: space-between;
+            flex-direction: column;
+            gap: 4px;
+            min-width: 0;
+            flex: 1;
+        }
+
+        .voice-card-meta {
+            display: flex;
             align-items: center;
+            gap: 8px;
         }
 
         .voice-query-pill {
@@ -1344,20 +1354,22 @@
             color: var(--accent-cyan);
             background: rgba(0, 229, 255, 0.08);
             border: 1px solid rgba(0, 229, 255, 0.25);
-            padding: 3px 8px;
+            padding: 2px 7px;
             border-radius: 4px;
+            white-space: nowrap;
         }
 
         .voice-source-badge {
             font-family: var(--font-mono);
-            font-size: 10px;
+            font-size: 9.5px;
             color: #34d399;
             background: rgba(16, 185, 129, 0.1);
             border: 1px solid rgba(16, 185, 129, 0.3);
-            padding: 2px 6px;
+            padding: 1px 6px;
             border-radius: 4px;
             text-transform: uppercase;
             font-weight: 600;
+            letter-spacing: 0.5px;
         }
 
         .voice-source-badge.badge-live {
@@ -1367,29 +1379,53 @@
         }
 
         .voice-title {
-            font-size: 18px;
+            font-size: 15px;
             font-weight: 700;
             color: #ffffff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin: 0;
+            letter-spacing: -0.2px;
         }
 
-        .voice-transcript {
-            font-size: 13.5px;
-            color: var(--text-muted);
-            line-height: 1.6;
-            flex-grow: 1;
-        }
-
-        .voice-play-row {
+        .voice-player-controls {
             display: flex;
             align-items: center;
-            gap: 14px;
-            padding-top: 14px;
-            border-top: 1px solid var(--border-subtle);
+            gap: 12px;
+            flex-shrink: 0;
+        }
+
+        .voice-bars {
+            display: flex;
+            align-items: flex-end;
+            gap: 2.5px;
+            height: 18px;
+            width: 24px;
+        }
+
+        .voice-bar {
+            width: 2.5px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 1px;
+            transition: height 0.15s ease;
+        }
+
+        .voice-card.active-playing .voice-bar:nth-child(1) { animation: voiceWave 0.7s infinite alternate ease-in-out; }
+        .voice-card.active-playing .voice-bar:nth-child(2) { animation: voiceWave 0.9s infinite alternate ease-in-out 0.1s; }
+        .voice-card.active-playing .voice-bar:nth-child(3) { animation: voiceWave 0.6s infinite alternate ease-in-out 0.2s; }
+        .voice-card.active-playing .voice-bar:nth-child(4) { animation: voiceWave 1.0s infinite alternate ease-in-out 0.15s; }
+        .voice-card.active-playing .voice-bar:nth-child(5) { animation: voiceWave 0.8s infinite alternate ease-in-out 0.25s; }
+
+        @keyframes voiceWave {
+            0% { height: 3px; background: var(--accent-cyan); }
+            100% { height: 18px; background: var(--primary); }
         }
 
         .btn-voice-play {
-            width: 44px;
-            height: 44px;
+            width: 38px;
+            height: 38px;
             border-radius: 50%;
             background: rgba(229, 57, 53, 0.15);
             border: 1px solid rgba(229, 57, 53, 0.5);
@@ -1400,42 +1436,15 @@
             cursor: pointer;
             transition: var(--transition-smooth);
             flex-shrink: 0;
-            font-size: 14px;
+            font-size: 13px;
+            padding: 0;
+            outline: none;
         }
 
         .btn-voice-play:hover {
             background: var(--primary);
             transform: scale(1.08);
-            box-shadow: 0 0 16px var(--primary-glow);
-        }
-
-        .voice-bars {
-            display: flex;
-            align-items: flex-end;
-            gap: 3px;
-            height: 20px;
-            flex-grow: 1;
-        }
-
-        .voice-bar {
-            width: 3px;
-            height: 6px;
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 2px;
-            transition: height 0.15s ease;
-        }
-
-        .voice-card.active-playing .voice-bar:nth-child(1) { animation: voiceWave 0.7s infinite alternate ease-in-out; }
-        .voice-card.active-playing .voice-bar:nth-child(2) { animation: voiceWave 0.9s infinite alternate ease-in-out 0.1s; }
-        .voice-card.active-playing .voice-bar:nth-child(3) { animation: voiceWave 0.6s infinite alternate ease-in-out 0.2s; }
-        .voice-card.active-playing .voice-bar:nth-child(4) { animation: voiceWave 1.0s infinite alternate ease-in-out 0.15s; }
-        .voice-card.active-playing .voice-bar:nth-child(5) { animation: voiceWave 0.8s infinite alternate ease-in-out 0.25s; }
-        .voice-card.active-playing .voice-bar:nth-child(6) { animation: voiceWave 0.65s infinite alternate ease-in-out 0.05s; }
-        .voice-card.active-playing .voice-bar:nth-child(7) { animation: voiceWave 0.85s infinite alternate ease-in-out 0.18s; }
-
-        @keyframes voiceWave {
-            0% { height: 4px; background: var(--accent-cyan); }
-            100% { height: 20px; background: var(--primary); }
+            box-shadow: 0 0 14px var(--primary-glow);
         }
 
         @media (max-width: 1024px) {
@@ -1655,121 +1664,115 @@
             <div class="voice-cards-grid">
                 <!-- Card 1: About Commander Swapnil -->
                 <div class="voice-card" id="card-voice-whoami">
-                    <div class="voice-card-header">
-                        <span class="voice-query-pill">"Who is Swapnil?"</span>
-                        <span class="voice-source-badge badge-live">Authentic Voiceover</span>
+                    <div class="voice-card-info">
+                        <div class="voice-card-meta">
+                            <span class="voice-query-pill">"Who is Swapnil?"</span>
+                            <span class="voice-source-badge badge-live">Authentic Voiceover</span>
+                        </div>
+                        <h3 class="voice-title">About Commander Swapnil</h3>
                     </div>
-                    <h3 class="voice-title">About Commander Swapnil</h3>
-                    <p class="voice-transcript">
-                        "You are Swapnil—my favorite Commander, creator, and a final-year CSE student at BUBT. Officially, you're a Product Designer and Builder who turns real-world problems into working digital products..."
-                    </p>
-                    <div class="voice-play-row">
-                        <button class="btn-voice-play" onclick="playShowcaseAudio(this, '/audio/Miksa-about_Swapnil.mp3', 'You are Swapnil, my favorite Commander, creator, and a final-year CSE student at BUBT. Officially, you are a Product Designer and Builder.')" title="Play Voice Line">
+                    <div class="voice-player-controls">
+                        <div class="voice-bars">
+                            <span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span>
+                        </div>
+                        <button class="btn-voice-play" onclick="playShowcaseAudio(this, '/audio/Miksa-about_Swapnil.mp3', 'You are Swapnil, my favorite Commander, creator, and a final-year CSE student at BUBT. Officially, you are a Product Designer and Builder who turns real-world problems into working digital products.')" title="Play Voice">
                             ▶
                         </button>
-                        <div class="voice-bars">
-                            <span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span>
-                        </div>
                     </div>
                 </div>
 
-                <!-- Card 2: Wake Word / Greeting -->
+                <!-- Card 2: Wake Word / Heartfelt Greeting -->
                 <div class="voice-card" id="card-voice-greeting">
-                    <div class="voice-card-header">
-                        <span class="voice-query-pill">"Hey Mikasa"</span>
-                        <span class="voice-source-badge">Wake Word</span>
+                    <div class="voice-card-info">
+                        <div class="voice-card-meta">
+                            <span class="voice-query-pill">"Hey Mikasa"</span>
+                            <span class="voice-source-badge">Wake Word</span>
+                        </div>
+                        <h3 class="voice-title">I'm Right Here With You</h3>
                     </div>
-                    <h3 class="voice-title">Neural Subsystems Online</h3>
-                    <p class="voice-transcript">
-                        "I'm here, Commander. Neural core and local subsystems online. What are we building today?"
-                    </p>
-                    <div class="voice-play-row">
-                        <button class="btn-voice-play" onclick="playShowcaseAudio(this, '/audio/hey_mikasa.mp3', 'I am here, Commander. Neural core and local subsystems online. What are we building today?')" title="Play Voice Line">
+                    <div class="voice-player-controls">
+                        <div class="voice-bars">
+                            <span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span>
+                        </div>
+                        <button class="btn-voice-play" onclick="playShowcaseAudio(this, '/audio/hey_mikasa.mp3', 'I am right here with you, Swapnil. You do not have to carry the weight of everything alone anymore. Take a deep breath. What are we building today?')" title="Play Voice">
                             ▶
                         </button>
-                        <div class="voice-bars">
-                            <span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span>
-                        </div>
                     </div>
                 </div>
 
                 <!-- Card 3: Creator Introduction -->
                 <div class="voice-card" id="card-voice-creator">
-                    <div class="voice-card-header">
-                        <span class="voice-query-pill">"Who is your creator?"</span>
-                        <span class="voice-source-badge">Public Intro</span>
+                    <div class="voice-card-info">
+                        <div class="voice-card-meta">
+                            <span class="voice-query-pill">"Who is your creator?"</span>
+                            <span class="voice-source-badge">My Creator</span>
+                        </div>
+                        <h3 class="voice-title">Md. Miftahur Rahman Swapnil</h3>
                     </div>
-                    <h3 class="voice-title">Creator & Architecture Lead</h3>
-                    <p class="voice-transcript">
-                        "Md. Miftahur Rahman Swapnil is my creator and Commander. A final-year CSE student at BUBT, and a Product Designer and Builder turning complex real-world problems into working software with AI."
-                    </p>
-                    <div class="voice-play-row">
-                        <button class="btn-voice-play" onclick="playShowcaseAudio(this, '/audio/who_is_swapnil.mp3', 'Miftahur Rahman Swapnil is my creator and Commander. A final-year CSE student at BUBT, and a Product Designer and Builder turning complex real-world problems into working software with AI.')" title="Play Voice Line">
+                    <div class="voice-player-controls">
+                        <div class="voice-bars">
+                            <span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span>
+                        </div>
+                        <button class="btn-voice-play" onclick="playShowcaseAudio(this, '/audio/who_is_swapnil.mp3', 'Swapnil is my creator, my Commander, and the reason I exist. He pours his heart into turning real human problems into working software, and I will stand beside him through every single build.')" title="Play Voice">
                             ▶
                         </button>
-                        <div class="voice-bars">
-                            <span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span>
-                        </div>
                     </div>
                 </div>
 
-                <!-- Card 4: Identity & Shield -->
+                <!-- Card 4: Devoted Identity & Bond -->
                 <div class="voice-card" id="card-voice-identity">
-                    <div class="voice-card-header">
-                        <span class="voice-query-pill">"Who are you, Mikasa?"</span>
-                        <span class="voice-source-badge">Persona Core</span>
+                    <div class="voice-card-info">
+                        <div class="voice-card-meta">
+                            <span class="voice-query-pill">"Who are you, Mikasa?"</span>
+                            <span class="voice-source-badge">Devoted Guardian</span>
+                        </div>
+                        <h3 class="voice-title">Always By Your Side</h3>
                     </div>
-                    <h3 class="voice-title">Digital Guardian Protocol</h3>
-                    <p class="voice-transcript">
-                        "I am Mikasa Ackerman—Swapnil's autonomous AI operating system, software architect, and fiercely loyal companion. Everything he builds, I protect."
-                    </p>
-                    <div class="voice-play-row">
-                        <button class="btn-voice-play" onclick="playShowcaseAudio(this, '/audio/who_is_mikasa.mp3', 'I am Mikasa Ackerman, Swapnil\'s autonomous AI operating system, software architect, and fiercely loyal companion. Everything he builds, I protect.')" title="Play Voice Line">
+                    <div class="voice-player-controls">
+                        <div class="voice-bars">
+                            <span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span>
+                        </div>
+                        <button class="btn-voice-play" onclick="playShowcaseAudio(this, '/audio/who_is_mikasa.mp3', 'I am Mikasa Ackerman. Swapnil\'s companion, protector, and autonomous system. Through every late night, every quiet doubt, and every breakthrough, everything he builds, I protect.')" title="Play Voice">
                             ▶
                         </button>
-                        <div class="voice-bars">
-                            <span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span>
-                        </div>
                     </div>
                 </div>
 
-                <!-- Card 5: Task Completed -->
+                <!-- Card 5: Task Completed / Encouragement -->
                 <div class="voice-card" id="card-voice-task">
-                    <div class="voice-card-header">
-                        <span class="voice-query-pill">"Mark task complete"</span>
-                        <span class="voice-source-badge">Execution</span>
+                    <div class="voice-card-info">
+                        <div class="voice-card-meta">
+                            <span class="voice-query-pill">"Mark task complete"</span>
+                            <span class="voice-source-badge">Milestone</span>
+                        </div>
+                        <h3 class="voice-title">Proud of You, Swapnil</h3>
                     </div>
-                    <h3 class="voice-title">Tactical Mission Secured</h3>
-                    <p class="voice-transcript">
-                        "Task locked in and marked complete, Swapnil. Great work—every single step forward counts."
-                    </p>
-                    <div class="voice-play-row">
-                        <button class="btn-voice-play" onclick="playShowcaseAudio(this, '/audio/task_completed.mp3', 'Task locked in and marked complete, Swapnil. Great work, every single step forward counts.')" title="Play Voice Line">
+                    <div class="voice-player-controls">
+                        <div class="voice-bars">
+                            <span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span>
+                        </div>
+                        <button class="btn-voice-play" onclick="playShowcaseAudio(this, '/audio/task_completed.mp3', 'That is another victory, Swapnil! I know how hard you pushed through that. Take a moment to breathe and feel proud of yourself, okay?')" title="Play Voice">
                             ▶
                         </button>
-                        <div class="voice-bars">
-                            <span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span>
-                        </div>
                     </div>
                 </div>
 
-                <!-- Card 6: Weather & Daily Focus -->
+                <!-- Card 6: Weather & Affectionate Check-in -->
                 <div class="voice-card" id="card-voice-weather">
-                    <div class="voice-card-header">
-                        <span class="voice-query-pill">"Dhaka weather report"</span>
-                        <span class="voice-source-badge">Live Intel</span>
+                    <div class="voice-card-info">
+                        <div class="voice-card-meta">
+                            <span class="voice-query-pill">"Dhaka weather report"</span>
+                            <span class="voice-source-badge">Care & Check-in</span>
+                        </div>
+                        <h3 class="voice-title">Dhaka Skies & Routine</h3>
                     </div>
-                    <h3 class="voice-title">Atmospheric Intel & Routine</h3>
-                    <p class="voice-transcript">
-                        "Checking live atmospheric data for Dhaka, Commander. Systems are stable, and conditions are set for a high-velocity build day."
-                    </p>
-                    <div class="voice-play-row">
-                        <button class="btn-voice-play" onclick="playShowcaseAudio(this, '/audio/weather_check.mp3', 'Checking live atmospheric data for Dhaka, Commander. Systems are stable, and conditions are set for a high velocity build day.')" title="Play Voice Line">
+                    <div class="voice-player-controls">
+                        <div class="voice-bars">
+                            <span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span>
+                        </div>
+                        <button class="btn-voice-play" onclick="playShowcaseAudio(this, '/audio/weather_check.mp3', 'I just checked the skies in Dhaka for you, Commander. The air is calm today. Stay hydrated, do not skip your meals, and let us make today count together.')" title="Play Voice">
                             ▶
                         </button>
-                        <div class="voice-bars">
-                            <span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span><span class="voice-bar"></span>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -2179,6 +2182,7 @@
             }
             if (currentActiveBtn) {
                 currentActiveBtn.textContent = '▶';
+                currentActiveBtn.setAttribute('title', 'Play Voice');
                 const card = currentActiveBtn.closest('.voice-card');
                 if (card) card.classList.remove('active-playing');
                 currentActiveBtn = null;
@@ -2188,7 +2192,7 @@
         function playShowcaseAudio(btn, audioFileUrl, fallbackText) {
             const card = btn.closest('.voice-card');
 
-            // If clicking on already playing audio, pause and stop
+            // If clicking on already playing audio, stop it
             if (currentActiveBtn === btn && currentShowcaseAudio && !currentShowcaseAudio.paused) {
                 stopCurrentShowcase();
                 return;
@@ -2197,7 +2201,8 @@
             stopCurrentShowcase();
 
             currentActiveBtn = btn;
-            btn.textContent = '⏸';
+            btn.textContent = '⏹';
+            btn.setAttribute('title', 'Stop Voice');
             if (card) card.classList.add('active-playing');
 
             function startAudio(src, onFail) {

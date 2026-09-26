@@ -27,7 +27,7 @@ function matchProject(text) {
     return null;
 }
 
-function supabaseRequest(path, method = 'GET', body = null) {
+function supabaseRequest(path, method = 'GET', body = null, extraHeaders = {}) {
     return new Promise((resolve, reject) => {
         const payload = body ? JSON.stringify(body) : null;
         const req = https.request({
@@ -39,6 +39,7 @@ function supabaseRequest(path, method = 'GET', body = null) {
                 'Authorization': `Bearer ${supabaseKey}`,
                 'Content-Type': 'application/json',
                 'Prefer': method === 'GET' ? 'count=none' : 'return=representation',
+                ...extraHeaders,
                 ...(payload ? { 'Content-Length': Buffer.byteLength(payload) } : {})
             }
         }, (res) => {
@@ -2003,24 +2004,26 @@ async function handleActionIntent(message, context = { isCommander: true }) {
             };
         }
 
-        // Generic / Help overview if command /portfolio is sent
-        return {
-            action: 'portfolio_menu',
-            success: true,
-            feedback: [
-                "🛡️ **Portfolio Autonomous Operations (Stark-OS)**",
-                "",
-                "I can directly modify your live portfolio repository (`stark-os-portfolio`), verify with TypeScript, commit, and `git push` to trigger Vercel deployment to **mrswapnil.me**!",
-                "",
-                "⚡ **Supported Actions:**",
-                "• *'Add CurricuRAG paper to my portfolio'* — Adds your IEEE OMLET 2026 paper to projects & research and pushes.",
-                "• *'Sync portfolio'* — Updates hero headline to official *Product Designer & Builder* and pushes.",
-                "• *'Add project [Name] to my portfolio'* — Injects a new project and deploys.",
-                "",
-                "🌐 **Live Site:** [mrswapnil.me](https://www.mrswapnil.me/)",
-                "📁 **Repository:** `Swapnil-360/stark-os-portfolio` (branch: `main`)"
-            ].join('\n')
-        };
+        // Return menu ONLY if explicit command /portfolio or menu query was sent
+        if (text.match(/^(?:\/portfolio|\/portfolio_status|\/portfolio_sync|\/sync_portfolio)\b/i) || text.match(/portfolio\s*(?:menu|help|options|commands)/i)) {
+            return {
+                action: 'portfolio_menu',
+                success: true,
+                feedback: [
+                    "🛡️ **Portfolio Autonomous Operations (Stark-OS)**",
+                    "",
+                    "I can directly modify your live portfolio repository (`stark-os-portfolio`), verify with TypeScript, commit, and `git push` to trigger Vercel deployment to **mrswapnil.me**!",
+                    "",
+                    "⚡ **Supported Actions:**",
+                    "• *'Add CurricuRAG paper to my portfolio'* — Adds your IEEE OMLET 2026 paper to projects & research and pushes.",
+                    "• *'Sync portfolio'* — Updates hero headline to official *Product Designer & Builder* and pushes.",
+                    "• *'Add project [Name] to my portfolio'* — Injects a new project and deploys.",
+                    "",
+                    "🌐 **Live Site:** [mrswapnil.me](https://www.mrswapnil.me/)",
+                    "📁 **Repository:** `Swapnil-360/stark-os-portfolio` (branch: `main`)"
+                ].join('\n')
+            };
+        }
     }
 
     return null;

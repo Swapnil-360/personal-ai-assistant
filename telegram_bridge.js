@@ -211,6 +211,102 @@ function getChatUuid(chatId) {
     return [h.slice(0, 8), h.slice(8, 12), h.slice(12, 16), h.slice(16, 20), h.slice(20, 32)].join('-');
 }
 
+// In-Memory rolling conversation history cache (0ms instant context memory)
+// Map: conversationId -> Array<{ role: 'user'|'assistant', content: string, timestamp: string }>
+const conversationHistoryCache = new Map();
+
+async function getRecentConversationHistory(conversationId, limit = 12) {
+    if (!conversationId) return [];
+
+    let history = conversationHistoryCache.get(conversationId);
+    if (!history || history.length === 0) {
+        try {
+            const rows = await supabaseRequest(`/messages?conversation_id=eq.${conversationId}&order=timestamp.desc&limit=${limit}`, 'GET');
+            if (Array.isArray(rows) && rows.length > 0) {
+                history = [...rows].reverse().map(r => ({
+                    role: (r.role === 'assistant' || r.role === 'model') ? 'assistant' : 'user',
+                    content: r.content || '',
+                    timestamp: r.timestamp || new Date().toISOString()
+                }));
+                conversationHistoryCache.set(conversationId, history);
+            } else {
+                history = [];
+                conversationHistoryCache.set(conversationId, history);
+            }
+        } catch (e) {
+            history = history || [];
+        }
+    }
+    return history.slice(-limit);
+}
+
+const ensuredConversations = new Set();
+async function ensureConversationExists(conversationId, title = 'Telegram Chat') {
+    if (!conversationId || ensuredConversations.has(conversationId)) return;
+    try {
+        await supabaseRequest('/conversations', 'POST', {
+            id: conversationId,
+            title: (title || 'Telegram Chat').slice(0, 50),
+            channel: 'telegram',
+            status: 'active',
+            last_message_at: new Date().toISOString()
+        }, { 'Prefer': 'resolution=merge-duplicates' });
+        ensuredConversations.add(conversationId);
+    } catch (e) {
+        ensuredConversations.add(conversationId);
+    }
+}
+
+async function recordConversationTurn(conversationId, userText, assistantText, model = 'gemini-3.5-flash-lite') {
+    if (!conversationId) return;
+
+    if (!conversationHistoryCache.has(conversationId)) {
+        conversationHistoryCache.set(conversationId, []);
+    }
+    const history = conversationHistoryCache.get(conversationId);
+    const now = new Date().toISOString();
+
+    if (userText && String(userText).trim()) {
+        history.push({ role: 'user', content: String(userText).trim(), timestamp: now });
+    }
+    if (assistantText && String(assistantText).trim()) {
+        history.push({ role: 'assistant', content: String(assistantText).trim(), timestamp: now });
+    }
+
+    if (history.length > 30) {
+        conversationHistoryCache.set(conversationId, history.slice(-30));
+    }
+
+    // Persist to Supabase asynchronously with identical object keys and FK resolution
+    try {
+        const rows = [];
+        if (userText && String(userText).trim()) {
+            rows.push({
+                conversation_id: conversationId,
+                role: 'user',
+                content: String(userText).trim(),
+                model: null,
+                timestamp: now
+            });
+        }
+        if (assistantText && String(assistantText).trim()) {
+            rows.push({
+                conversation_id: conversationId,
+                role: 'assistant',
+                content: String(assistantText).trim(),
+                model: model || 'gemini-3.5-flash-lite',
+                timestamp: now
+            });
+        }
+        if (rows.length > 0) {
+            await ensureConversationExists(conversationId, userText || 'Telegram Chat');
+            await supabaseRequest('/messages', 'POST', rows);
+        }
+    } catch (e) {
+        console.warn('[Conversation Save Warning]:', e.message);
+    }
+}
+
 // Fetch chat metadata from Telegram API (getChat)
 function getChatInfo(chatId) {
     return new Promise((resolve) => {
@@ -848,14 +944,13 @@ async function buildMikasaSystemPrompt(userContext, conversationId) {
     let recentMsgsStr = '';
 
     try {
-        const [profRes, stateRes, goalsRes, projRes, decRes, memRes, msgRes] = await Promise.allSettled([
+        const [profRes, stateRes, goalsRes, projRes, decRes, memRes] = await Promise.allSettled([
             supabaseRequest('/rpc/get_profile', 'POST'),
             supabaseRequest('/rpc/get_current_state', 'POST'),
             supabaseRequest('/rpc/get_active_goals', 'POST'),
             supabaseRequest('/projects?select=*&order=created_at.desc', 'GET'),
             supabaseRequest('/project_decisions?select=*&order=created_at.desc', 'GET'),
-            supabaseRequest('/memories?status=eq.active&select=content,memory_type,importance&order=importance.desc,created_at.desc&limit=25', 'GET'),
-            supabaseRequest(`/messages?conversation_id=eq.${conversationId}&order=timestamp.desc&limit=12`, 'GET')
+            supabaseRequest('/memories?status=eq.active&select=content,memory_type,importance&order=importance.desc,created_at.desc&limit=25', 'GET')
         ]);
 
         if (profRes.status === 'fulfilled' && profRes.value) {
@@ -889,9 +984,10 @@ async function buildMikasaSystemPrompt(userContext, conversationId) {
             memoriesStr = memRes.value.map(m => `• [${(m.memory_type || 'FACT').toUpperCase()}] (Importance: ${m.importance || 5}/10): ${m.content}`).join('\n');
         }
 
-        if (msgRes.status === 'fulfilled' && Array.isArray(msgRes.value)) {
-            const chronological = [...msgRes.value].reverse();
-            recentMsgsStr = chronological.map(m => `${(m.role || 'user').toUpperCase()}: ${m.content}`).join('\n');
+        // Retrieve recent turns from in-memory cache + Supabase fallback
+        const recentHistory = await getRecentConversationHistory(conversationId, 12);
+        if (Array.isArray(recentHistory) && recentHistory.length > 0) {
+            recentMsgsStr = recentHistory.map(m => `${(m.role === 'user' ? 'SWAPNIL' : 'MIKASA')}: ${m.content}`).join('\n');
         }
     } catch (e) {
         console.warn('[Prompt Grounding Error]:', e.message);
@@ -1119,6 +1215,16 @@ AUTONOMOUS ADAPTATION, MEMORY & PROGRESSIVE STRATEGY
        - Present actual specific job opportunities with company, title, location, posted recency, and direct apply link.
        - NEVER send the exact same canned search body again and again. Treat his connected LinkedIn profile as active intelligence.
 
+4. CONVERSATIONAL CONTINUITY, REPLIES & FLOW (ZERO-AMNESIA DIRECTIVE):
+   - You MUST maintain seamless memory of what was just discussed in previous messages and turns.
+   - When Swapnil replies with short confirmations, instructions, or agreements (e.g., "Ha koro", "Eta add kore dao", "Ha add kore dao", "Yes do it", "Commit it", "Go ahead", "Bolo"):
+     • NEVER respond with "Ki korte bolcho?", "Ha koro mane?", "Kono new project?", or "Ki add korte hobe?".
+     • ALWAYS connect his message immediately to what YOU or HE just said in the previous turn!
+     • Example 1: If you asked "Ki, local Node.js bridge setup kore feli naki?" and he replies "Ha koro", you know EXACTLY what he wants: proceed with setting up the local Node.js bridge!
+     • Example 2: If he gave you the tech stack of Mikasa and says "Akhon tumi eta amr portfolio te as a new project add kore dao", "eta" refers to Mikasa and the tech stack he just shared.
+     • Example 3: If you drafted a JSON/project entry and asked "ami ki commit kore debo?" and he replies "Ha add kore dao" or quotes your message saying "Eta add kore dao", acknowledge and commit/push or confirm the exact project!
+   - When a user message starts with [In reply to Mikasa: "..."] or [In reply to Swapnil: "..."], that quoted text is the EXACT subject of their reply. Use it immediately with full context!
+
 ==============================
 CRITICAL FORMATTING & CONCISENESS RULES (TELEGRAM MOBILE)
 ==============================
@@ -1250,8 +1356,8 @@ function setGeminiCooldown(seconds, reason = 'Quota exceeded') {
     console.warn(`[Gemini Quota Manager] Cooldown engaged for ${retrySecs}s. Reason: ${reason}`);
 }
 
-// Call Google Gemini API (with pre-flight quota checks)
-function callGeminiApi(systemPrompt, userMessage, apiKey) {
+// Call Google Gemini API (with pre-flight quota checks & multi-turn memory)
+function callGeminiApi(systemPrompt, userMessage, apiKey, conversationHistory = []) {
     return new Promise((resolve, reject) => {
         pruneGeminiWindow();
         const now = Date.now();
@@ -1278,16 +1384,45 @@ function callGeminiApi(systemPrompt, userMessage, apiKey) {
             });
         }
 
+        // Construct alternating conversation turns for Gemini
+        // Rules: must start with user, alternate user <-> model, merge duplicates
+        const contents = [];
+        if (Array.isArray(conversationHistory) && conversationHistory.length > 0) {
+            for (const item of conversationHistory) {
+                const role = (item.role === 'assistant' || item.role === 'model') ? 'model' : 'user';
+                const textPart = (item.content || '').trim();
+                if (!textPart) continue;
+
+                if (contents.length === 0) {
+                    if (role === 'user') {
+                        contents.push({ role: 'user', parts: [{ text: textPart }] });
+                    }
+                } else {
+                    const last = contents[contents.length - 1];
+                    if (last.role === role) {
+                        last.parts[0].text += '\n' + textPart;
+                    } else {
+                        contents.push({ role, parts: [{ text: textPart }] });
+                    }
+                }
+            }
+        }
+
+        // Append current user message
+        if (contents.length > 0 && contents[contents.length - 1].role === 'user') {
+            contents[contents.length - 1].parts[0].text += '\n' + userMessage;
+        } else {
+            contents.push({
+                role: "user",
+                parts: [{ text: userMessage }]
+            });
+        }
+
         const payload = JSON.stringify({
             system_instruction: {
                 parts: [{ text: systemPrompt }]
             },
-            contents: [
-                {
-                    role: "user",
-                    parts: [{ text: userMessage }]
-                }
-            ],
+            contents,
             generationConfig: {
                 temperature: 0.5,
                 maxOutputTokens: 1024
@@ -1353,15 +1488,24 @@ function callGeminiApi(systemPrompt, userMessage, apiKey) {
     });
 }
 
-// Call OpenRouter API
-function callOpenRouterApi(systemPrompt, userMessage, apiKey) {
+// Call OpenRouter API with multi-turn conversation memory
+function callOpenRouterApi(systemPrompt, userMessage, apiKey, conversationHistory = []) {
     return new Promise((resolve, reject) => {
+        const messages = [{ role: "system", content: systemPrompt }];
+        if (Array.isArray(conversationHistory) && conversationHistory.length > 0) {
+            for (const item of conversationHistory) {
+                const role = (item.role === 'assistant' || item.role === 'model') ? 'assistant' : 'user';
+                const content = (item.content || '').trim();
+                if (content) {
+                    messages.push({ role, content });
+                }
+            }
+        }
+        messages.push({ role: "user", content: userMessage });
+
         const payload = JSON.stringify({
             model: "openai/gpt-4o-mini",
-            messages: [
-                { role: "system", content: systemPrompt },
-                { role: "user", content: userMessage }
-            ],
+            messages,
             temperature: 0.5
         });
 
@@ -1534,6 +1678,9 @@ async function callMikasaAgent(message, conversationId, userContext) {
         }
     }
 
+    // Retrieve rolling multi-turn conversation history for context continuity
+    const conversationHistory = await getRecentConversationHistory(conversationId, 10);
+
     // For guests use a lean focused prompt — NOT the Swapnil system prompt.
     // The full prompt is 500+ lines of "Swapnil" context which confuses the LLM into calling guests "Swapnil".
     let systemPrompt;
@@ -1550,8 +1697,8 @@ async function callMikasaAgent(message, conversationId, userContext) {
             console.log(`[Mikasa Instant Failover] Gemini is in cooldown (${quotaStatus.cooldown_remaining_seconds}s remaining). Routing INSTANTLY to OpenRouter!`);
         } else {
             try {
-                console.log('[Mikasa Agent] Calling Gemini Cloud directly (Primary Engine)...');
-                const reply = await callGeminiApi(systemPrompt, message, geminiKey);
+                console.log(`[Mikasa Agent] Calling Gemini Cloud directly (Primary Engine, ${conversationHistory.length} history turns)...`);
+                const reply = await callGeminiApi(systemPrompt, message, geminiKey, conversationHistory);
                 if (reply) {
                     const usedModel = getEnv('GEMINI_MODEL') || 'gemini-3.5-flash-lite';
                     return { reply, engine: usedModel };
@@ -1565,8 +1712,8 @@ async function callMikasaAgent(message, conversationId, userContext) {
     // 3. Direct OpenRouter Cloud Integration (Instant Fallback: gpt-4o-mini)
     if (openrouterKey) {
         try {
-            console.log('[Mikasa Agent] Calling OpenRouter Cloud directly (Fallback Engine: gpt-4o-mini)...');
-            const reply = await callOpenRouterApi(systemPrompt, message, openrouterKey);
+            console.log(`[Mikasa Agent] Calling OpenRouter Cloud directly (Fallback Engine: gpt-4o-mini, ${conversationHistory.length} history turns)...`);
+            const reply = await callOpenRouterApi(systemPrompt, message, openrouterKey, conversationHistory);
             if (reply) {
                 lastUsedEngine = 'openrouter';
                 // Silent fallover — no message appended to user reply
@@ -2388,9 +2535,31 @@ async function processUpdate(update) {
         hasAdminAccess: false
     }) : null;
 
-    // 1. Group Chat Filter: In groups, ONLY respond if mentioned or addressed by name!
     const botUsername = 'mikasa_360_bot';
+
+    // Extract reply_to_message context (replied-to message details)
+    let quotedContext = null;
+    if (msg.reply_to_message) {
+        const repFrom = msg.reply_to_message.from || {};
+        const isFromBot = Boolean(repFrom.is_bot || (repFrom.username && repFrom.username.toLowerCase() === botUsername.toLowerCase()));
+        const isFromCommander = Boolean((repFrom.id === SWAPNIL_USER_ID) || (repFrom.username && repFrom.username.toLowerCase() === SWAPNIL_USERNAME.toLowerCase()));
+        const senderName = isFromBot ? 'Mikasa' : (isFromCommander ? 'Swapnil' : (repFrom.first_name || 'User'));
+        const repText = (msg.reply_to_message.text || msg.reply_to_message.caption || '').trim();
+        if (repText) {
+            quotedContext = {
+                sender: senderName,
+                text: repText,
+                isFromBot,
+                isFromCommander,
+                messageId: msg.reply_to_message.message_id
+            };
+        }
+    }
+
+    // 1. Group Chat Filter: In groups, ONLY respond if mentioned, replying to Mikasa, or addressed by name!
+    const isReplyingToMikasa = quotedContext && quotedContext.isFromBot;
     const isMentioned = 
+        isReplyingToMikasa ||
         text.includes('@' + botUsername) ||
         // bot_command entities like /members@mikasa_360_bot count as addressing the bot
         (msg.entities && msg.entities.some(e => 
@@ -2421,7 +2590,14 @@ async function processUpdate(update) {
         return;
     }
 
-    console.log(`[Telegram ${isGroup ? 'Group' : 'DM'}] From ${userName} (@${telegramUsername || 'no_username'}, ID:${userId}, Commander: ${isCommander}): "${text}"`);
+    // Construct enriched user prompt incorporating quoted context if present
+    let effectiveUserPrompt = text;
+    if (quotedContext) {
+        const preview = quotedContext.text.length > 500 ? quotedContext.text.slice(0, 500) + '...' : quotedContext.text;
+        effectiveUserPrompt = `[In reply to ${quotedContext.sender}: "${preview}"]\n${text}`;
+    }
+
+    console.log(`[Telegram ${isGroup ? 'Group' : 'DM'}] From ${userName} (@${telegramUsername || 'no_username'}, ID:${userId}, Commander: ${isCommander}): "${text}"${quotedContext ? ` (Replying to ${quotedContext.sender})` : ''}`);
 
     const conversationId = getChatUuid(chatId);
 
@@ -2754,13 +2930,15 @@ async function processUpdate(update) {
         // Forward general question to Mikasa LLM in guest mode
         await sendChatAction(chatId, 'typing');
         try {
-            const response = await callMikasaAgent(text, conversationId, {
+            const guestPrompt = effectiveUserPrompt;
+            const response = await callMikasaAgent(guestPrompt, conversationId, {
                 user_id: userId,
                 first_name: userName,
                 username: telegramUsername || null,
                 isCommander: false,
                 isGroup: isGroup,
-                group: currentGroup
+                group: currentGroup,
+                replyTo: quotedContext
             });
             const replyText = response.reply || response.text || `Hello ${userName}, I am here with Swapnil.`;
             let finalText = replyText;
@@ -2768,6 +2946,7 @@ async function processUpdate(update) {
                 finalText = `🎤 *[Voice Transcribed]*: _"${text}"_\n\n${replyText}`;
             }
             await sendTelegramMessage(chatId, finalText, msg.message_id);
+            await recordConversationTurn(conversationId, guestPrompt, replyText, response.engine || 'gemini-3.5-flash-lite');
         } catch (err) {
             await sendTelegramMessage(chatId, `Hello ${userName}, I am Mikasa Ackerman, Swapnil's AI companion. 🧣`, msg.message_id);
         }
@@ -3622,7 +3801,7 @@ async function processUpdate(update) {
 
     // 14. Check for Direct Action Intent (create task, complete task, add goal, log decision, add note)
     try {
-        const actionResult = await handleActionIntent(text);
+        const actionResult = await handleActionIntent(text, { isCommander: true, replyTo: quotedContext });
         if (actionResult) {
             console.log('[Action Executed]:', actionResult);
             let reply = '';
@@ -3685,6 +3864,7 @@ async function processUpdate(update) {
                     ]
                 };
                 await sendTelegramMessage(chatId, actionResult.feedback, msg.message_id, replyMarkup);
+                await recordConversationTurn(conversationId, effectiveUserPrompt, actionResult.feedback, 'action-portfolio');
                 return;
             } else if (actionResult.action === 'portfolio_menu') {
                 const replyMarkup = {
@@ -3699,6 +3879,7 @@ async function processUpdate(update) {
                     ]
                 };
                 await sendTelegramMessage(chatId, actionResult.feedback, msg.message_id, replyMarkup);
+                await recordConversationTurn(conversationId, effectiveUserPrompt, actionResult.feedback, 'action-portfolio');
                 return;
             } else if (actionResult.feedback) {
                 reply = actionResult.feedback;
@@ -3738,6 +3919,7 @@ async function processUpdate(update) {
                 };
 
                 await sendTelegramMessage(chatId, msgText, msg.message_id, replyMarkup);
+                await recordConversationTurn(conversationId, effectiveUserPrompt, Array.isArray(msgText) ? msgText.join('\n') : String(msgText), 'action-job');
                 return;
             } else if (actionResult.action === 'job_results') {
                 const { filters, jobs } = actionResult;
@@ -3781,6 +3963,7 @@ async function processUpdate(update) {
                 };
 
                 await sendTelegramMessage(chatId, reply, msg.message_id, replyMarkup);
+                await recordConversationTurn(conversationId, effectiveUserPrompt, reply, 'action-job');
                 triggerMemoryExtraction(text, reply, conversationId);
                 return;
             } else if (actionResult.action === 'job_radar') {
@@ -3821,6 +4004,7 @@ async function processUpdate(update) {
                 };
 
                 await sendTelegramMessage(chatId, reply, msg.message_id, replyMarkup);
+                await recordConversationTurn(conversationId, effectiveUserPrompt, reply, 'action-job');
                 triggerMemoryExtraction(text, reply, conversationId);
                 return;
             } else if (actionResult.action === 'crypto_radar') {
@@ -3870,12 +4054,14 @@ async function processUpdate(update) {
                 };
 
                 await sendTelegramMessage(chatId, reply, msg.message_id, replyMarkup);
+                await recordConversationTurn(conversationId, effectiveUserPrompt, reply, 'action-crypto');
                 triggerMemoryExtraction(text, reply, conversationId);
                 return;
             }
 
             if (reply) {
                 await sendTelegramMessage(chatId, reply, msg.message_id);
+                await recordConversationTurn(conversationId, effectiveUserPrompt, reply, 'action-handler');
                 // Also trigger memory reflection on actions
                 triggerMemoryExtraction(text, reply, conversationId);
                 return;
@@ -3886,7 +4072,7 @@ async function processUpdate(update) {
     }
 
     // 15. Translate Shortcut Commands into Natural Queries
-    let queryPrompt = text;
+    let queryPrompt = null;
     if (text === '/goals') {
         queryPrompt = "Give me a concise, compact executive briefing on my active goals in 3-4 clean bullet points. Keep it punchy, warm, and ask if I want to dive into any specific one.";
     } else if (text === '/projects') {
@@ -3899,6 +4085,8 @@ async function processUpdate(update) {
         queryPrompt = "Give me a quick 3-bullet summary of my profile, university status, and career direction as you know it.";
     }
 
+    const activeUserPrompt = queryPrompt || effectiveUserPrompt;
+
     // 16. Send Typing Action while Mikasa reasons
     await sendChatAction(chatId, 'typing');
     const typingInterval = setInterval(() => {
@@ -3906,13 +4094,14 @@ async function processUpdate(update) {
     }, 4000);
 
     try {
-        const response = await callMikasaAgent(queryPrompt, conversationId, {
+        const response = await callMikasaAgent(activeUserPrompt, conversationId, {
             user_id: userId,
             first_name: msg.from.first_name,
             username: msg.from.username,
             isCommander: true,
             isGroup: isGroup,
-            group: currentGroup
+            group: currentGroup,
+            replyTo: quotedContext
         });
 
         clearInterval(typingInterval);
@@ -3973,15 +4162,8 @@ async function processUpdate(update) {
             }
         }
 
-        // Ensure conversation turn is stored in Supabase so Cloud & Local both have full context
-        if (!response.context_used) {
-            try {
-                await supabaseRequest('/messages', 'POST', [
-                    { conversation_id: conversationId, role: 'user', content: text, timestamp: new Date().toISOString() },
-                    { conversation_id: conversationId, role: 'assistant', content: replyText, model: response.engine || 'gemini-3.5-flash-lite', timestamp: new Date().toISOString() }
-                ]);
-            } catch (e) {}
-        }
+        // Ensure conversation turn is stored in cache & Supabase
+        await recordConversationTurn(conversationId, activeUserPrompt, replyText, response.engine || 'gemini-3.5-flash-lite');
 
         // 17. Background Automatic Memory Extraction Trigger
         triggerMemoryExtraction(text, replyText, conversationId);
@@ -4116,5 +4298,7 @@ module.exports = {
     getGeminiQuotaStatus,
     setGeminiCooldown,
     triggerMemoryExtraction,
-    deliverCvDocument
+    deliverCvDocument,
+    recordConversationTurn,
+    getRecentConversationHistory
 };

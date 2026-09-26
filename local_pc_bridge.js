@@ -201,7 +201,7 @@ async function sendTelegramDocument(chatId, filePath, caption = '') {
         throw new Error(`File not found: ${filePath}`);
     }
 
-    const token = getEnv('TELEGRAM_BOT_TOKEN', '8896311503:AAEuL6P-6yvnkjs1_v9L3buyck-pwZuT_9M');
+    const token = getEnv('TELEGRAM_BOT_TOKEN');
     if (!token) throw new Error('TELEGRAM_BOT_TOKEN is not configured.');
 
     const boundary = '----WebKitFormBoundary' + Math.random().toString(16).slice(2);
@@ -258,9 +258,8 @@ async function sendTelegramDocument(chatId, filePath, caption = '') {
     });
 }
 
-// Streams an in-memory document buffer to Telegram chat via multipart/form-data
 async function sendTelegramDocumentBuffer(chatId, buffer, fileName, caption = '') {
-    const token = getEnv('TELEGRAM_BOT_TOKEN', '8896311503:AAEuL6P-6yvnkjs1_v9L3buyck-pwZuT_9M');
+    const token = getEnv('TELEGRAM_BOT_TOKEN');
     if (!token) throw new Error('TELEGRAM_BOT_TOKEN is not configured.');
 
     const boundary = '----WebKitFormBoundary' + Math.random().toString(16).slice(2);

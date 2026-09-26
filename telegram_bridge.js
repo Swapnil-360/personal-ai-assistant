@@ -75,11 +75,11 @@ function getEnv(key) {
     return null;
 }
 
-const BOT_TOKEN = getEnv('TELEGRAM_BOT_TOKEN') || '8896311503:AAEuL6P-6yvnkjs1_v9L3buyck-pwZuT_9M';
+const BOT_TOKEN = getEnv('TELEGRAM_BOT_TOKEN');
 if (!BOT_TOKEN) {
     console.error('CRITICAL: TELEGRAM_BOT_TOKEN is missing from environment variables!');
 }
-const BOT_ID = parseInt(BOT_TOKEN.split(':')[0]) || 8896311503;
+const BOT_ID = BOT_TOKEN ? parseInt(BOT_TOKEN.split(':')[0]) : 8896311503;
 const N8N_WEBHOOK_URL = getEnv('N8N_WEBHOOK_URL') || 'http://localhost:5678/webhook/swapnil-ai';
 const MEMORY_WEBHOOK_URL = getEnv('MEMORY_WEBHOOK_URL') || 'http://localhost:5678/webhook/extract-memory';
 const SWAPNIL_USER_ID = Number(getEnv('SWAPNIL_USER_ID')) || 7112137739;
@@ -491,7 +491,68 @@ function registerBotCommands() {
     req.on('error', err => console.error('Error setting commands:', err.message));
     req.write(payload);
     req.end();
+
+    // Trigger identity and anti-tamper guard
+    enforceBotIdentity();
 }
+
+/**
+ * Automated Bot Identity & Description Anti-Tamper Guard
+ * Prevents third-party attackers from overriding bot description with spam links
+ */
+const MIKASA_OFFICIAL_DESCRIPTION = '⚔️ Mikasa — Personal AI Operating Layer & Devoted Companion to Swapnil.\nAutonomous task orchestration, multi-turn memory, PC bridge, and workflow copilot.';
+const MIKASA_OFFICIAL_SHORT_DESCRIPTION = '⚔️ Mikasa — Personal AI Assistant & Autonomous Operating Layer to Swapnil.';
+
+function postTelegramApiMethod(method, body) {
+    return new Promise((resolve) => {
+        if (!BOT_TOKEN) return resolve(null);
+        const payload = JSON.stringify(body);
+        const req = https.request({
+            hostname: 'api.telegram.org',
+            path: `/bot${BOT_TOKEN}/${method}`,
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Content-Length': Buffer.byteLength(payload)
+            }
+        }, (res) => {
+            let data = '';
+            res.on('data', c => data += c);
+            res.on('end', () => {
+                try { resolve(JSON.parse(data)); } catch { resolve(null); }
+            });
+        });
+        req.on('error', () => resolve(null));
+        req.write(payload);
+        req.end();
+    });
+}
+
+async function enforceBotIdentity() {
+    if (!BOT_TOKEN) return;
+    try {
+        const descData = await postTelegramApiMethod('getMyDescription', {});
+        const currentDesc = descData?.result?.description || '';
+        if (currentDesc !== MIKASA_OFFICIAL_DESCRIPTION) {
+            console.warn('[Security Guard] Bot description modified or attacked! Restoring official Mikasa identity...');
+            await postTelegramApiMethod('setMyDescription', { description: MIKASA_OFFICIAL_DESCRIPTION });
+            console.log('[Security Guard] Official description enforced.');
+        }
+
+        const shortData = await postTelegramApiMethod('getMyShortDescription', {});
+        const currentShort = shortData?.result?.short_description || '';
+        if (currentShort !== MIKASA_OFFICIAL_SHORT_DESCRIPTION) {
+            console.warn('[Security Guard] Bot short description modified or attacked! Restoring official Mikasa identity...');
+            await postTelegramApiMethod('setMyShortDescription', { short_description: MIKASA_OFFICIAL_SHORT_DESCRIPTION });
+            console.log('[Security Guard] Official short description enforced.');
+        }
+    } catch (e) {
+        console.error('[Security Guard] Failed to enforce bot identity:', e.message);
+    }
+}
+
+// Enforce identity every 15 minutes
+setInterval(enforceBotIdentity, 15 * 60 * 1000);
 
 // Send typing indicator to chat
 function sendChatAction(chatId, action = 'typing') {

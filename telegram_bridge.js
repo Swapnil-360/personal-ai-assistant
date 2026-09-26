@@ -500,8 +500,8 @@ function registerBotCommands() {
  * Automated Bot Identity & Description Anti-Tamper Guard
  * Prevents third-party attackers from overriding bot description with spam links
  */
-const MIKASA_OFFICIAL_DESCRIPTION = '⚔️ Mikasa — Personal AI Operating Layer & Devoted Companion to Swapnil.\nAutonomous task orchestration, multi-turn memory, PC bridge, and workflow copilot.';
-const MIKASA_OFFICIAL_SHORT_DESCRIPTION = '⚔️ Mikasa — Personal AI Assistant & Autonomous Operating Layer to Swapnil.';
+const MIKASA_OFFICIAL_DESCRIPTION = 'Mikasa🧣 — Your loyal AI companion & everyday helper.\nTaking care of Swapnil’s ideas, reminders, and PC bridge with lots of care (and just a tiny bit of Ackerman protectiveness) 🧣✨\n\n🔗 Explore: https://mikasa.mrswapnil.me';
+const MIKASA_OFFICIAL_SHORT_DESCRIPTION = 'Mikasa🧣 — Swapnil’s loyal AI companion & sweet helper 🧣✨ https://mikasa.mrswapnil.me';
 
 function postTelegramApiMethod(method, body) {
     return new Promise((resolve) => {

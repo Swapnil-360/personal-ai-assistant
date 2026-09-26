@@ -79,7 +79,7 @@ const BOT_TOKEN = getEnv('TELEGRAM_BOT_TOKEN');
 if (!BOT_TOKEN) {
     console.error('CRITICAL: TELEGRAM_BOT_TOKEN is missing from environment variables!');
 }
-const BOT_ID = BOT_TOKEN ? parseInt(BOT_TOKEN.split(':')[0]) : 8896311503;
+const BOT_ID = BOT_TOKEN ? parseInt(BOT_TOKEN.split(':')[0]) : null;
 const N8N_WEBHOOK_URL = getEnv('N8N_WEBHOOK_URL') || 'http://localhost:5678/webhook/swapnil-ai';
 const MEMORY_WEBHOOK_URL = getEnv('MEMORY_WEBHOOK_URL') || 'http://localhost:5678/webhook/extract-memory';
 const SWAPNIL_USER_ID = Number(getEnv('SWAPNIL_USER_ID')) || 7112137739;

@@ -83,8 +83,35 @@ const BOT_ID = BOT_TOKEN ? parseInt(BOT_TOKEN.split(':')[0]) : null;
 const N8N_WEBHOOK_URL = getEnv('N8N_WEBHOOK_URL') || 'http://localhost:5678/webhook/swapnil-ai';
 const MEMORY_WEBHOOK_URL = getEnv('MEMORY_WEBHOOK_URL') || 'http://localhost:5678/webhook/extract-memory';
 const SWAPNIL_USER_ID = Number(getEnv('SWAPNIL_USER_ID')) || 7112137739;
-// Commander can also be identified by Telegram username (fallback for cross-account safety)
-const SWAPNIL_USERNAME = (getEnv('SWAPNIL_USERNAME') || 'Swapnil3600').toLowerCase().replace(/^@/, '');
+const rawUserIds = (getEnv('SWAPNIL_USER_IDS') || `${getEnv('SWAPNIL_USER_ID') || 7112137739}`)
+    .split(',')
+    .map(id => Number(id.trim()))
+    .filter(id => !isNaN(id) && id > 0);
+const COMMANDER_USER_IDS = new Set([7112137739, ...rawUserIds]);
+
+// Commander can also be identified by Telegram username (supports multiple personal accounts, e.g. Swapnil3600 & swapnil360)
+const rawUsernames = (getEnv('SWAPNIL_USERNAMES') || getEnv('SWAPNIL_USERNAME') || 'Swapnil3600,swapnil360')
+    .split(',')
+    .map(u => u.trim().toLowerCase().replace(/^@/, ''))
+    .filter(Boolean);
+const COMMANDER_USERNAMES = new Set(['swapnil3600', 'swapnil360', ...rawUsernames]);
+const SWAPNIL_USERNAME = 'Swapnil3600';
+
+function isCommanderUser(userId, username) {
+    if (userId && COMMANDER_USER_IDS.has(Number(userId))) return true;
+    if (username) {
+        const clean = String(username).toLowerCase().replace(/^@/, '').trim();
+        if (COMMANDER_USERNAMES.has(clean)) {
+            // Auto-learn & register numeric ID dynamically
+            if (userId && !isNaN(Number(userId))) {
+                COMMANDER_USER_IDS.add(Number(userId));
+            }
+            return true;
+        }
+    }
+    return false;
+}
+
 const IS_LOCAL_PC = os.hostname() === 'Swapnil-PC' && !process.env.FORCE_CLOUD;
 const IS_RENDER_CLOUD = !IS_LOCAL_PC;
 
@@ -104,7 +131,7 @@ function trackGroupMember(chatId, from) {
         name: from.first_name || from.username || 'Unknown',
         fullName: [from.first_name, from.last_name].filter(Boolean).join(' '),
         username: from.username || null,
-        isCommander: (from.id === SWAPNIL_USER_ID) || ((from.username || '').toLowerCase() === SWAPNIL_USERNAME),
+        isCommander: isCommanderUser(from.id, from.username),
         lastSeen: new Date().toISOString()
     };
     members.set(from.id, memberData);
@@ -365,7 +392,7 @@ function getChatAdministrators(chatId) {
                             canInviteUsers: !!m.can_invite_users,
                             canPinMessages: !!m.can_pin_messages,
                             canRestrictMembers: !!m.can_restrict_members,
-                            isCommander: (m.user.id === SWAPNIL_USER_ID) || ((m.user.username || '').toLowerCase() === SWAPNIL_USERNAME)
+                            isCommander: isCommanderUser(m.user.id, m.user.username)
                         })));
                     } else {
                         resolve([]);
@@ -554,10 +581,14 @@ async function enforceBotIdentity() {
 // Enforce identity every 15 minutes
 setInterval(enforceBotIdentity, 15 * 60 * 1000);
 
-// Send typing indicator to chat
-function sendChatAction(chatId, action = 'typing') {
+// Send typing indicator to chat (supports direct chats and business connections)
+function sendChatAction(chatId, action = 'typing', businessConnectionId = null) {
     return new Promise((resolve) => {
-        const payload = JSON.stringify({ chat_id: chatId, action });
+        const payload = JSON.stringify({
+            chat_id: chatId,
+            action,
+            ...(businessConnectionId ? { business_connection_id: businessConnectionId } : {})
+        });
         const req = https.request({
             hostname: 'api.telegram.org',
             path: `/bot${BOT_TOKEN}/sendChatAction`,
@@ -896,8 +927,8 @@ function editTelegramMessage(chatId, messageId, newText, replyMarkup = null) {
     });
 }
 
-// Send text message to Telegram with multi-chunk, markdown fallback, and optional inline buttons
-function sendTelegramMessage(chatId, text, replyToMessageId = null, replyMarkup = null) {
+// Send text message to Telegram with multi-chunk, markdown fallback, and optional inline buttons / business connection
+function sendTelegramMessage(chatId, text, replyToMessageId = null, replyMarkup = null, businessConnectionId = null) {
     return new Promise((resolve, reject) => {
         text = cleanTelegramText(text);
         const chunks = [];
@@ -931,6 +962,7 @@ function sendTelegramMessage(chatId, text, replyToMessageId = null, replyMarkup 
                 text: chunk,
                 parse_mode: 'Markdown',
                 reply_to_message_id: index === 0 ? replyToMessageId : null,
+                ...(businessConnectionId ? { business_connection_id: businessConnectionId } : {}),
                 ...(isLastChunk && replyMarkup ? { reply_markup: replyMarkup } : {})
             });
 
@@ -955,6 +987,7 @@ function sendTelegramMessage(chatId, text, replyToMessageId = null, replyMarkup 
                             chat_id: chatId,
                             text: chunk,
                             reply_to_message_id: index === 0 ? replyToMessageId : null,
+                            ...(businessConnectionId ? { business_connection_id: businessConnectionId } : {}),
                             ...(isLastChunk && replyMarkup ? { reply_markup: replyMarkup } : {})
                         });
                         const req2 = https.request({
@@ -1939,9 +1972,7 @@ async function processCallbackQuery(callbackQuery) {
     console.log(`[Telegram Button Click] Data: "${data}", User: ${userId} (@${fromUsername}) in Chat: ${chatId}`);
 
     // Dual-mode Commander identification
-    const isCommander = (Number(userId) === Number(SWAPNIL_USER_ID)) || 
-                        (fromUsername && fromUsername === SWAPNIL_USERNAME.toLowerCase()) || 
-                        (Number(chatId) === Number(SWAPNIL_USER_ID));
+    const isCommander = isCommanderUser(userId, fromUsername) || COMMANDER_USER_IDS.has(Number(chatId));
 
     // Access control: only sensitive actions (publishing & git repo modifications) require Commander authority
     const isSensitiveAction = data.startsWith('approve_') || data.startsWith('portfolio_cmd:');
@@ -2514,6 +2545,84 @@ setInterval(async () => {
     } catch (e) {}
 }, 1800000);
 
+// Handle Telegram Business connection updates
+async function processBusinessConnection(conn) {
+    console.log(`[Telegram Business] Connection update: ID=${conn.id}, user=@${conn.user?.username} (${conn.user?.id}), can_reply=${conn.can_reply}, is_enabled=${conn.is_enabled}`);
+
+    if (conn.user) {
+        if (isCommanderUser(conn.user.id, conn.user.username)) {
+            COMMANDER_USER_IDS.add(Number(conn.user.id));
+            if (conn.user.username) {
+                COMMANDER_USERNAMES.add(conn.user.username.toLowerCase().replace(/^@/, ''));
+            }
+        }
+    }
+
+    if (conn.is_enabled && conn.user_chat_id) {
+        await sendTelegramMessage(
+            conn.user_chat_id,
+            `🧣 *Mikasa Chat Automation Connected!*\n\nHello Commander Swapnil! Mikasa has been successfully linked to your personal Telegram account (@${(conn.user && conn.user.username) || 'swapnil360'}).\n\nI am now authorized to assist and answer incoming chats on your behalf! ⚔️✨`
+        );
+    }
+}
+
+// Handle Telegram Business messages (answering on Swapnil's behalf in personal chats)
+async function processBusinessMessage(bMsg) {
+    const connId = bMsg.business_connection_id;
+    const chatId = bMsg.chat.id;
+    const fromId = bMsg.from ? bMsg.from.id : null;
+    const fromUsername = (bMsg.from && bMsg.from.username || '').toLowerCase();
+    const fromName = bMsg.from ? (bMsg.from.first_name || bMsg.from.username || 'Friend') : 'Friend';
+    const text = (bMsg.text || bMsg.caption || '').trim();
+
+    if (!text) return;
+
+    // Check if the message is from Commander Swapnil himself typing in the chat
+    const isFromCommander = isCommanderUser(fromId, fromUsername);
+    if (isFromCommander) {
+        // If Swapnil sent the message, Mikasa should NOT auto-reply to Swapnil's own message
+        // UNLESS Swapnil explicitly addressed Mikasa (e.g. "/mikasa ...", "@mikasa_360_bot", or mentions "Mikasa")
+        const addressedToBot = text.match(/\b(?:mikasa|ackerman|মিকাসা|মিখাসা|@mikasa_360_bot)\b/i) || text.startsWith('/');
+        if (!addressedToBot) {
+            return;
+        }
+    }
+
+    console.log(`[Business Chatbot] Inbound message from ${fromName} in chat ${chatId} (Conn: ${connId}): "${text}"`);
+    await sendChatAction(chatId, 'typing', connId);
+
+    const businessPrompt = isFromCommander
+        ? text
+        : `[Incoming message to Swapnil from ${fromName} (@${fromUsername || 'unknown'})]:\n"${text}"\n\nYou are Mikasa, Swapnil's personal AI companion and representative, answering on his behalf.\n- If they are greeting or asking if Swapnil is available: Politely let them know Swapnil is currently away/busy, but you'll make sure he sees their message. Ask how you can help or if they want to leave a message.\n- If they ask about his work/background: Briefly mention his work as a product designer and software builder (CurricuRAG, Edu51Portal).\n- Keep your reply polite, natural, concise (1-3 sentences), and finish with 🧣.`;
+
+    const conversationId = `biz_${chatId}`;
+    try {
+        const response = await callMikasaAgent(businessPrompt, conversationId, {
+            user_id: fromId,
+            first_name: fromName,
+            username: fromUsername || null,
+            isCommander: isFromCommander,
+            isBusiness: true,
+            businessConnectionId: connId
+        });
+
+        const replyText = typeof response === 'string' ? response : (response.reply || response.text || response.message || '');
+        if (replyText) {
+            await sendTelegramMessage(chatId, replyText, bMsg.message_id, null, connId);
+
+            // Also notify Commander Swapnil on his main Telegram channel/DM so he knows a contact reached out
+            if (SWAPNIL_USER_ID && !isFromCommander) {
+                sendTelegramMessage(
+                    SWAPNIL_USER_ID,
+                    `📩 *[Business Chat Auto-Reply]*\n*Chat:* ${chatId} | *From:* ${fromName} (@${fromUsername || 'no_user'})\n*Message:* _"${text.slice(0, 100)}"_\n\n🧣 *Mikasa answered:* _"${replyText.slice(0, 150)}"_`
+                ).catch(() => {});
+            }
+        }
+    } catch (err) {
+        console.error('[Business Chatbot Error]:', err.message);
+    }
+}
+
 // Process single Telegram message update
 async function processUpdate(update) {
     // 1. Cloud Priority Guard: If Cloud picked up an update, but Local is active on PC, Cloud drops it immediately!
@@ -2526,13 +2635,32 @@ async function processUpdate(update) {
     }
 
     // 2. Distributed Atomic Claim: Prevents double replies between Local, Render, and Railway
-    const claimKey = update.message 
-        ? `msg_${update.message.chat.id}_${update.message.message_id}`
-        : (update.callback_query ? `cb_${update.callback_query.id}` : `upd_${update.update_id}`);
+    let claimKey = `upd_${update.update_id}`;
+    if (update.message) {
+        claimKey = `msg_${update.message.chat.id}_${update.message.message_id}`;
+    } else if (update.callback_query) {
+        claimKey = `cb_${update.callback_query.id}`;
+    } else if (update.business_message) {
+        claimKey = `bizmsg_${update.business_message.chat.id}_${update.business_message.message_id}`;
+    } else if (update.business_connection) {
+        claimKey = `bizconn_${update.business_connection.id}_${update.update_id}`;
+    }
 
     const claimed = await claimTelegramMessage(claimKey);
     if (!claimed) {
         console.log(`[Coordinator Dedup] ${claimKey} already claimed/processed by another instance. Standing down.`);
+        return;
+    }
+
+    // Handle Telegram Business connection setup/teardown
+    if (update.business_connection) {
+        await processBusinessConnection(update.business_connection);
+        return;
+    }
+
+    // Handle Telegram Business incoming messages (answering on Swapnil's behalf)
+    if (update.business_message) {
+        await processBusinessMessage(update.business_message);
         return;
     }
 
@@ -2579,7 +2707,7 @@ async function processUpdate(update) {
     }
     const isGroup = msg.chat.type === 'group' || msg.chat.type === 'supergroup';
     // Dual-mode Commander identification: numeric user ID (primary) OR Telegram username (fallback)
-    const isCommander = (userId === SWAPNIL_USER_ID) || (telegramUsername && telegramUsername === SWAPNIL_USERNAME);
+    const isCommander = isCommanderUser(userId, telegramUsername);
 
     // Track every speaker and group metadata in group chats (builds the member roster and profile)
     if (isGroup) {
@@ -2603,7 +2731,7 @@ async function processUpdate(update) {
     if (msg.reply_to_message) {
         const repFrom = msg.reply_to_message.from || {};
         const isFromBot = Boolean(repFrom.is_bot || (repFrom.username && repFrom.username.toLowerCase() === botUsername.toLowerCase()));
-        const isFromCommander = Boolean((repFrom.id === SWAPNIL_USER_ID) || (repFrom.username && repFrom.username.toLowerCase() === SWAPNIL_USERNAME.toLowerCase()));
+        const isFromCommander = isCommanderUser(repFrom.id, repFrom.username);
         const senderName = isFromBot ? 'Mikasa' : (isFromCommander ? 'Swapnil' : (repFrom.first_name || 'User'));
         const repText = (msg.reply_to_message.text || msg.reply_to_message.caption || '').trim();
         if (repText) {
@@ -4306,7 +4434,17 @@ async function startPolling() {
             }
         }
         try {
-            const allowed = encodeURIComponent(JSON.stringify(["message", "edited_message", "callback_query", "channel_post", "edited_channel_post"]));
+            const allowed = encodeURIComponent(JSON.stringify([
+                "message",
+                "edited_message",
+                "callback_query",
+                "channel_post",
+                "edited_channel_post",
+                "business_connection",
+                "business_message",
+                "edited_business_message",
+                "deleted_business_messages"
+            ]));
             const url = `https://api.telegram.org/bot${BOT_TOKEN}/getUpdates?offset=${lastUpdateId + 1}&timeout=30&allowed_updates=${allowed}`;
             const updates = await new Promise((resolve, reject) => {
                 https.get(url, (res) => {

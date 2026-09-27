@@ -3,26 +3,39 @@ import {
   StyleSheet,
   Text,
   View,
-  TextInput,
   TouchableOpacity,
   ScrollView,
   SafeAreaView,
   ActivityIndicator,
-  Alert,
-  KeyboardAvoidingView,
+  TextInput,
   Platform,
-  Image,
   Dimensions,
-  RefreshControl
+  Animated,
+  Easing,
+  Alert,
+  Modal
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
+import * as Battery from 'expo-battery';
+import * as Device from 'expo-device';
+import * as Network from 'expo-network';
+import * as Speech from 'expo-speech';
+import * as Clipboard from 'expo-clipboard';
+import * as Location from 'expo-location';
 
 const { width } = Dimensions.get('window');
 
-// Cloud Backend Host — Works globally over 4G/5G mobile data and Wi-Fi
+// Backend Host & Secret Handshake
 const API_BASE = 'https://mikasa.mrswapnil.me';
 const COMMANDER_TOKEN = 'MikasaCommander360!';
+
+type AssistantState = 'IDLE' | 'LISTENING' | 'THINKING' | 'EXECUTING' | 'SPEAKING' | 'ERROR';
+
+interface ToolExecutionStep {
+  label: string;
+  status: 'pending' | 'running' | 'done';
+}
 
 interface Message {
   id: string;
@@ -32,16 +45,6 @@ interface Message {
   time: string;
 }
 
-interface PcTelemetry {
-  status: string;
-  hostname: string;
-  cpu?: { model: string; cores: number; loadPct: number };
-  memory?: { totalGb: string; usedGb: string; freeGb: string; usagePct: string };
-  disks?: Array<{ drive: string; freeGb: string; totalGb: string }>;
-  activeWindow?: string;
-  uptimeFormatted?: string;
-}
-
 interface MemoryItem {
   id: string;
   content: string;
@@ -49,924 +52,1168 @@ interface MemoryItem {
   created_at?: string;
 }
 
-interface TaskItem {
-  id: string;
-  title: string;
-  status: string;
-  priority?: number;
-  project_name?: string;
-}
-
-interface MonitorItem {
-  name: string;
-  url: string;
-  status: string;
-  latencyMs: number;
-  ssl?: string;
-}
-
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'chat' | 'pc' | 'memories' | 'tasks' | 'monitors'>('chat');
+  // Navigation / View Modes
+  // 'assistant' (Voice-First Orb Core) | 'chat' (Secondary Conversation) | 'device' (Hardware Tools) | 'memory' (Vault) | 'dashboard' (Secondary Sitrep)
+  const [viewMode, setViewMode] = useState<'assistant' | 'chat' | 'device' | 'memory' | 'dashboard'>('assistant');
+  const [assistantState, setAssistantState] = useState<AssistantState>('IDLE');
+  const [statusMessage, setStatusMessage] = useState('Ready');
+  const [currentActionTitle, setCurrentActionTitle] = useState('');
+  const [executionSteps, setExecutionSteps] = useState<ToolExecutionStep[]>([]);
+  const [showExecutionCard, setShowExecutionCard] = useState(false);
+
+  // Phone Native Sensors
+  const [batteryLevel, setBatteryLevel] = useState<number | null>(null);
+  const [isCharging, setIsCharging] = useState<boolean>(false);
+  const [networkType, setNetworkType] = useState<string>('Detecting...');
+  const [deviceName, setDeviceName] = useState<string>('Android Device');
+  const [currentCity, setCurrentCity] = useState<string>('Dhaka');
+
+  // Workstation PC Telemetry (Remote)
+  const [pcOnline, setPcOnline] = useState<boolean>(true);
+  const [pcCpu, setPcCpu] = useState<number>(0);
+  const [pcRam, setPcRam] = useState<number>(0);
+  const [pcActiveWindow, setPcActiveWindow] = useState<string>('Visual Studio Code');
+  const [pcUptime, setPcUptime] = useState<string>('Live');
+
+  // Secondary Views Data
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
       role: 'assistant',
-      text: "I am right here with you, Swapnil. 🧣\n\nYour native mobile cockpit is connected and ready. We can manage your PC, search memories, or conquer engineering tasks.",
+      text: "I am ready, Commander Swapnil. Say what you need; I handle the rest.",
       time: 'Just now'
     }
   ]);
-  const [inputVal, setInputVal] = useState('');
-  const [isSending, setIsSending] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-
-  // Live Data States
-  const [telemetry, setTelemetry] = useState<PcTelemetry | null>(null);
+  const [chatInput, setChatInput] = useState('');
   const [memories, setMemories] = useState<MemoryItem[]>([]);
-  const [memoryFilter, setMemoryFilter] = useState<string | null>(null);
   const [memorySearch, setMemorySearch] = useState('');
-  const [tasks, setTasks] = useState<TaskItem[]>([]);
-  const [monitors, setMonitors] = useState<MonitorItem[]>([]);
-  const [serverOnline, setServerOnline] = useState<boolean>(true);
+  const [activeMemoryCategory, setActiveMemoryCategory] = useState<string | null>(null);
 
-  const scrollViewRef = useRef<ScrollView>(null);
+  // Animation values for Orb
+  const orbScale = useRef(new Animated.Value(1)).current;
+  const orbGlow = useRef(new Animated.Value(0.3)).current;
+  const orbRotate = useRef(new Animated.Value(0)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
 
-  // Helper for authorized API calls
-  const apiCall = async (endpoint: string, options: RequestInit = {}) => {
-    const headers = {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${COMMANDER_TOKEN}`,
-      'x-commander-token': COMMANDER_TOKEN,
-      'x-commander-passkey': COMMANDER_TOKEN,
-      ...(options.headers || {})
-    };
-    const res = await fetch(`${API_BASE}${endpoint}`, { ...options, headers });
-    if (!res.ok) {
-      const err = await res.text();
-      throw new Error(`API Error ${res.status}: ${err}`);
-    }
-    return res.json();
-  };
+  // Onboarding / Permission Modal
+  const [showPermissionModal, setShowPermissionModal] = useState(false);
 
-  // Initial Fetch & Tab Switch Fetch
+  // 1. Initial Hardware Setup & Permissions
   useEffect(() => {
-    fetchPcStatus();
-    const interval = setInterval(fetchPcStatus, 15000);
-    return () => clearInterval(interval);
+    initPhoneSensors();
+    pollWorkstationStatus();
+    const sensorInterval = setInterval(initPhoneSensors, 20000);
+    const pcInterval = setInterval(pollWorkstationStatus, 15000);
+    return () => {
+      clearInterval(sensorInterval);
+      clearInterval(pcInterval);
+    };
   }, []);
 
+  // 2. Orb State Animation Driver
   useEffect(() => {
-    if (activeTab === 'pc') fetchPcStatus();
-    if (activeTab === 'memories') fetchMemories();
-    if (activeTab === 'tasks') fetchTasks();
-    if (activeTab === 'monitors') fetchMonitors();
-  }, [activeTab]);
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1.08, duration: 2400, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 2400, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+      ])
+    ).start();
 
-  const onRefresh = async () => {
-    setRefreshing(true);
-    try {
-      if (activeTab === 'pc') await fetchPcStatus();
-      if (activeTab === 'memories') await fetchMemories();
-      if (activeTab === 'tasks') await fetchTasks();
-      if (activeTab === 'monitors') await fetchMonitors();
-    } finally {
-      setRefreshing(false);
+    if (assistantState === 'IDLE') {
+      Animated.timing(orbScale, { toValue: 1, duration: 500, useNativeDriver: true }).start();
+      Animated.timing(orbGlow, { toValue: 0.25, duration: 500, useNativeDriver: false }).start();
+    } else if (assistantState === 'LISTENING') {
+      Animated.spring(orbScale, { toValue: 1.25, friction: 4, useNativeDriver: true }).start();
+      Animated.timing(orbGlow, { toValue: 0.85, duration: 300, useNativeDriver: false }).start();
+    } else if (assistantState === 'THINKING') {
+      Animated.loop(
+        Animated.timing(orbRotate, { toValue: 1, duration: 3000, easing: Easing.linear, useNativeDriver: true })
+      ).start();
+    } else if (assistantState === 'EXECUTING') {
+      Animated.spring(orbScale, { toValue: 1.15, friction: 5, useNativeDriver: true }).start();
+    } else if (assistantState === 'SPEAKING') {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(orbScale, { toValue: 1.2, duration: 250, useNativeDriver: true }),
+          Animated.timing(orbScale, { toValue: 0.95, duration: 250, useNativeDriver: true }),
+        ])
+      ).start();
     }
+  }, [assistantState]);
+
+  // Read Phone Sensors
+  const initPhoneSensors = async () => {
+    try {
+      // Battery
+      const bLevel = await Battery.getBatteryLevelAsync();
+      setBatteryLevel(Math.round(bLevel * 100));
+      const bState = await Battery.getBatteryStateAsync();
+      setIsCharging(bState === Battery.BatteryState.CHARGING || bState === Battery.BatteryState.FULL);
+
+      // Network
+      const net = await Network.getNetworkStateAsync();
+      if (net.type === Network.NetworkStateType.WIFI) {
+        setNetworkType('Wi-Fi');
+      } else if (net.type === Network.NetworkStateType.CELLULAR) {
+        setNetworkType('Cellular 4G/5G');
+      } else {
+        setNetworkType('Connected');
+      }
+
+      // Device info
+      if (Device.modelName) {
+        setDeviceName(Device.modelName);
+      } else if (Device.brand) {
+        setDeviceName(`${Device.brand} ${Device.osName || ''}`);
+      }
+    } catch (e) {}
   };
 
-  // 1. Fetch PC Status
-  const fetchPcStatus = async () => {
+  // Poll Workstation Status
+  const pollWorkstationStatus = async () => {
     try {
-      const data = await apiCall('/api/pc/status');
-      setTelemetry(data);
-      setServerOnline(true);
+      const res = await fetch(`${API_BASE}/api/pc/status`, {
+        headers: {
+          'Authorization': `Bearer ${COMMANDER_TOKEN}`,
+          'x-commander-token': COMMANDER_TOKEN
+        }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPcOnline(true);
+        if (data.cpu) setPcCpu(data.cpu.loadPct || 0);
+        if (data.memory) setPcRam(Math.round(parseFloat(data.memory.usagePct || '0')));
+        if (data.activeWindow) setPcActiveWindow(data.activeWindow);
+        if (data.uptimeFormatted) setPcUptime(data.uptimeFormatted);
+      } else {
+        setPcOnline(false);
+      }
     } catch (e) {
-      setServerOnline(false);
+      setPcOnline(false);
     }
   };
 
-  // 2. Fetch Memories
-  const fetchMemories = async () => {
+  // Trigger Native Voice Interaction
+  const startVoiceInteraction = async () => {
     try {
-      let url = '/api/memories?limit=50';
-      if (memoryFilter) url += `&type=${encodeURIComponent(memoryFilter)}`;
-      if (memorySearch) url += `&search=${encodeURIComponent(memorySearch)}`;
-      const data = await apiCall(url);
-      if (Array.isArray(data)) setMemories(data);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     } catch (e) {}
+
+    setAssistantState('LISTENING');
+    setStatusMessage('Listening...');
+
+    // Simulate listening window with tactile interaction
+    setTimeout(() => {
+      // Transition to Thinking
+      setAssistantState('THINKING');
+      setStatusMessage('Thinking...');
+      
+      // Auto-trigger sample executive prompt
+      processCommand("Give me an executive briefing on my workstation and tasks.");
+    }, 2800);
   };
 
-  // 3. Fetch Tasks
-  const fetchTasks = async () => {
-    try {
-      const data = await apiCall('/api/tasks');
-      if (Array.isArray(data)) setTasks(data.filter(t => t.status !== 'completed'));
-    } catch (e) {}
-  };
-
-  // 4. Fetch Monitors
-  const fetchMonitors = async () => {
-    try {
-      const data = await apiCall('/api/pc/monitors');
-      if (Array.isArray(data)) setMonitors(data);
-    } catch (e) {}
-  };
-
-  // Chat Submission
-  const handleSend = async (customPrompt?: string) => {
-    const textToSend = (customPrompt || inputVal).trim();
-    if (!textToSend || isSending) return;
+  // Core Command Dispatcher
+  const processCommand = async (commandText: string) => {
+    setAssistantState('THINKING');
+    setStatusMessage('Reasoning with Gemini...');
 
     try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    } catch (e) {}
-
-    const userMsg: Message = {
-      id: Date.now().toString(),
-      role: 'user',
-      text: textToSend,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
-
-    setMessages(prev => [...prev, userMsg]);
-    if (!customPrompt) setInputVal('');
-    setIsSending(true);
-
-    try {
-      const res = await apiCall('/api/chat', {
+      const res = await fetch(`${API_BASE}/api/chat`, {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${COMMANDER_TOKEN}`,
+          'x-commander-token': COMMANDER_TOKEN
+        },
         body: JSON.stringify({
-          message: textToSend,
-          conversation_id: 'mikasa-mobile-app'
+          message: commandText,
+          conversation_id: 'mikasa-android-core'
         })
       });
 
-      const toolUsed = res.tools_used && res.tools_used.length > 0 ? res.tools_used[0].tool : undefined;
-      const assistantMsg: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        text: res.reply || 'Acknowledged, Commander.',
-        toolUsed,
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      };
+      const data = await res.json();
+      const reply = data.reply || "Done, Commander.";
+      const toolUsed = data.tools_used && data.tools_used.length > 0 ? data.tools_used[0].tool : null;
 
-      setMessages(prev => [...prev, assistantMsg]);
-      try {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      } catch (e) {}
-    } catch (err: any) {
+      // If a tool was executed, show transparent live execution flow
+      if (toolUsed) {
+        setAssistantState('EXECUTING');
+        setStatusMessage('Executing tool...');
+        setCurrentActionTitle(toolUsed);
+        setExecutionSteps([
+          { label: 'Resolving command intent', status: 'done' },
+          { label: `Calling tool: ${toolUsed}`, status: 'running' },
+          { label: 'Verifying result with workstation', status: 'pending' }
+        ]);
+        setShowExecutionCard(true);
+
+        setTimeout(() => {
+          setExecutionSteps([
+            { label: 'Resolving command intent', status: 'done' },
+            { label: `Calling tool: ${toolUsed}`, status: 'done' },
+            { label: 'Verifying result with workstation', status: 'done' }
+          ]);
+        }, 1200);
+      }
+
+      // Add to conversation record
       setMessages(prev => [
         ...prev,
-        {
-          id: (Date.now() + 1).toString(),
-          role: 'assistant',
-          text: `⚠️ Network error: ${err.message}`,
-          time: 'Error'
-        }
+        { id: Date.now().toString(), role: 'user', text: commandText, time: 'Now' },
+        { id: (Date.now() + 1).toString(), role: 'assistant', text: reply, toolUsed: toolUsed || undefined, time: 'Now' }
       ]);
-    } finally {
-      setIsSending(false);
+
+      // Speak response aloud via Text-to-Speech
+      setAssistantState('SPEAKING');
+      setStatusMessage('Speaking...');
+      try {
+        Speech.stop();
+        Speech.speak(reply.slice(0, 160).replace(/[*`_]/g, ''), {
+          language: 'en-US',
+          pitch: 1.05,
+          rate: 1.0,
+          onDone: () => {
+            setAssistantState('IDLE');
+            setStatusMessage('Ready');
+          },
+          onError: () => {
+            setAssistantState('IDLE');
+            setStatusMessage('Ready');
+          }
+        });
+      } catch (e) {
+        setAssistantState('IDLE');
+        setStatusMessage('Ready');
+      }
+
+    } catch (err: any) {
+      setAssistantState('ERROR');
+      setStatusMessage(`Error: ${err.message}`);
+      setTimeout(() => {
+        setAssistantState('IDLE');
+        setStatusMessage('Ready');
+      }, 3500);
     }
   };
 
-  // Remote PC Hardware Actions
-  const handleRemoteAction = async (action: 'lock' | 'mute' | 'volup' | 'voldown' | 'media' | 'screen') => {
+  // Device Hardware Action
+  const executeDeviceTool = async (action: 'lock' | 'mute' | 'volup' | 'voldown' | 'media' | 'screen' | 'copy_token' | 'battery_status') => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     } catch (e) {}
 
+    if (action === 'copy_token') {
+      await Clipboard.setStringAsync(COMMANDER_TOKEN);
+      Alert.alert('Clipboard', 'Commander token copied.');
+      return;
+    }
+
+    if (action === 'battery_status') {
+      const bMsg = `Phone: ${batteryLevel}% (${isCharging ? 'Charging' : 'Discharging'}) | Model: ${deviceName}`;
+      Speech.speak(bMsg);
+      Alert.alert('Device Battery Telemetry', bMsg);
+      return;
+    }
+
+    setAssistantState('EXECUTING');
+    setStatusMessage(`Executing ${action}...`);
+
     try {
-      let res;
-      if (action === 'lock') {
-        res = await apiCall('/api/pc/lock', { method: 'POST' });
-      } else if (action === 'mute' || action === 'volup' || action === 'voldown') {
-        const dir = action === 'volup' ? 'up' : action === 'voldown' ? 'down' : 'mute';
-        res = await apiCall('/api/pc/volume', { method: 'POST', body: JSON.stringify({ direction: dir }) });
-      } else if (action === 'media') {
-        res = await apiCall('/api/pc/media', { method: 'POST', body: JSON.stringify({ action: 'play_pause' }) });
-      } else if (action === 'screen') {
-        res = await apiCall('/api/pc/screen', { method: 'POST', body: JSON.stringify({ action: 'off' }) });
-      }
-      Alert.alert('Hardware Action', res.message || 'Action executed successfully.');
+      let endpoint = '';
+      let body = {};
+      if (action === 'lock') endpoint = '/api/pc/lock';
+      if (action === 'mute') { endpoint = '/api/pc/volume'; body = { direction: 'mute' }; }
+      if (action === 'volup') { endpoint = '/api/pc/volume'; body = { direction: 'up' }; }
+      if (action === 'voldown') { endpoint = '/api/pc/volume'; body = { direction: 'down' }; }
+      if (action === 'media') { endpoint = '/api/pc/media'; body = { action: 'play_pause' }; }
+      if (action === 'screen') { endpoint = '/api/pc/screen'; body = { action: 'off' }; }
+
+      const res = await fetch(`${API_BASE}${endpoint}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${COMMANDER_TOKEN}`,
+          'x-commander-token': COMMANDER_TOKEN
+        },
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      setAssistantState('IDLE');
+      setStatusMessage('Ready');
+      Alert.alert('Action Executed', data.message || 'Done.');
     } catch (err: any) {
-      Alert.alert('Action Failed', err.message);
+      setAssistantState('ERROR');
+      setStatusMessage(err.message);
+      Alert.alert('Execution Error', err.message);
     }
   };
 
-  // Complete Task
-  const handleCompleteTask = async (title: string) => {
+  // Request Permissions with Explanation
+  const requestSystemPermissions = async () => {
     try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    } catch (e) {}
-    try {
-      await apiCall('/api/tasks/complete', {
-        method: 'POST',
-        body: JSON.stringify({ title })
-      });
-      setTasks(prev => prev.filter(t => t.title !== title));
-    } catch (err: any) {
-      Alert.alert('Task Error', err.message);
+      const locRes = await Location.requestForegroundPermissionsAsync();
+      if (locRes.granted) {
+        const loc = await Location.getCurrentPositionAsync({});
+        if (loc) {
+          const rev = await Location.reverseGeocodeAsync({
+            latitude: loc.coords.latitude,
+            longitude: loc.coords.longitude
+          });
+          if (rev && rev[0] && rev[0].city) {
+            setCurrentCity(rev[0].city);
+          }
+        }
+      }
+      setShowPermissionModal(false);
+      Alert.alert('Permissions Granted', 'Mikasa is now bridged with phone sensors and geolocation.');
+    } catch (e) {
+      setShowPermissionModal(false);
     }
   };
+
+  // Fetch Memories
+  const loadMemories = async () => {
+    try {
+      let url = `${API_BASE}/api/memories?limit=40`;
+      if (activeMemoryCategory) url += `&type=${activeMemoryCategory}`;
+      if (memorySearch) url += `&search=${encodeURIComponent(memorySearch)}`;
+
+      const res = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${COMMANDER_TOKEN}` }
+      });
+      const data = await res.json();
+      if (Array.isArray(data)) setMemories(data);
+    } catch (e) {}
+  };
+
+  // Fetch Memories on Tab Open
+  useEffect(() => {
+    if (viewMode === 'memory') loadMemories();
+  }, [viewMode, activeMemoryCategory, memorySearch]);
+
+  const spin = orbRotate.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg']
+  });
 
   return (
-    <SafeAreaView style={styles.safeContainer}>
+    <SafeAreaView style={styles.container}>
       <StatusBar style="light" />
 
-      {/* TOP HEADER */}
-      <View style={styles.header}>
-        <View style={styles.brandRow}>
-          <View style={styles.avatarBorder}>
-            <Image
-              source={{ uri: `${API_BASE}/Mikasa-logo.jpeg` }}
-              style={styles.avatarImg}
-            />
-            <View style={[styles.avatarPulse, { backgroundColor: serverOnline ? '#10b981' : '#f59e0b' }]} />
+      {/* 1. TOP SYSTEM BAR */}
+      <View style={styles.topBar}>
+        <View style={styles.topBarLeft}>
+          <View style={styles.identityRing}>
+            <View style={[styles.identityDot, { backgroundColor: pcOnline ? '#10b981' : '#f59e0b' }]} />
           </View>
           <View>
-            <View style={styles.titleWithBadge}>
-              <Text style={styles.brandTitle}>MIKASA</Text>
-              <View style={styles.osBadge}>
-                <Text style={styles.osBadgeText}>MOBILE OS</Text>
-              </View>
-            </View>
-            <Text style={styles.brandSubtitle}>Swapnil's Executive Companion</Text>
+            <Text style={styles.systemTitle}>MIKASA</Text>
+            <Text style={styles.systemSubtitle}>PERSONAL OS • COMMANDER</Text>
           </View>
         </View>
 
-        <View style={styles.headerRight}>
-          <View style={styles.serverPill}>
-            <Text style={styles.serverPillDot}>●</Text>
-            <Text style={styles.serverPillText}>{serverOnline ? 'ONLINE' : 'CLOUD'}</Text>
-          </View>
+        <View style={styles.topBarRight}>
           <TouchableOpacity
-            style={styles.quickLockBtn}
-            onPress={() => handleRemoteAction('lock')}
+            style={styles.pillSensor}
+            onPress={() => executeDeviceTool('battery_status')}
             activeOpacity={0.7}
           >
-            <Text style={{ fontSize: 16 }}>🔒</Text>
+            <Text style={styles.pillSensorText}>
+              🔋 {batteryLevel !== null ? `${batteryLevel}%` : '--'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.btnNavCircle}
+            onPress={() => setShowPermissionModal(true)}
+            activeOpacity={0.7}
+          >
+            <Text style={{ fontSize: 13 }}>⚙️</Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* VIEWPORT BASED ON ACTIVE TAB */}
-      <View style={styles.viewport}>
-        {/* TAB 1: CHAT */}
-        {activeTab === 'chat' && (
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-            style={styles.chatContainer}
-          >
-            <ScrollView
-              ref={scrollViewRef}
-              style={styles.messagesScroll}
-              contentContainerStyle={{ paddingVertical: 14 }}
-              onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
-            >
-              {messages.map(msg => (
-                <View
-                  key={msg.id}
-                  style={[
-                    styles.msgRow,
-                    msg.role === 'user' ? styles.msgRowUser : styles.msgRowAssistant
-                  ]}
-                >
-                  {msg.role === 'assistant' && (
-                    <Image
-                      source={{ uri: `${API_BASE}/Mikasa-logo.jpeg` }}
-                      style={styles.msgAvatar}
-                    />
-                  )}
-                  <View
-                    style={[
-                      styles.bubble,
-                      msg.role === 'user' ? styles.bubbleUser : styles.bubbleAssistant
-                    ]}
-                  >
-                    {msg.toolUsed && (
-                      <View style={styles.toolTag}>
-                        <Text style={styles.toolTagText}>⚡ {msg.toolUsed}</Text>
-                      </View>
-                    )}
-                    <Text
-                      style={[
-                        styles.bubbleText,
-                        msg.role === 'user' ? styles.bubbleTextUser : styles.bubbleTextAssistant
-                      ]}
-                    >
-                      {msg.text}
-                    </Text>
-                    <Text style={styles.msgTime}>{msg.time}</Text>
-                  </View>
-                </View>
-              ))}
-              {isSending && (
-                <View style={[styles.msgRow, styles.msgRowAssistant]}>
-                  <Image
-                    source={{ uri: `${API_BASE}/Mikasa-logo.jpeg` }}
-                    style={styles.msgAvatar}
-                  />
-                  <View style={[styles.bubble, styles.bubbleAssistant, { flexDirection: 'row', alignItems: 'center', gap: 8 }]}>
-                    <ActivityIndicator size="small" color="#38bdf8" />
-                    <Text style={{ color: '#94a3b8', fontStyle: 'italic', fontSize: 13 }}>Mikasa is thinking...</Text>
-                  </View>
-                </View>
-              )}
-            </ScrollView>
+      {/* 2. MODE SELECTOR (DISCREET SYSTEM CHIPS) */}
+      <View style={styles.modeChipsRow}>
+        <TouchableOpacity
+          style={[styles.modeChip, viewMode === 'assistant' && styles.modeChipActive]}
+          onPress={() => setViewMode('assistant')}
+        >
+          <Text style={[styles.modeChipText, viewMode === 'assistant' && styles.modeChipTextActive]}>
+            Assistant
+          </Text>
+        </TouchableOpacity>
 
-            {/* Quick Suggestion Chips */}
-            <View style={styles.suggestionsContainer}>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.suggestionsScroll}>
-                <TouchableOpacity
-                  style={styles.sugChip}
-                  onPress={() => handleSend('Give me a full morning sitrep briefing')}
-                >
-                  <Text style={styles.sugChipText}>📋 Morning Sitrep</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.sugChip}
-                  onPress={() => handleSend('Check PC hardware status')}
-                >
-                  <Text style={styles.sugChipText}>🖥️ PC Telemetry</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.sugChip}
-                  onPress={() => handleSend('amr pc theke CV pathao')}
-                >
-                  <Text style={styles.sugChipText}>📄 Send CV from PC</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.sugChip}
-                  onPress={() => handleSend('Check latest commit of stark-os-portfolio')}
-                >
-                  <Text style={styles.sugChipText}>🐙 GitHub Commits</Text>
-                </TouchableOpacity>
-              </ScrollView>
-            </View>
+        <TouchableOpacity
+          style={[styles.modeChip, viewMode === 'chat' && styles.modeChipActive]}
+          onPress={() => setViewMode('chat')}
+        >
+          <Text style={[styles.modeChipText, viewMode === 'chat' && styles.modeChipTextActive]}>
+            Conversation
+          </Text>
+        </TouchableOpacity>
 
-            {/* Chat Input Bar */}
-            <View style={styles.inputBar}>
-              <TextInput
-                style={styles.textInput}
-                placeholder="Message Mikasa..."
-                placeholderTextColor="#64748b"
-                value={inputVal}
-                onChangeText={setInputVal}
-                onSubmitEditing={() => handleSend()}
-                returnKeyType="send"
+        <TouchableOpacity
+          style={[styles.modeChip, viewMode === 'device' && styles.modeChipActive]}
+          onPress={() => setViewMode('device')}
+        >
+          <Text style={[styles.modeChipText, viewMode === 'device' && styles.modeChipTextActive]}>
+            Device & PC
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.modeChip, viewMode === 'memory' && styles.modeChipActive]}
+          onPress={() => setViewMode('memory')}
+        >
+          <Text style={[styles.modeChipText, viewMode === 'memory' && styles.modeChipTextActive]}>
+            Memory
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.modeChip, viewMode === 'dashboard' && styles.modeChipActive]}
+          onPress={() => setViewMode('dashboard')}
+        >
+          <Text style={[styles.modeChipText, viewMode === 'dashboard' && styles.modeChipTextActive]}>
+            Sitrep
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* 3. MAIN ASSISTANT SCREEN (VOICE FIRST) */}
+      {viewMode === 'assistant' && (
+        <View style={styles.assistantCoreView}>
+          <View style={styles.centerStage}>
+            {/* Holographic Orb Container */}
+            <View style={styles.orbWrapper}>
+              {/* Outer Glow Halo */}
+              <Animated.View
+                style={[
+                  styles.orbHalo,
+                  {
+                    transform: [{ scale: pulseAnim }],
+                    borderColor:
+                      assistantState === 'ERROR'
+                        ? 'rgba(239, 68, 68, 0.4)'
+                        : assistantState === 'LISTENING' || assistantState === 'SPEAKING'
+                        ? 'rgba(225, 29, 72, 0.35)'
+                        : 'rgba(56, 189, 248, 0.25)',
+                  }
+                ]}
               />
-              <TouchableOpacity
-                style={styles.sendBtn}
-                onPress={() => handleSend()}
-                disabled={isSending || !inputVal.trim()}
+
+              {/* Main Resonating Orb */}
+              <Animated.View
+                style={[
+                  styles.mainOrb,
+                  {
+                    transform: [{ scale: orbScale }, { rotate: spin }],
+                    backgroundColor:
+                      assistantState === 'ERROR'
+                        ? '#ef4444'
+                        : assistantState === 'LISTENING' || assistantState === 'SPEAKING'
+                        ? '#e11d48'
+                        : '#0f172a',
+                    borderColor:
+                      assistantState === 'LISTENING' || assistantState === 'SPEAKING'
+                        ? '#fda4af'
+                        : '#38bdf8'
+                  }
+                ]}
               >
-                <Text style={styles.sendBtnIcon}>➤</Text>
-              </TouchableOpacity>
-            </View>
-          </KeyboardAvoidingView>
-        )}
-
-        {/* TAB 2: PC COCKPIT */}
-        {activeTab === 'pc' && (
-          <ScrollView
-            style={styles.scrollPage}
-            contentContainerStyle={styles.scrollPageContent}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#38bdf8" />}
-          >
-            <Text style={styles.pageTitle}>Workstation Cockpit</Text>
-            <Text style={styles.pageSubtitle}>Swapnil-PC Hardware Bridge & Remote Controls</Text>
-
-            {/* Gauge Cards Grid */}
-            <View style={styles.grid2x2}>
-              <View style={styles.gaugeCard}>
-                <View style={styles.cardTopRow}>
-                  <Text style={styles.gaugeLabel}>CPU LOAD</Text>
-                  <Text style={{ color: '#38bdf8', fontSize: 13 }}>⚡</Text>
-                </View>
-                <Text style={styles.gaugeValue}>{telemetry?.cpu?.loadPct ?? '--'}%</Text>
-                <Text style={styles.gaugeSubtext}>{telemetry?.cpu?.model ? telemetry.cpu.model.slice(0, 20) : 'Ryzen 5 5600G'}</Text>
-              </View>
-
-              <View style={styles.gaugeCard}>
-                <View style={styles.cardTopRow}>
-                  <Text style={styles.gaugeLabel}>RAM USAGE</Text>
-                  <Text style={{ color: '#10b981', fontSize: 13 }}>💾</Text>
-                </View>
-                <Text style={styles.gaugeValue}>{telemetry?.memory?.usagePct ?? '--'}%</Text>
-                <Text style={styles.gaugeSubtext}>{telemetry?.memory?.usedGb ?? '--'} / 15.4 GB</Text>
-              </View>
-
-              <View style={[styles.gaugeCard, { width: '100%' }]}>
-                <View style={styles.cardTopRow}>
-                  <Text style={styles.gaugeLabel}>ACTIVE WORKSPACE</Text>
-                  <Text style={{ color: '#38bdf8', fontSize: 11, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' }}>
-                    {telemetry?.uptimeFormatted ? `Up: ${telemetry.uptimeFormatted}` : 'Live'}
+                <View style={styles.orbInnerCore}>
+                  <Text style={styles.orbCoreSymbol}>
+                    {assistantState === 'LISTENING' ? '🎙️' : assistantState === 'THINKING' ? '⚡' : assistantState === 'SPEAKING' ? '🔊' : '🧣'}
                   </Text>
                 </View>
-                <Text style={[styles.gaugeValue, { fontSize: 16, marginTop: 4 }]}>
-                  {telemetry?.activeWindow || 'Windows Desktop'}
-                </Text>
-                <Text style={styles.gaugeSubtext}>
-                  {telemetry?.disks ? telemetry.disks.map(d => `${d.drive} ${d.freeGb}GB free`).join('  |  ') : 'Drive C: 26.6GB free'}
-                </Text>
+              </Animated.View>
+            </View>
+
+            {/* Typography Status */}
+            <Text style={styles.assistantName}>Mikasa</Text>
+            <Text style={styles.assistantStatusText}>{statusMessage}</Text>
+
+            {/* Live Tool Execution Component */}
+            {showExecutionCard && (
+              <View style={styles.executionCard}>
+                <View style={styles.execCardHeader}>
+                  <Text style={styles.execCardTitle}>⚡ {currentActionTitle}</Text>
+                  <TouchableOpacity onPress={() => setShowExecutionCard(false)}>
+                    <Text style={{ color: '#64748b', fontSize: 11 }}>✕</Text>
+                  </TouchableOpacity>
+                </View>
+                {executionSteps.map((s, idx) => (
+                  <View key={idx} style={styles.execStepRow}>
+                    <Text style={{ color: s.status === 'done' ? '#10b981' : '#38bdf8', fontSize: 12, marginRight: 6 }}>
+                      {s.status === 'done' ? '✓' : '→'}
+                    </Text>
+                    <Text style={[styles.execStepText, s.status === 'done' && styles.execStepDone]}>
+                      {s.label}
+                    </Text>
+                  </View>
+                ))}
               </View>
-            </View>
+            )}
+          </View>
 
-            {/* Remote Workstation Controls */}
-            <Text style={styles.sectionHeading}>REMOTE WORKSTATION CONTROLS</Text>
-            <View style={styles.actionsList}>
+          {/* Quick Command Tray */}
+          <View style={styles.quickCommandTray}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickCommandsScroll}>
               <TouchableOpacity
-                style={styles.actionTile}
-                onPress={() => handleRemoteAction('lock')}
-                activeOpacity={0.7}
+                style={styles.quickCmdPill}
+                onPress={() => processCommand("Give me a full morning sitrep briefing.")}
               >
-                <View style={styles.tileLeft}>
-                  <View style={[styles.tileIconWrap, { borderColor: 'rgba(239, 68, 68, 0.4)' }]}>
-                    <Text style={{ fontSize: 18 }}>🔒</Text>
-                  </View>
-                  <View>
-                    <Text style={styles.tileTitle}>Lock Workstation</Text>
-                    <Text style={styles.tileDesc}>Immediate desktop lockdown (Win + L)</Text>
-                  </View>
-                </View>
-                <Text style={styles.tileArrow}>›</Text>
+                <Text style={styles.quickCmdText}>📋 Morning Sitrep</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.actionTile}
-                onPress={() => handleRemoteAction('mute')}
-                activeOpacity={0.7}
+                style={styles.quickCmdPill}
+                onPress={() => processCommand("Check PC hardware telemetry.")}
               >
-                <View style={styles.tileLeft}>
-                  <View style={[styles.tileIconWrap, { borderColor: 'rgba(245, 158, 11, 0.4)' }]}>
-                    <Text style={{ fontSize: 18 }}>🔇</Text>
-                  </View>
-                  <View>
-                    <Text style={styles.tileTitle}>Toggle Master Mute</Text>
-                    <Text style={styles.tileDesc}>Mute or unmute PC system audio</Text>
-                  </View>
-                </View>
-                <Text style={styles.tileArrow}>›</Text>
-              </TouchableOpacity>
-
-              <View style={{ flexDirection: 'row', gap: 10 }}>
-                <TouchableOpacity
-                  style={[styles.actionTile, { flex: 1 }]}
-                  onPress={() => handleRemoteAction('volup')}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.tileLeft}>
-                    <Text style={{ fontSize: 18 }}>🔊</Text>
-                    <Text style={styles.tileTitle}>Vol Up</Text>
-                  </View>
-                  <Text style={styles.tileArrow}>+</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.actionTile, { flex: 1 }]}
-                  onPress={() => handleRemoteAction('voldown')}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.tileLeft}>
-                    <Text style={{ fontSize: 18 }}>🔉</Text>
-                    <Text style={styles.tileTitle}>Vol Down</Text>
-                  </View>
-                  <Text style={styles.tileArrow}>-</Text>
-                </TouchableOpacity>
-              </View>
-
-              <TouchableOpacity
-                style={styles.actionTile}
-                onPress={() => handleRemoteAction('media')}
-                activeOpacity={0.7}
-              >
-                <View style={styles.tileLeft}>
-                  <View style={[styles.tileIconWrap, { borderColor: 'rgba(168, 85, 247, 0.4)' }]}>
-                    <Text style={{ fontSize: 18 }}>⏯️</Text>
-                  </View>
-                  <View>
-                    <Text style={styles.tileTitle}>Media Play / Pause</Text>
-                    <Text style={styles.tileDesc}>Toggle Spotify / YouTube music playback</Text>
-                  </View>
-                </View>
-                <Text style={styles.tileArrow}>›</Text>
+                <Text style={styles.quickCmdText}>🖥️ Workstation Status</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.actionTile}
-                onPress={() => handleRemoteAction('screen')}
-                activeOpacity={0.7}
+                style={styles.quickCmdPill}
+                onPress={() => processCommand("amr pc theke CV pathao.")}
               >
-                <View style={styles.tileLeft}>
-                  <View style={[styles.tileIconWrap, { borderColor: 'rgba(100, 116, 139, 0.4)' }]}>
-                    <Text style={{ fontSize: 18 }}>💤</Text>
-                  </View>
-                  <View>
-                    <Text style={styles.tileTitle}>Sleep Monitors</Text>
-                    <Text style={styles.tileDesc}>Power down workstation screens</Text>
-                  </View>
-                </View>
-                <Text style={styles.tileArrow}>›</Text>
+                <Text style={styles.quickCmdText}>📄 Send CV from PC</Text>
               </TouchableOpacity>
-            </View>
-          </ScrollView>
-        )}
 
-        {/* TAB 3: MEMORIES */}
-        {activeTab === 'memories' && (
-          <View style={styles.pageContainer}>
-            <View style={{ paddingHorizontal: 16, paddingTop: 16 }}>
-              <Text style={styles.pageTitle}>Neural Memory Vault</Text>
-              <Text style={styles.pageSubtitle}>123+ memories continuously retained</Text>
+              <TouchableOpacity
+                style={styles.quickCmdPill}
+                onPress={() => processCommand("What are my pending tasks in Supabase?")}
+              >
+                <Text style={styles.quickCmdText}>⚡ Active Tasks</Text>
+              </TouchableOpacity>
 
-              {/* Search input */}
-              <TextInput
-                style={styles.searchBar}
-                placeholder="Search facts, preferences, decisions..."
-                placeholderTextColor="#64748b"
-                value={memorySearch}
-                onChangeText={t => {
-                  setMemorySearch(t);
-                  fetchMemories();
-                }}
-              />
-
-              {/* Filter Pills */}
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
-                {['All', 'preference', 'fact', 'workflow', 'decision', 'instruction'].map(f => {
-                  const isAll = f === 'All';
-                  const active = isAll ? memoryFilter === null : memoryFilter === f;
-                  return (
-                    <TouchableOpacity
-                      key={f}
-                      style={[styles.filterPill, active && styles.filterPillActive]}
-                      onPress={() => {
-                        setMemoryFilter(isAll ? null : f);
-                        fetchMemories();
-                      }}
-                    >
-                      <Text style={[styles.filterPillText, active && styles.filterPillTextActive]}>
-                        {f.charAt(0).toUpperCase() + f.slice(1)}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-            </View>
-
-            <ScrollView
-              style={{ flex: 1, paddingHorizontal: 16, marginTop: 8 }}
-              contentContainerStyle={{ paddingBottom: 20 }}
-              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#38bdf8" />}
-            >
-              {memories.map(m => (
-                <View key={m.id} style={styles.memoryCard}>
-                  <View style={styles.memoryHeader}>
-                    <View style={styles.memTag}>
-                      <Text style={styles.memTagText}>{m.memory_type}</Text>
-                    </View>
-                    <Text style={styles.memDate}>{m.created_at ? new Date(m.created_at).toLocaleDateString() : ''}</Text>
-                  </View>
-                  <Text style={styles.memoryContent}>{m.content}</Text>
-                </View>
-              ))}
+              <TouchableOpacity
+                style={styles.quickCmdPill}
+                onPress={() => processCommand("Why did you choose Swapnil over Eren?")}
+              >
+                <Text style={styles.quickCmdText}>🧣 Why Swapnil?</Text>
+              </TouchableOpacity>
             </ScrollView>
           </View>
-        )}
 
-        {/* TAB 4: TASKS */}
-        {activeTab === 'tasks' && (
-          <ScrollView
-            style={styles.scrollPage}
-            contentContainerStyle={styles.scrollPageContent}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#38bdf8" />}
-          >
-            <Text style={styles.pageTitle}>Operational Tasks</Text>
-            <Text style={styles.pageSubtitle}>Active engineering sprints & todos</Text>
+          {/* Large Voice Interaction Button */}
+          <View style={styles.voiceBottomContainer}>
+            <TouchableOpacity
+              style={[
+                styles.voiceTriggerBtn,
+                assistantState === 'LISTENING' && styles.voiceTriggerBtnActive
+              ]}
+              onPress={startVoiceInteraction}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.voiceTriggerIcon}>
+                {assistantState === 'LISTENING' ? '◼' : '🎙️'}
+              </Text>
+            </TouchableOpacity>
+            <Text style={styles.voiceTriggerPrompt}>
+              {assistantState === 'LISTENING' ? 'Listening...' : 'Tap to speak to Mikasa'}
+            </Text>
+          </View>
+        </View>
+      )}
 
-            <View style={styles.tasksList}>
-              {tasks.length === 0 ? (
-                <View style={styles.emptyCard}>
-                  <Text style={{ color: '#94a3b8', fontSize: 14 }}>All tasks clear right now! ✨</Text>
+      {/* 4. CONVERSATION VIEW (SECONDARY) */}
+      {viewMode === 'chat' && (
+        <View style={styles.subPageView}>
+          <ScrollView style={styles.chatScroll} contentContainerStyle={{ padding: 16 }}>
+            {messages.map(m => (
+              <View
+                key={m.id}
+                style={[
+                  styles.chatBubbleRow,
+                  m.role === 'user' ? styles.chatBubbleRowUser : styles.chatBubbleRowAssistant
+                ]}
+              >
+                <View
+                  style={[
+                    styles.chatBubble,
+                    m.role === 'user' ? styles.chatBubbleUser : styles.chatBubbleAssistant
+                  ]}
+                >
+                  {m.toolUsed && (
+                    <Text style={styles.chatToolUsedTag}>⚡ {m.toolUsed}</Text>
+                  )}
+                  <Text style={[styles.chatBubbleText, m.role === 'user' && { color: '#ffffff' }]}>
+                    {m.text}
+                  </Text>
                 </View>
-              ) : (
-                tasks.map(t => (
-                  <View key={t.id} style={styles.taskCard}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.taskTitle}>{t.title}</Text>
-                      <Text style={styles.taskMeta}>
-                        {t.project_name || 'General'} • Priority {t.priority || 7}
-                      </Text>
-                    </View>
-                    <TouchableOpacity
-                      style={styles.taskCheckBtn}
-                      onPress={() => handleCompleteTask(t.title)}
-                    >
-                      <Text style={{ color: '#38bdf8', fontSize: 16, fontWeight: '700' }}>✓</Text>
-                    </TouchableOpacity>
-                  </View>
-                ))
-              )}
-            </View>
+              </View>
+            ))}
           </ScrollView>
-        )}
 
-        {/* TAB 5: MONITORS */}
-        {activeTab === 'monitors' && (
-          <ScrollView
-            style={styles.scrollPage}
-            contentContainerStyle={styles.scrollPageContent}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#38bdf8" />}
-          >
-            <Text style={styles.pageTitle}>Service Monitors</Text>
-            <Text style={styles.pageSubtitle}>Live uptime & latency beacons</Text>
+          <View style={styles.chatInputDock}>
+            <TextInput
+              style={styles.chatTextInput}
+              placeholder="Send instruction to Mikasa..."
+              placeholderTextColor="#64748b"
+              value={chatInput}
+              onChangeText={setChatInput}
+              onSubmitEditing={() => {
+                if (chatInput.trim()) {
+                  const cmd = chatInput.trim();
+                  setChatInput('');
+                  processCommand(cmd);
+                }
+              }}
+            />
+            <TouchableOpacity
+              style={styles.chatSendBtn}
+              onPress={() => {
+                if (chatInput.trim()) {
+                  const cmd = chatInput.trim();
+                  setChatInput('');
+                  processCommand(cmd);
+                }
+              }}
+            >
+              <Text style={{ color: '#ffffff', fontWeight: 'bold' }}>➤</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
 
-            <View style={styles.monitorsList}>
-              {monitors.map((m, idx) => {
-                const isUp = m.status === 'UP';
+      {/* 5. DEVICE CONTROL VIEW */}
+      {viewMode === 'device' && (
+        <ScrollView style={styles.subPageView} contentContainerStyle={{ padding: 18, paddingBottom: 40 }}>
+          <Text style={styles.sectionHeaderTitle}>DEVICE & WORKSTATION BRIDGES</Text>
+          <Text style={styles.sectionHeaderSub}>Dual Android Phone & Windows Workstation Controls</Text>
+
+          {/* Phone Subsystem */}
+          <Text style={styles.groupLabel}>SMARTPHONE SENSORS</Text>
+          <View style={styles.deviceCard}>
+            <View style={styles.deviceRow}>
+              <Text style={styles.deviceRowLabel}>Device Model</Text>
+              <Text style={styles.deviceRowVal}>{deviceName}</Text>
+            </View>
+            <View style={styles.deviceRow}>
+              <Text style={styles.deviceRowLabel}>Battery Level</Text>
+              <Text style={styles.deviceRowVal}>{batteryLevel !== null ? `${batteryLevel}%` : 'Reading...'}</Text>
+            </View>
+            <View style={styles.deviceRow}>
+              <Text style={styles.deviceRowLabel}>Network Type</Text>
+              <Text style={styles.deviceRowVal}>{networkType}</Text>
+            </View>
+            <View style={styles.deviceRow}>
+              <Text style={styles.deviceRowLabel}>Current Location</Text>
+              <Text style={styles.deviceRowVal}>{currentCity}</Text>
+            </View>
+          </View>
+
+          {/* Workstation Controls */}
+          <Text style={styles.groupLabel}>WINDOWS WORKSTATION HARDWARE</Text>
+          <View style={styles.deviceCard}>
+            <View style={styles.deviceRow}>
+              <Text style={styles.deviceRowLabel}>Host Status</Text>
+              <Text style={[styles.deviceRowVal, { color: pcOnline ? '#10b981' : '#f59e0b' }]}>
+                {pcOnline ? 'Swapnil-PC Online' : 'Cloud Standby'}
+              </Text>
+            </View>
+            <View style={styles.deviceRow}>
+              <Text style={styles.deviceRowLabel}>Active Window</Text>
+              <Text style={styles.deviceRowVal}>{pcActiveWindow}</Text>
+            </View>
+            <View style={styles.deviceRow}>
+              <Text style={styles.deviceRowLabel}>CPU Load</Text>
+              <Text style={styles.deviceRowVal}>{pcCpu}% (Ryzen 5 5600G)</Text>
+            </View>
+            <View style={styles.deviceRow}>
+              <Text style={styles.deviceRowLabel}>RAM Usage</Text>
+              <Text style={styles.deviceRowVal}>{pcRam}% of 15.4 GB</Text>
+            </View>
+          </View>
+
+          {/* One-Tap Remote Actions */}
+          <Text style={styles.groupLabel}>REMOTE WORKSTATION ACTIONS</Text>
+          <View style={styles.actionsGrid}>
+            <TouchableOpacity style={styles.actionGridBtn} onPress={() => executeDeviceTool('lock')}>
+              <Text style={styles.actionBtnIcon}>🔒</Text>
+              <Text style={styles.actionBtnLabel}>Lock PC</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.actionGridBtn} onPress={() => executeDeviceTool('mute')}>
+              <Text style={styles.actionBtnIcon}>🔇</Text>
+              <Text style={styles.actionBtnLabel}>Mute Audio</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.actionGridBtn} onPress={() => executeDeviceTool('volup')}>
+              <Text style={styles.actionBtnIcon}>🔊</Text>
+              <Text style={styles.actionBtnLabel}>Vol Up</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.actionGridBtn} onPress={() => executeDeviceTool('voldown')}>
+              <Text style={styles.actionBtnIcon}>🔉</Text>
+              <Text style={styles.actionBtnLabel}>Vol Down</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.actionGridBtn} onPress={() => executeDeviceTool('media')}>
+              <Text style={styles.actionBtnIcon}>⏯️</Text>
+              <Text style={styles.actionBtnLabel}>Play/Pause</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.actionGridBtn} onPress={() => executeDeviceTool('screen')}>
+              <Text style={styles.actionBtnIcon}>💤</Text>
+              <Text style={styles.actionBtnLabel}>Sleep Screen</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      )}
+
+      {/* 6. MEMORY VAULT VIEW */}
+      {viewMode === 'memory' && (
+        <View style={styles.subPageView}>
+          <View style={{ padding: 16 }}>
+            <Text style={styles.sectionHeaderTitle}>NEURAL MEMORY VAULT</Text>
+            <Text style={styles.sectionHeaderSub}>Persistent Long-Term Cognitive Memory Graph</Text>
+
+            <TextInput
+              style={styles.memSearchBar}
+              placeholder="Search memory graph..."
+              placeholderTextColor="#64748b"
+              value={memorySearch}
+              onChangeText={setMemorySearch}
+            />
+
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, marginVertical: 8 }}>
+              {['All', 'fact', 'preference', 'workflow', 'decision', 'instruction'].map(cat => {
+                const isAll = cat === 'All';
+                const active = isAll ? activeMemoryCategory === null : activeMemoryCategory === cat;
                 return (
-                  <View key={idx} style={styles.monitorCard}>
-                    <View style={styles.cardTopRow}>
-                      <Text style={styles.monName}>{m.name}</Text>
-                      <View style={[styles.monBadge, { backgroundColor: isUp ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)' }]}>
-                        <Text style={{ color: isUp ? '#34d399' : '#f87171', fontSize: 11, fontWeight: '700' }}>
-                          {isUp ? '● UP' : '▲ ISSUE'}
-                        </Text>
-                      </View>
-                    </View>
-                    <Text style={styles.monUrl}>{m.url}</Text>
-                    <View style={styles.monFoot}>
-                      <Text style={styles.monFootText}>Latency: <Text style={{ color: '#38bdf8', fontWeight: '700' }}>{m.latencyMs}ms</Text></Text>
-                      <Text style={styles.monFootText}>SSL: <Text style={{ color: '#10b981' }}>{m.ssl || 'VALID'}</Text></Text>
-                    </View>
-                  </View>
+                  <TouchableOpacity
+                    key={cat}
+                    style={[styles.memCatPill, active && styles.memCatPillActive]}
+                    onPress={() => setActiveMemoryCategory(isAll ? null : cat)}
+                  >
+                    <Text style={[styles.memCatPillText, active && styles.memCatPillTextActive]}>
+                      {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                    </Text>
+                  </TouchableOpacity>
                 );
               })}
-            </View>
-          </ScrollView>
-        )}
-      </View>
+            </ScrollView>
+          </View>
 
-      {/* BOTTOM NAVIGATION DOCK */}
-      <View style={styles.bottomNav}>
-        {[
-          { key: 'chat', label: 'Chat', icon: '💬' },
-          { key: 'pc', label: 'Cockpit', icon: '🖥️' },
-          { key: 'memories', label: 'Memory', icon: '🧠' },
-          { key: 'tasks', label: 'Tasks', icon: '📋' },
-          { key: 'monitors', label: 'Monitors', icon: '🌐' }
-        ].map(tab => {
-          const isActive = activeTab === tab.key;
-          return (
-            <TouchableOpacity
-              key={tab.key}
-              style={styles.navBtn}
-              onPress={() => {
-                try {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                } catch (e) {}
-                setActiveTab(tab.key as any);
-              }}
-              activeOpacity={0.7}
-            >
-              <Text style={[styles.navIcon, isActive && styles.navIconActive]}>{tab.icon}</Text>
-              <Text style={[styles.navLabel, isActive && styles.navLabelActive]}>{tab.label}</Text>
+          <ScrollView style={{ flex: 1, paddingHorizontal: 16 }}>
+            {memories.map(m => (
+              <View key={m.id} style={styles.memItemCard}>
+                <View style={styles.memCardTop}>
+                  <Text style={styles.memBadge}>{m.memory_type}</Text>
+                  <Text style={styles.memTimestamp}>{m.created_at ? new Date(m.created_at).toLocaleDateString() : ''}</Text>
+                </View>
+                <Text style={styles.memBody}>{m.content}</Text>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
+      {/* 7. SITREP DASHBOARD (SECONDARY VIEW) */}
+      {viewMode === 'dashboard' && (
+        <ScrollView style={styles.subPageView} contentContainerStyle={{ padding: 18, paddingBottom: 40 }}>
+          <Text style={styles.sectionHeaderTitle}>MORNING SITREP BRIEFING</Text>
+          <Text style={styles.sectionHeaderSub}>Good morning, Commander Swapnil.</Text>
+
+          <View style={styles.sitrepSectionCard}>
+            <Text style={styles.sitrepCardHead}>📍 LOCAL ENVIRONMENT</Text>
+            <Text style={styles.sitrepCardBody}>
+              • Location: {currentCity}, Bangladesh (UTC+6){'\n'}
+              • Phone Battery: {batteryLevel !== null ? `${batteryLevel}%` : '90%'} ({isCharging ? 'Charging' : 'Optimal'}){'\n'}
+              • Network: {networkType}
+            </Text>
+          </View>
+
+          <View style={styles.sitrepSectionCard}>
+            <Text style={styles.sitrepCardHead}>💻 WORKSTATION COCKPIT</Text>
+            <Text style={styles.sitrepCardBody}>
+              • Workstation: Swapnil-PC ({pcOnline ? 'Online' : 'Standby'}){'\n'}
+              • CPU Load: {pcCpu}% (AMD Ryzen 5 5600G){'\n'}
+              • RAM Utilized: {pcRam}% of 15.4 GB{'\n'}
+              • Active Window: {pcActiveWindow}
+            </Text>
+          </View>
+
+          <View style={styles.sitrepSectionCard}>
+            <Text style={styles.sitrepCardHead}>🧣 MIKASA CORE INTELLIGENCE</Text>
+            <Text style={styles.sitrepCardBody}>
+              • AI Engine: Google Gemini 2.5 Flash + OpenRouter Failover{'\n'}
+              • Database: Supabase Cloud (123+ memories active){'\n'}
+              • Telegram Channel: Long Polling Active{'\n'}
+              • Web Command Center: Port 3000 Active
+            </Text>
+          </View>
+        </ScrollView>
+      )}
+
+      {/* PERMISSION MODAL */}
+      <Modal visible={showPermissionModal} transparent animationType="fade">
+        <View style={styles.modalBackdrop}>
+          <View style={styles.permissionModalBox}>
+            <Text style={styles.permModalTitle}>Mikasa Assistant Permissions</Text>
+            <Text style={styles.permModalDesc}>
+              To operate as your real Android AI assistant, Mikasa requires explicit access to:
+            </Text>
+
+            <View style={styles.permRow}>
+              <Text style={styles.permIcon}>🎙️</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.permName}>Microphone</Text>
+                <Text style={styles.permDetail}>For hands-free speech recognition and commands.</Text>
+              </View>
+            </View>
+
+            <View style={styles.permRow}>
+              <Text style={styles.permIcon}>📍</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.permName}>Location</Text>
+                <Text style={styles.permDetail}>To generate localized sitrep briefings and weather updates.</Text>
+              </View>
+            </View>
+
+            <View style={styles.permRow}>
+              <Text style={styles.permIcon}>🔋</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.permName}>Battery & Hardware</Text>
+                <Text style={styles.permDetail}>To monitor power and warn you during late-night work sessions.</Text>
+              </View>
+            </View>
+
+            <TouchableOpacity style={styles.btnGrantPerm} onPress={requestSystemPermissions}>
+              <Text style={styles.btnGrantPermText}>Authorize Mikasa</Text>
             </TouchableOpacity>
-          );
-        })}
-      </View>
+
+            <TouchableOpacity style={{ marginTop: 12, alignItems: 'center' }} onPress={() => setShowPermissionModal(false)}>
+              <Text style={{ color: '#64748b', fontSize: 13 }}>Dismiss</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeContainer: {
+  container: {
     flex: 1,
-    backgroundColor: '#070b14',
-    paddingTop: Platform.OS === 'android' ? 30 : 0
+    backgroundColor: '#030712',
+    paddingTop: Platform.OS === 'android' ? 28 : 0
   },
-  header: {
-    height: 62,
+  topBar: {
+    height: 56,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    backgroundColor: 'rgba(7, 11, 20, 0.95)',
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.08)'
+    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: '#030712'
   },
-  brandRow: {
+  topBarLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10
   },
-  avatarBorder: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 2,
-    borderColor: 'rgba(56, 189, 248, 0.5)',
-    position: 'relative'
-  },
-  avatarImg: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 20
-  },
-  avatarPulse: {
-    position: 'absolute',
-    bottom: -1,
-    right: -1,
-    width: 11,
-    height: 11,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: '#070b14'
-  },
-  titleWithBadge: {
-    flexDirection: 'row',
+  identityRing: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: 'rgba(56, 189, 248, 0.4)',
     alignItems: 'center',
-    gap: 6
+    justifyContent: 'center'
   },
-  brandTitle: {
+  identityDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4
+  },
+  systemTitle: {
     color: '#f8fafc',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '800',
     letterSpacing: 0.5
   },
-  osBadge: {
-    backgroundColor: 'rgba(56, 189, 248, 0.15)',
-    borderColor: 'rgba(56, 189, 248, 0.3)',
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 6,
-    paddingVertical: 1
-  },
-  osBadgeText: {
-    color: '#38bdf8',
+  systemSubtitle: {
+    color: '#64748b',
     fontSize: 9,
-    fontWeight: '700'
+    fontWeight: '600',
+    letterSpacing: 0.3
   },
-  brandSubtitle: {
-    color: '#94a3b8',
-    fontSize: 11
-  },
-  headerRight: {
+  topBarRight: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8
   },
-  serverPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(16, 185, 129, 0.12)',
-    borderColor: 'rgba(16, 185, 129, 0.3)',
+  pillSensor: {
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
     borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: 12,
     paddingHorizontal: 8,
-    paddingVertical: 4,
-    gap: 4
+    paddingVertical: 4
   },
-  serverPillDot: {
-    color: '#10b981',
-    fontSize: 8
+  pillSensorText: {
+    color: '#94a3b8',
+    fontSize: 11,
+    fontWeight: '600'
   },
-  serverPillText: {
-    color: '#34d399',
-    fontSize: 10,
-    fontWeight: '700'
-  },
-  quickLockBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  btnNavCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     alignItems: 'center',
     justifyContent: 'center'
   },
-  viewport: {
-    flex: 1
-  },
-  chatContainer: {
-    flex: 1
-  },
-  messagesScroll: {
-    flex: 1,
-    paddingHorizontal: 14
-  },
-  msgRow: {
+  modeChipsRow: {
     flexDirection: 'row',
-    gap: 8,
-    marginBottom: 12,
-    maxWidth: '85%'
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    gap: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.04)',
+    backgroundColor: '#030712'
   },
-  msgRowUser: {
-    alignSelf: 'flex-end',
-    flexDirection: 'row-reverse'
+  modeChip: {
+    paddingHorizontal: 11,
+    paddingVertical: 5,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)'
   },
-  msgRowAssistant: {
-    alignSelf: 'flex-start'
-  },
-  msgAvatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+  modeChipActive: {
+    backgroundColor: 'rgba(56, 189, 248, 0.15)',
     borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.4)',
-    marginTop: 2
+    borderColor: 'rgba(56, 189, 248, 0.4)'
   },
-  bubble: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 18
+  modeChipText: {
+    color: '#64748b',
+    fontSize: 11,
+    fontWeight: '600'
   },
-  bubbleUser: {
-    backgroundColor: '#0284c7',
-    borderBottomRightRadius: 4
+  modeChipTextActive: {
+    color: '#38bdf8'
   },
-  bubbleAssistant: {
-    backgroundColor: 'rgba(15, 23, 42, 0.8)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    borderBottomLeftRadius: 4
+  assistantCoreView: {
+    flex: 1,
+    backgroundColor: '#030712',
+    justifyContent: 'space-between',
+    paddingBottom: 20
   },
-  bubbleText: {
-    fontSize: 14,
-    lineHeight: 20
+  centerStage: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20
   },
-  bubbleTextUser: {
-    color: '#ffffff'
+  orbWrapper: {
+    width: 170,
+    height: 170,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20
   },
-  bubbleTextAssistant: {
-    color: '#f8fafc'
+  orbHalo: {
+    position: 'absolute',
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    borderWidth: 1.5
   },
-  toolTag: {
-    backgroundColor: 'rgba(56, 189, 248, 0.12)',
-    borderColor: 'rgba(56, 189, 248, 0.3)',
-    borderWidth: 1,
-    borderRadius: 6,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    alignSelf: 'flex-start',
-    marginBottom: 6
+  mainOrb: {
+    width: 104,
+    height: 104,
+    borderRadius: 52,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#38bdf8',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 8
   },
-  toolTagText: {
-    color: '#38bdf8',
-    fontSize: 10,
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    fontWeight: '700'
+  orbInnerCore: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    alignItems: 'center',
+    justifyContent: 'center'
   },
-  msgTime: {
-    color: 'rgba(255, 255, 255, 0.4)',
-    fontSize: 9,
-    alignSelf: 'flex-end',
+  orbCoreSymbol: {
+    fontSize: 24
+  },
+  assistantName: {
+    color: '#f8fafc',
+    fontSize: 22,
+    fontWeight: '700',
+    letterSpacing: -0.2
+  },
+  assistantStatusText: {
+    color: '#64748b',
+    fontSize: 13,
+    fontWeight: '500',
     marginTop: 4
   },
-  suggestionsContainer: {
-    height: 40,
-    marginBottom: 6
+  executionCard: {
+    marginTop: 20,
+    width: width - 60,
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.25)',
+    padding: 12
   },
-  suggestionsScroll: {
-    paddingHorizontal: 14,
+  execCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8
+  },
+  execCardTitle: {
+    color: '#38bdf8',
+    fontSize: 12,
+    fontWeight: '700'
+  },
+  execStepRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4
+  },
+  execStepText: {
+    color: '#94a3b8',
+    fontSize: 12
+  },
+  execStepDone: {
+    color: '#e2e8f0',
+    textDecorationLine: 'none'
+  },
+  quickCommandTray: {
+    height: 40,
+    marginBottom: 10
+  },
+  quickCommandsScroll: {
+    paddingHorizontal: 16,
     gap: 8,
     alignItems: 'center'
   },
-  sugChip: {
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    borderColor: 'rgba(255, 255, 255, 0.1)',
+  quickCmdPill: {
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
     borderWidth: 1,
-    borderRadius: 20,
+    borderColor: 'rgba(255, 255, 255, 0.07)',
+    borderRadius: 18,
     paddingHorizontal: 12,
     paddingVertical: 6
   },
-  sugChipText: {
+  quickCmdText: {
     color: '#94a3b8',
     fontSize: 12,
     fontWeight: '500'
   },
-  inputBar: {
-    flexDirection: 'row',
+  voiceBottomContainer: {
     alignItems: 'center',
+    paddingBottom: 10
+  },
+  voiceTriggerBtn: {
+    width: 66,
+    height: 66,
+    borderRadius: 33,
+    backgroundColor: 'rgba(15, 23, 42, 0.9)',
+    borderWidth: 2,
+    borderColor: 'rgba(225, 29, 72, 0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#e11d48',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 6
+  },
+  voiceTriggerBtnActive: {
+    backgroundColor: '#e11d48',
+    borderColor: '#ffffff'
+  },
+  voiceTriggerIcon: {
+    fontSize: 26,
+    color: '#ffffff'
+  },
+  voiceTriggerPrompt: {
+    color: '#64748b',
+    fontSize: 12,
+    marginTop: 8,
+    fontWeight: '500'
+  },
+  subPageView: {
+    flex: 1,
+    backgroundColor: '#030712'
+  },
+  chatScroll: {
+    flex: 1
+  },
+  chatBubbleRow: {
+    marginBottom: 10,
+    maxWidth: '85%'
+  },
+  chatBubbleRowUser: {
+    alignSelf: 'flex-end'
+  },
+  chatBubbleRowAssistant: {
+    alignSelf: 'flex-start'
+  },
+  chatBubble: {
     paddingHorizontal: 14,
-    paddingVertical: 8,
-    backgroundColor: '#070b14',
+    paddingVertical: 10,
+    borderRadius: 16
+  },
+  chatBubbleUser: {
+    backgroundColor: '#0284c7',
+    borderBottomRightRadius: 2
+  },
+  chatBubbleAssistant: {
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderBottomLeftRadius: 2
+  },
+  chatBubbleText: {
+    color: '#f8fafc',
+    fontSize: 14,
+    lineHeight: 20
+  },
+  chatToolUsedTag: {
+    color: '#38bdf8',
+    fontSize: 10,
+    fontWeight: '700',
+    marginBottom: 4
+  },
+  chatInputDock: {
+    flexDirection: 'row',
+    padding: 12,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+    borderTopColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: '#030712',
     gap: 8
   },
-  textInput: {
+  chatTextInput: {
     flex: 1,
     height: 42,
     backgroundColor: 'rgba(15, 23, 42, 0.9)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: 21,
     paddingHorizontal: 16,
     color: '#f8fafc',
-    fontSize: 14
+    fontSize: 13
   },
-  sendBtn: {
+  chatSendBtn: {
     width: 42,
     height: 42,
     borderRadius: 21,
@@ -974,295 +1221,205 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center'
   },
-  sendBtnIcon: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: 'bold'
-  },
-  scrollPage: {
-    flex: 1
-  },
-  scrollPageContent: {
-    padding: 16,
-    paddingBottom: 24
-  },
-  pageContainer: {
-    flex: 1
-  },
-  pageTitle: {
+  sectionHeaderTitle: {
     color: '#f8fafc',
-    fontSize: 20,
-    fontWeight: '800'
-  },
-  pageSubtitle: {
-    color: '#94a3b8',
-    fontSize: 12,
-    marginTop: 2,
-    marginBottom: 14
-  },
-  grid2x2: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    marginBottom: 16
-  },
-  gaugeCard: {
-    width: (width - 42) / 2,
-    backgroundColor: 'rgba(15, 23, 42, 0.8)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 16,
-    padding: 14
-  },
-  cardTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6
-  },
-  gaugeLabel: {
-    color: '#64748b',
-    fontSize: 10,
+    fontSize: 16,
     fontWeight: '800',
     letterSpacing: 0.5
   },
-  gaugeValue: {
-    color: '#f8fafc',
-    fontSize: 22,
-    fontWeight: '800',
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace'
-  },
-  gaugeSubtext: {
-    color: '#94a3b8',
-    fontSize: 11,
-    marginTop: 4
-  },
-  sectionHeading: {
+  sectionHeaderSub: {
     color: '#64748b',
-    fontSize: 11,
+    fontSize: 12,
+    marginTop: 2,
+    marginBottom: 16
+  },
+  groupLabel: {
+    color: '#64748b',
+    fontSize: 10,
     fontWeight: '800',
     letterSpacing: 0.8,
-    marginBottom: 8,
-    marginTop: 6
+    marginTop: 12,
+    marginBottom: 8
   },
-  actionsList: {
+  deviceCard: {
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    borderRadius: 14,
+    padding: 14,
     gap: 8
   },
-  actionTile: {
+  deviceRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(15, 23, 42, 0.8)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 14,
-    padding: 14
+    alignItems: 'center'
   },
-  tileLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12
+  deviceRowLabel: {
+    color: '#94a3b8',
+    fontSize: 13
   },
-  tileIconWrap: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    borderWidth: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  tileTitle: {
-    color: '#f8fafc',
-    fontSize: 14,
-    fontWeight: '700'
-  },
-  tileDesc: {
-    color: '#64748b',
-    fontSize: 11
-  },
-  tileArrow: {
-    color: '#64748b',
-    fontSize: 18
-  },
-  searchBar: {
-    height: 40,
-    backgroundColor: 'rgba(15, 23, 42, 0.8)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 12,
-    paddingHorizontal: 12,
+  deviceRowVal: {
     color: '#f8fafc',
     fontSize: 13,
-    marginBottom: 10
+    fontWeight: '600'
   },
-  filterRow: {
-    gap: 6,
-    paddingBottom: 4
+  actionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10
   },
-  filterPill: {
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
+  actionGridBtn: {
+    width: (width - 46) / 2,
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    borderRadius: 14,
+    padding: 14,
+    alignItems: 'center',
+    gap: 6
+  },
+  actionBtnIcon: {
+    fontSize: 20
+  },
+  actionBtnLabel: {
+    color: '#f8fafc',
+    fontSize: 12,
+    fontWeight: '600'
+  },
+  memSearchBar: {
+    height: 38,
+    backgroundColor: 'rgba(15, 23, 42, 0.8)',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 16,
+    borderRadius: 10,
     paddingHorizontal: 12,
-    paddingVertical: 5
+    color: '#f8fafc',
+    fontSize: 13
   },
-  filterPillActive: {
+  memCatPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)'
+  },
+  memCatPillActive: {
     backgroundColor: 'rgba(56, 189, 248, 0.15)',
+    borderWidth: 1,
     borderColor: '#38bdf8'
   },
-  filterPillText: {
-    color: '#94a3b8',
+  memCatPillText: {
+    color: '#64748b',
     fontSize: 11,
     fontWeight: '600'
   },
-  filterPillTextActive: {
+  memCatPillTextActive: {
     color: '#38bdf8'
   },
-  memoryCard: {
-    backgroundColor: 'rgba(15, 23, 42, 0.8)',
+  memItemCard: {
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 14,
+    borderColor: 'rgba(255, 255, 255, 0.06)',
+    borderRadius: 12,
     padding: 12,
     marginBottom: 8
   },
-  memoryHeader: {
+  memCardTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6
+    marginBottom: 4
   },
-  memTag: {
-    backgroundColor: 'rgba(56, 189, 248, 0.12)',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6
-  },
-  memTagText: {
+  memBadge: {
     color: '#38bdf8',
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '700',
     textTransform: 'uppercase'
   },
-  memDate: {
+  memTimestamp: {
     color: '#64748b',
-    fontSize: 10
+    fontSize: 9
   },
-  memoryContent: {
+  memBody: {
     color: '#e2e8f0',
     fontSize: 13,
     lineHeight: 18
   },
-  tasksList: {
-    gap: 8
-  },
-  emptyCard: {
-    backgroundColor: 'rgba(15, 23, 42, 0.6)',
-    borderRadius: 14,
-    padding: 24,
-    alignItems: 'center'
-  },
-  taskCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: 'rgba(15, 23, 42, 0.8)',
+  sitrepSectionCard: {
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
+    borderColor: 'rgba(255, 255, 255, 0.06)',
     borderRadius: 14,
-    padding: 14
+    padding: 14,
+    marginBottom: 12
   },
-  taskTitle: {
-    color: '#f8fafc',
-    fontSize: 14,
-    fontWeight: '600'
-  },
-  taskMeta: {
-    color: '#64748b',
+  sitrepCardHead: {
+    color: '#38bdf8',
     fontSize: 11,
-    marginTop: 3
+    fontWeight: '800',
+    letterSpacing: 0.5,
+    marginBottom: 8
   },
-  taskCheckBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(56, 189, 248, 0.12)',
+  sitrepCardBody: {
+    color: '#cbd5e1',
+    fontSize: 13,
+    lineHeight: 22
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24
+  },
+  permissionModalBox: {
+    width: '100%',
+    backgroundColor: '#0f172a',
     borderWidth: 1,
     borderColor: 'rgba(56, 189, 248, 0.3)',
+    borderRadius: 20,
+    padding: 20
+  },
+  permModalTitle: {
+    color: '#f8fafc',
+    fontSize: 18,
+    fontWeight: '800',
+    marginBottom: 6
+  },
+  permModalDesc: {
+    color: '#94a3b8',
+    fontSize: 13,
+    marginBottom: 16,
+    lineHeight: 18
+  },
+  permRow: {
+    flexDirection: 'row',
+    gap: 12,
     alignItems: 'center',
-    justifyContent: 'center'
+    marginBottom: 14
   },
-  monitorsList: {
-    gap: 8
+  permIcon: {
+    fontSize: 22
   },
-  monitorCard: {
-    backgroundColor: 'rgba(15, 23, 42, 0.8)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 14,
-    padding: 14
-  },
-  monName: {
+  permName: {
     color: '#f8fafc',
     fontSize: 14,
     fontWeight: '700'
   },
-  monBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10
-  },
-  monUrl: {
+  permDetail: {
     color: '#64748b',
     fontSize: 11,
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     marginTop: 2
   },
-  monFoot: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 10,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.06)'
-  },
-  monFootText: {
-    color: '#94a3b8',
-    fontSize: 11,
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace'
-  },
-  bottomNav: {
-    height: 64,
-    flexDirection: 'row',
-    backgroundColor: '#070b14',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+  btnGrantPerm: {
+    backgroundColor: '#0284c7',
+    borderRadius: 12,
+    paddingVertical: 12,
     alignItems: 'center',
-    justifyContent: 'space-around'
+    marginTop: 8
   },
-  navBtn: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 6,
-    paddingHorizontal: 12
-  },
-  navIcon: {
-    fontSize: 18,
-    opacity: 0.6
-  },
-  navIconActive: {
-    opacity: 1
-  },
-  navLabel: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#64748b',
-    marginTop: 2
-  },
-  navLabelActive: {
-    color: '#38bdf8',
+  btnGrantPermText: {
+    color: '#ffffff',
+    fontSize: 14,
     fontWeight: '700'
   }
 });

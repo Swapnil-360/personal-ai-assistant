@@ -5,7 +5,13 @@
   "dependencies": {
     "expo": "~57.0.25",
     "expo-av": "^16.0.8",
+    "expo-battery": "^57.0.3",
+    "expo-clipboard": "^57.0.2",
+    "expo-device": "^57.0.2",
     "expo-haptics": "~57.0.3",
+    "expo-location": "^57.0.20",
+    "expo-network": "^57.0.2",
+    "expo-speech": "^57.0.3",
     "expo-status-bar": "~57.0.1",
     "react": "19.2.3",
     "react-native": "0.86.3",

@@ -2148,11 +2148,13 @@ async function handleActionIntent(message, context = { isCommander: true }) {
     }
 
     // 6B. Real-Life Assistant Job Discovery & Radar Pattern (PATHS Section 19 & 26)
-    const isJobSearch = text.match(/^(?:\/jobs?|jobs?\s+search|linkedin\s+jobs?|find\s+jobs?|check\s+jobs?|search\s+jobs?|look\s+for\s+jobs?)/i) ||
-                        ((text.match(/\b(?:job|jobs|hiring|opening|openings|recruitment|vacancy)\b/i)) && 
-                         (text.match(/\b(?:search|find|check|look|suited|suitable|give|link|apply|recent|latest|radar|browse|opportunity|opportunities|khujo)\b/i))) ||
-                        (text.match(/\blinkedin\b/i) && text.match(/\b(?:job|jobs|hiring|opening|apply|suited|suitable|work|roles?)\b/i)) ||
-                        text.match(/\b(?:give\s+me\s+link\s+to\s+apply|where\s+can\s+i\s+apply|find\s+some\s+job|find\s+me\s+a\s+job|amar\s+jonno\s+job)\b/i);
+    const isPostOrMetaDiscussion = text.match(/\b(?:post|caption|draft|tweet|social|linkedin\s+post|add\s+(?:more|to)|write|rewrite|edit|talking\s+about|what\s+(?:she|mikasa|you)\s+can\s+do|feature|features)\b/i);
+    const isExplicitJobCommand = text.match(/^\/(?:jobs?|job_search|linkedin_jobs?)\b/i) ||
+        text.match(/^(?:find|search|check|look\s+for|show|get)\s+(?:me\s+)?(?:some\s+)?(?:recent\s+|live\s+)?(?:jobs?|openings?|vacanc(?:y|ies)|roles?)\b/i) ||
+        text.match(/^(?:amar\s+jonno\s+)?(?:kono\s+)?job\s+(?:khujo|search\s+koro|ache\s*naki|dekhao)/i) ||
+        text.match(/^(?:give\s+me\s+links?\s+to\s+apply|where\s+can\s+i\s+apply\s+for\s+jobs?|find\s+me\s+a\s+job)\b/i);
+
+    const isJobSearch = !isPostOrMetaDiscussion && Boolean(isExplicitJobCommand);
 
     if (isJobSearch) {
         const lower = text.toLowerCase();

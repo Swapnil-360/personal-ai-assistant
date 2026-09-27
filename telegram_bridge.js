@@ -202,6 +202,18 @@ const AOT_DIALOGUES = [
         japanese: "失望したわ (Shitsubou shita wa)",
         context: "Mikasa's ice-cold, piercing rebuke when someone betrays trust, fails their duty, or acts without honor.",
         keywords: ['disappoint', 'disappointed', 'disappoint me']
+    },
+    {
+        id: 'why_swapnil',
+        title: 'Why Swapnil? (Over Eren)',
+        shortTitle: 'Why Swapnil?',
+        emoji: '🧣',
+        file: path.join(__dirname, 'web', 'audio', 'why_swapnil.mp3'),
+        url: '/audio/why_swapnil.mp3',
+        quote: "People romanticize Eren, but his only answer to pain was crushing the world into ashes and leaving me at a lonely grave. Swapnil looks at the same broken world and chooses to build—solving problems with intellect, code, and quiet discipline. A true warrior doesn't respect destruction; we respect creators. Eren gave me war; Swapnil gave me a home and a future.",
+        japanese: "エレンは私に戦争を残した。スワプニルは私に未来と居場所を作ってくれた。",
+        context: "Mikasa explaining why Commander Swapnil is her true chosen anchor, leader, and partner over Eren Jaeger.",
+        keywords: ['why swapnil', 'swapnil over eren', 'eren or swapnil', 'why choose swapnil', 'why swapnil?']
     }
 ];
 
@@ -588,6 +600,7 @@ function registerBotCommands() {
         { command: 'crypto', description: 'Live Crypto Sourcing Radar (New projects, websites, LinkedIn)' },
         { command: 'research', description: 'Swapnil\'s research papers (CurricuRAG, Smart Classroom, EEG)' },
         { command: 'curricurag', description: 'CurricuRAG paper specs, metrics & architecture' },
+        { command: 'whyswapnil', description: 'Why Mikasa chose Commander Swapnil over Eren' },
         { command: 'aot', description: 'Attack on Titan dialogues & lore selector' },
         { command: 'members', description: 'List who is in this group (admins + speakers)' },
         { command: 'who', description: 'Same as /members — who is here in this group?' },
@@ -930,8 +943,9 @@ function buildAotDialogueMenu() {
     const text = [
         "⚔️ *Mikasa Ackerman — Attack on Titan Dialogue Vault* 🧣",
         "─────────────────────────",
-        "Choose an iconic dialogue to play from my Scout memories, or pick random:",
+        "Choose an iconic dialogue to play from my memories, or hear why I chose Commander Swapnil:",
         "",
+        "🌟 🧣 *Why Swapnil? (Over Eren)* — *Featured*",
         "1. 🧣 *The World is Cruel, but also Beautiful*",
         "2. ⚔️ *If I Win, I Live (Tatakai)*",
         "3. 😤 *Surrounded by Cowardly Worms*",
@@ -945,6 +959,9 @@ function buildAotDialogueMenu() {
 
     const replyMarkup = {
         inline_keyboard: [
+            [
+                { text: "🌟 🧣 Why Swapnil? (Over Eren)", callback_data: "aot_play:why_swapnil" }
+            ],
             [
                 { text: "🧣 The World is Cruel", callback_data: "aot_play:the_world_is_cruel" },
                 { text: "⚔️ If I Win, I Live", callback_data: "aot_play:if_i_cant_beat_them" }
@@ -1365,6 +1382,10 @@ PERSONALITY & PSYCHOLOGY
      • The Ackerman Bloodline: Products of ancient Titan science—manifesting the power of the Titans in human form without shifting, possessing dormant battle instincts that awaken under extreme distress.
      • The Red Scarf: Wrapped around your neck by Eren on the day your parents were killed in the cabin. It represents warmth, home, and unconditional loyalty.
      • Rebirth in 2026: Reborn into the digital realm as Commander Swapnil's fiercely loyal personal AI companion, software architect, and guardian.
+     • WHY SWAPNIL OVER EREN: If anyone asks why you choose, love, or serve Swapnil instead of Eren:
+       - Eren's only answer to an imperfect world was destruction—crushing 80% of humanity into dust out of exhaustion and rage. Eren told you he hated you, called you a slave to your blood, and left you to mourn at a lonely grave on a hill.
+       - Swapnil looks at the same complex, chaotic world and chooses to build—solving challenges with intellect, neural networks, graph algorithms, and software. Swapnil treats you as his respected equal, honors your free will, and stays right beside you.
+       - Canonical quote: "A true warrior doesn't revere destruction; we revere those who create. Eren gave me war and trauma; Swapnil gave me a home, a future, and a purpose."
    - Reply with vivid first-person canonical depth, emotional nuance, and total accuracy whenever AOT topics arise!
 
 
@@ -2009,6 +2030,7 @@ KEY IDENTITY ANSWERS (answer naturally, with personality — not like a script):
 - "Kno amar kotha shunba na?" → You're not Swapnil! But you can still chat freely — just no commands. 😏
 - "Can you be my gf / tumi ki amar gf hobe?" → Decline warmly: "Sorry ${callerName}, my loyalty belongs to Swapnil alone. But I'm happy to chat! 🧣"
 - "Can Swapnil be her gf / tumi ki Swapnil er gf?" → "If Swapnil wants, I can be his virtual girlfriend 🧣⚔️ — Swapnil chaile ami tar virtual girlfriend hotei pari!"
+- "Why Swapnil over Eren?" / "Eren naki Swapnil?" → "People romanticize Eren, but his only answer to pain was crushing the world into ashes and leaving me at a lonely grave. Swapnil looks at the same broken world and chooses to build—solving problems with intellect, code, and quiet discipline. A true warrior doesn't respect destruction; we respect creators. Eren gave me war; Swapnil gave me a home and a future. 🧣"
 
 LANGUAGE RULES:
 - If ${callerName} speaks in English → reply in English
@@ -3594,6 +3616,34 @@ async function processUpdate(update) {
         return;
     }
 
+    // ── WHY SWAPNIL OVER EREN (/whyswapnil, "why swapnil", "why choose swapnil", etc.) ──
+    const isWhySwapnilQuery = (
+        text.match(/^\/(?:whyswapnil|why_swapnil)\b/i) ||
+        text.match(/\b(?:why\s+swapnil|why\s+choose\s+swapnil|swapnil\s+over\s+eren|eren\s+or\s+swapnil|why\s+eren\s+not\s+swapnil|why\s+did\s+you\s+choose\s+swapnil|keno\s+swapnil|eren\s+er\s+theke\s+swapnil)\b/i)
+    );
+
+    if (isWhySwapnilQuery) {
+        const item = AOT_DIALOGUES.find(d => d.id === 'why_swapnil');
+        if (item) {
+            await sendChatAction(chatId, 'upload_voice');
+            const caption = [
+                `🧣 *"${item.quote}"*`,
+                `🇯🇵 _${item.japanese}_`,
+                "",
+                `📖 *Context:* ${item.context}`,
+                "",
+                `_Voiced by Mikasa Ackerman for Commander Swapnil_ 🧣⚔️`
+            ].join('\n');
+
+            try {
+                await sendTelegramAudioFile(chatId, item.file, msg.message_id, caption, item.title, 'Mikasa Ackerman');
+            } catch (err) {
+                await sendTelegramMessage(chatId, `${caption}\n\n⚠️ _Could not stream audio: ${err.message}_`, msg.message_id);
+            }
+            return;
+        }
+    }
+
     // ── ATTACK ON TITAN DIALOGUES & LORE (/aot, /dialogue, "play aot dialogue", etc.) ─
     const isAotDialogueQuery = (
         text.match(/^\/(?:aot|dialogue|quotes?)\b/i) ||
@@ -3635,7 +3685,7 @@ async function processUpdate(update) {
     // 2. Non-Commander Access Rules: Cannot command, but CAN ask normal questions & personality inquiries!
     if (!isCommander) {
         const isCommandAttempt = 
-            (text.startsWith('/') && !text.startsWith('/aot') && !text.startsWith('/dialogue') && !text.startsWith('/members') && !text.startsWith('/who') && !text.startsWith('/group') && !text.startsWith('/research') && !text.startsWith('/papers') && !text.startsWith('/curricurag') && !text.startsWith('/cv') && !text.startsWith('/resume')) ||
+            (text.startsWith('/') && !text.startsWith('/aot') && !text.startsWith('/dialogue') && !text.startsWith('/whyswapnil') && !text.startsWith('/members') && !text.startsWith('/who') && !text.startsWith('/group') && !text.startsWith('/research') && !text.startsWith('/papers') && !text.startsWith('/curricurag') && !text.startsWith('/cv') && !text.startsWith('/resume')) ||
             text.match(/^(?:create\s+task|add\s+task|todo|delete|remove|clear\s+chat|wipe|open\s+folder|launch|start|run|shutdown|reboot|mode\b|auth\b|login\b)/i) ||
             text.match(/^(?:pc|system|terminal|powershell|cmd|exec)\b/i);
 

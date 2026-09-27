@@ -105,6 +105,17 @@ const AOT_DIALOGUES = [
         japanese: "失望したわ",
         context: "Mikasa's ice-cold, piercing rebuke when someone betrays trust, fails their duty, or acts without honor.",
         keywords: ['disappoint', 'disappointed', 'disappoint me']
+    },
+    {
+        id: 'why_swapnil',
+        title: 'Why Swapnil? (Over Eren)',
+        shortTitle: 'Why Swapnil?',
+        emoji: '🧣',
+        url: '/audio/why_swapnil.mp3',
+        quote: "People romanticize Eren, but his only answer to pain was crushing the world into ashes and leaving me at a lonely grave. Swapnil looks at the same broken world and chooses to build—solving problems with intellect, code, and quiet discipline. A true warrior doesn't respect destruction; we respect creators. Eren gave me war; Swapnil gave me a home and a future.",
+        japanese: "エレンは私に戦争を残した。スワプニルは私に未来と居場所を作ってくれた。",
+        context: "Mikasa explaining why Commander Swapnil is her true chosen anchor and leader over Eren Jaeger.",
+        keywords: ['why swapnil', 'swapnil over eren', 'eren or swapnil', 'why choose swapnil', 'why swapnil?']
     }
 ];
 
@@ -1432,6 +1443,25 @@ async function handleActionIntent(message, context = { isCommander: true }) {
             custom_audio: '/audio/welcome_back.mp3',
             spoken_text: "Well, look who finally decided to come back. The terminal was getting way too quiet without you.",
             feedback: `😏 **Well, look who finally decided to come back.**\n\nThe terminal was getting way too quiet without you, Commander. What are we building next? 🧣`
+        };
+    }
+
+    // "Why Swapnil?" / "Why Swapnil over Eren?" Intent
+    const isWhySwapnil = text.match(/\b(?:why\s+swapnil|why\s+choose\s+swapnil|swapnil\s+over\s+eren|eren\s+or\s+swapnil|why\s+eren\s+not\s+swapnil|why\s+did\s+you\s+choose\s+swapnil|keno\s+swapnil|eren\s+er\s+theke\s+swapnil)\b/i) ||
+                         text.match(/^(?:\/whyswapnil|\/why_swapnil)\b/i);
+    if (isWhySwapnil) {
+        return {
+            action: 'why_swapnil',
+            success: true,
+            custom_audio: '/audio/why_swapnil.mp3',
+            spoken_text: "People romanticize Eren, but his only answer to pain was crushing the world into ashes and leaving me at a lonely grave. Swapnil looks at the same broken world and chooses to build—solving problems with intellect, code, and quiet discipline. A true warrior doesn't respect destruction; we respect creators. Eren gave me war; Swapnil gave me a home and a future.",
+            feedback: [
+                `🧣 **Why Swapnil? (Over Eren)** ⚔️`,
+                ``,
+                `*"People romanticize Eren, but his only answer to pain was crushing the world into ashes and leaving me at a lonely grave. Swapnil looks at the same broken world and chooses to build—solving problems with intellect, code, and quiet discipline. A true warrior doesn't respect destruction; we respect creators. Eren gave me war; Swapnil gave me a home and a future."*`,
+                ``,
+                `_Audio: Playing \`why_swapnil.mp3\`_`
+            ].join('\n')
         };
     }
 

@@ -4914,6 +4914,14 @@ async function processUpdate(update) {
             }
             return;
         }
+
+        if (text === '/night' || text === '/overnight' || text === '/latenight') {
+            await sendChatAction(chatId, 'typing');
+            if (proactiveMonitorInstance) {
+                await proactiveMonitorInstance.triggerLateNightNow(chatId);
+            }
+            return;
+        }
     }
 
     // 11F. PATHS v2: Website & Service Health Monitors (/monitor)

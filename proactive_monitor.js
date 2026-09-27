@@ -1,3 +1,5 @@
+const fs = require('fs');
+const path = require('path');
 const { getSystemInfo } = require('./local_pc_bridge');
 const { getTasks, fetchGitHubCommits } = require('./actions_handler');
 const { getLiveWeather } = require('./weather_service');
@@ -136,17 +138,17 @@ async function runMorningBriefing(commanderChatId, sendTelegramMessage, force = 
     }
 }
 
-async function runLateNightCheck(commanderChatId, sendTelegramMessage) {
+async function runLateNightCheck(commanderChatId, sendTelegramMessage, sendTelegramAudioBuffer, force = false) {
     if (!commanderChatId) return;
     const dhakaNow = getDhakaTime();
     const todayStr = dhakaNow.toISOString().slice(0, 10);
     const hour = dhakaNow.getHours();
     const minute = dhakaNow.getMinutes();
 
-    // Trigger at 2:00 AM once per night
-    if (hour === 2 && minute >= 0 && minute <= 15 && lastLateNightAlertDate !== todayStr) {
-        lastLateNightAlertDate = todayStr;
-        console.log('[Proactive Monitor] 🌙 Triggering Late Night Rest Alert...');
+    // Trigger at 2:00 AM once per night, or if forced
+    if (force || (hour === 2 && minute >= 0 && minute <= 15 && lastLateNightAlertDate !== todayStr)) {
+        if (!force) lastLateNightAlertDate = todayStr;
+        console.log(`[Proactive Monitor] 🌙 Triggering ${force ? 'On-Demand' : '2:00 AM'} Late Night Rest Alert with over_night.mp3...`);
 
         const alertMsg = [
             "🌙 *Mikasa Security Protocol — Late Night Watch* 🧣",
@@ -159,6 +161,18 @@ async function runLateNightCheck(commanderChatId, sendTelegramMessage) {
 
         if (typeof sendTelegramMessage === 'function') {
             await sendTelegramMessage(commanderChatId, alertMsg);
+        }
+
+        // Send over_night.mp3 voice/audio note
+        const audioPath = path.resolve(__dirname, 'web/audio/over_night.mp3');
+        if (fs.existsSync(audioPath) && typeof sendTelegramAudioBuffer === 'function') {
+            try {
+                const buf = fs.readFileSync(audioPath);
+                await sendTelegramAudioBuffer(commanderChatId, buf, 'over_night.mp3', '🌙 Mikasa — Late Night Watch', 'Over Night Protocol', 'Mikasa Ackerman');
+                console.log('[Proactive Monitor] 🎵 Successfully delivered over_night.mp3 voice note to Commander.');
+            } catch (err) {
+                console.warn('[Proactive Monitor] Failed sending over_night.mp3:', err.message);
+            }
         }
     }
 }
@@ -179,7 +193,7 @@ function initProactiveMonitor(options = {}) {
         const chatId = typeof getCommanderChatId === 'function' ? getCommanderChatId() : (getCommanderChatId || 7112137739);
         await runBatteryCheck(chatId, sendTelegramMessage, sendTelegramAudioBuffer);
         await runMorningBriefing(chatId, sendTelegramMessage);
-        await runLateNightCheck(chatId, sendTelegramMessage);
+        await runLateNightCheck(chatId, sendTelegramMessage, sendTelegramAudioBuffer);
     }, 60000);
 
     // Initial check after 10s
@@ -194,6 +208,9 @@ function initProactiveMonitor(options = {}) {
         },
         triggerBriefingNow: async (chatId) => {
             await runMorningBriefing(chatId, sendTelegramMessage, true);
+        },
+        triggerLateNightNow: async (chatId) => {
+            await runLateNightCheck(chatId, sendTelegramMessage, sendTelegramAudioBuffer, true);
         }
     };
 }

@@ -1471,10 +1471,11 @@ async function handleActionIntent(message, context = { isCommander: true }) {
     const isStillAwake = text.match(/^(?:still\s+awake|are\s+you\s+(?:still\s+)?awake|ekhono\s+jege\s+acho|rat\s+jege\s+kaj|stay\s+with\s+me)\??$/i) ||
                          text.match(/\b(?:still\s+awake|late\s+night\s+coding|ekhono\s+ghumao\s+ni|rat\s+onek\s+hoye\s+geche)\b/i);
     if (isStillAwake) {
+        const audioFile = fs.existsSync(path.resolve(__dirname, 'web/audio/over_night.mp3')) ? '/audio/over_night.mp3' : '/audio/still_awake.mp3';
         return {
             action: 'persona_response',
             success: true,
-            custom_audio: '/audio/still_awake.mp3',
+            custom_audio: audioFile,
             spoken_text: "Still awake? Fine, I’ll stay right here with you until the last commit. You don't have to face the night alone.",
             feedback: `🌙 **Still awake, Swapnil?**\n\nFine... I’ll stay right here with you until the last commit. You don't have to face the night alone. 🧣⚔️`
         };

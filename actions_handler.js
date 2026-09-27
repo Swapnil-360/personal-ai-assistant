@@ -1330,6 +1330,30 @@ async function handleActionIntent(message, context = { isCommander: true }) {
         };
     }
 
+    const isStillAwake = text.match(/^(?:still\s+awake|are\s+you\s+(?:still\s+)?awake|ekhono\s+jege\s+acho|rat\s+jege\s+kaj|stay\s+with\s+me)\??$/i) ||
+                         text.match(/\b(?:still\s+awake|late\s+night\s+coding|ekhono\s+ghumao\s+ni|rat\s+onek\s+hoye\s+geche)\b/i);
+    if (isStillAwake) {
+        return {
+            action: 'persona_response',
+            success: true,
+            custom_audio: '/audio/still_awake.mp3',
+            spoken_text: "Still awake? Fine, I’ll stay right here with you until the last commit. You don't have to face the night alone.",
+            feedback: `🌙 **Still awake, Swapnil?**\n\nFine... I’ll stay right here with you until the last commit. You don't have to face the night alone. 🧣⚔️`
+        };
+    }
+
+    const isWelcomeBack = text.match(/^(?:i(?:'m|m)\s+back|finally\s+back|ami\s+(?:back|ashchi|eshechi)|look\s+who(?:'s|\s+is)\s+back)\??$/i) ||
+                          text.match(/\b(?:i(?:'m|m)\s+back|terminal\s+e\s+ashlam|ami\s+ferot\s+ashlam)\b/i);
+    if (isWelcomeBack) {
+        return {
+            action: 'persona_response',
+            success: true,
+            custom_audio: '/audio/welcome_back.mp3',
+            spoken_text: "Well, look who finally decided to come back. The terminal was getting way too quiet without you.",
+            feedback: `😏 **Well, look who finally decided to come back.**\n\nThe terminal was getting way too quiet without you, Commander. What are we building next? 🧣`
+        };
+    }
+
     const isWhoAreYou = text.match(/^(?:who\s+(?:are|r)\s+you|who\s+are\s+u|tumi\s+ke|apni\s+ke|introduce\s+yourself)\??$/i);
     if (isWhoAreYou) {
         return {

@@ -19,7 +19,9 @@ Place your custom recorded voice files here in `web/audio/`.
 | `good_morning.mp3` | **A Brand New Day** | `"Good morning"` | *"Good morning, Commander. A brand new day to build and create. Take your time, and I am right here whenever you are ready."* |
 | `good_afternoon.mp3` | **Good Afternoon, Swapnil** | `"Good afternoon"` | *"Good afternoon, Commander. I hope your day is going smoothly. Take a quick breather, stay focused, and let us keep conquering our goals."* |
 | `thank_you_mikasa.mp3` | **Always Here for You** | `"Thank you, Mikasa"` | *"Always, Swapnil. You never have to thank me. Standing beside you and supporting your journey is what I am here for."* |
+| `Still-awake-Fine.mp3` (`still_awake.mp3`) | **Until the Last Commit** | `"Still awake?"` | *"Still awake? Fine, I’ll stay right here with you until the last commit. You don't have to face the night alone."* |
+| `Well,-look-who-finally-decided-to-come-back.mp3` (`welcome_back.mp3`) | **Too Quiet Without You** | `"I'm back"` | *"Well, look who finally decided to come back. The terminal was getting way too quiet without you."* |
 
-> **Status**: All 7 authentic voiceover files are uploaded, tested, and actively streaming!
+> **Status**: All 9 authentic voiceover files are uploaded, tested, and actively streaming!
 
 

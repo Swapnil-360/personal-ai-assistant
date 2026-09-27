@@ -948,15 +948,11 @@ const server = http.createServer(async (req, res) => {
         }
 
         // --- STATIC FILE & PAGE ROUTING ---
-        // Redirect /app directly to /commander
-        if (pathname === '/app') {
-            res.writeHead(302, { 'Location': '/commander' });
-            return res.end();
-        }
-
         let targetFile = '';
         if (pathname === '/' || pathname === '/index.html' || pathname === '/landing') {
             targetFile = 'index.html';
+        } else if (pathname === '/app' || pathname === '/mobile') {
+            targetFile = 'mobile.html';
         } else if (pathname === '/commander' || pathname === '/hud' || pathname === '/dashboard') {
             targetFile = 'app.html';
         } else if (pathname === '/privacy' || pathname === '/privacy-policy') {

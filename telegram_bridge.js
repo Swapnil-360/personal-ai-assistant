@@ -4763,24 +4763,32 @@ async function processUpdate(update) {
         });
 
         const token = tokenRes.access_token || 'MikasaCommander360!';
-        const loginUrl = `https://mikasa.mrswapnil.me/commander?token=${token}`;
+        const mobileAppUrl = `https://mikasa.mrswapnil.me/app?token=${token}`;
+        const desktopUrl = `https://mikasa.mrswapnil.me/commander?token=${token}`;
 
         const replyMarkup = {
             inline_keyboard: [
                 [
-                    { text: "🚀 Open Web Dashboard (Verified)", url: loginUrl }
+                    { text: "📱 Launch Mikasa Mobile App", url: mobileAppUrl }
+                ],
+                [
+                    { text: "🖥️ Open Desktop Cockpit", url: desktopUrl }
                 ]
             ]
         };
 
         const loginMsg = [
-            "⚔️ *Commander Web Access Token Generated!*",
+            "⚔️ *Commander Access Key Verified!*",
             "",
-            "Swapnil, tap below to open the Web Command Center with full verified authority:",
-            `🔗 [👉 Click Here to Unlock Full Commander Access](${loginUrl})`,
+            "Swapnil, tap below to open Mikasa with full executive authority on any device or network:",
+            "",
+            `📱 *Mobile App:* [Open Mobile Interface](${mobileAppUrl})`,
+            `🖥️ *Desktop Cockpit:* [Open Desktop HUD](${desktopUrl})`,
             "",
             "🛡️ *Verified Identity:* `miftahurr503@gmail.com`",
-            "✨ *Status:* Observer Mode bypassed. You have full control over tasks, chat, reminders, and goals."
+            "✨ *Status:* Observer Mode bypassed. You have full control over tasks, chat, reminders, and goals.",
+            "",
+            "_Saved automatically to your device — zero login barriers._ 🧣"
         ].join('\n');
 
         await sendTelegramMessage(chatId, loginMsg, msg.message_id, replyMarkup);

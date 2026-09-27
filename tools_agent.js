@@ -1,7 +1,14 @@
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
-const { getSystemInfo } = require('./local_pc_bridge');
+const { 
+    getSystemInfo, 
+    searchAllowedFiles, 
+    lockWorkstation, 
+    toggleVolumeMute, 
+    changeVolume, 
+    turnOffMonitors 
+} = require('./local_pc_bridge');
 const { fetchGitHubCommits, getTasks, createTask, completeTask } = require('./actions_handler');
 const { searchWeb } = require('./web_search_service');
 const remindersManager = require('./reminders_manager');
@@ -102,6 +109,38 @@ const MIKASA_TOOL_DECLARATIONS = [
                 project_name: {
                     type: 'STRING',
                     description: 'Associated project name (e.g. "Personal Portfolio", "CurricuRAG", "Mikasa").'
+                }
+            },
+            required: ['action']
+        }
+    },
+    {
+        name: 'search_pc_files',
+        description: 'Search for files, documents, presentations, or code on Swapnil\'s local PC in allowed folders (D:\\Projects, D:\\Swapnil, D:\\Final Year, D:\\Documents).',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                query: {
+                    type: 'STRING',
+                    description: 'Keywords or file name to search for (e.g. "cv", "presentation", "stark portfolio", "curricurag").'
+                },
+                limit: {
+                    type: 'NUMBER',
+                    description: 'Maximum number of results to return (default 5).'
+                }
+            },
+            required: ['query']
+        }
+    },
+    {
+        name: 'control_workstation',
+        description: 'Execute hardware control actions on Swapnil\'s Windows PC: lock workstation, toggle volume mute, change volume level, or turn off displays.',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                action: {
+                    type: 'STRING',
+                    description: 'The control action to execute: "lock", "mute", "volup", "voldown", or "screen_off".'
                 }
             },
             required: ['action']
@@ -228,6 +267,38 @@ async function executeLocalTool(toolName, args = {}, userContext = {}) {
                     };
                 }
                 return { error: `Unknown task action: ${args.action}` };
+            }
+
+            case 'search_pc_files': {
+                if (!args.query) return { error: 'query parameter is required' };
+                const limit = args.limit || 5;
+                const files = await searchAllowedFiles(args.query, limit);
+                return {
+                    query: args.query,
+                    count: files.length,
+                    files: files.map(f => ({
+                        name: f.name,
+                        size: f.sizeFormatted,
+                        path: f.path,
+                        modified: f.modified
+                    }))
+                };
+            }
+
+            case 'control_workstation': {
+                const act = (args.action || '').toLowerCase();
+                if (act === 'lock') {
+                    return lockWorkstation();
+                } else if (act === 'mute') {
+                    return toggleVolumeMute();
+                } else if (act === 'volup') {
+                    return changeVolume('up');
+                } else if (act === 'voldown') {
+                    return changeVolume('down');
+                } else if (act === 'screen_off') {
+                    return turnOffMonitors();
+                }
+                return { error: `Unknown workstation action: ${args.action}` };
             }
 
             default:

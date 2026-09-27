@@ -4833,16 +4833,29 @@ async function processUpdate(update) {
         return;
     }
 
-    // 11D. PATHS v2: Remote File Retrieval (/file)
-    if (text.startsWith('/file') || text.match(/^(?:send|fetch|get)\s+(?:me\s+)?(?:the\s+)?(.+?)\s+(?:from\s+my\s+pc|from\s+pc)\??$/i)) {
-        let query = '';
-        if (text.startsWith('/file')) {
-            query = text.slice(5).trim();
+    // 11D. PATHS v2: Remote File Retrieval (/file) with Banglish & English Support
+    let fileQueryMatch = null;
+    if (text.startsWith('/file')) {
+        fileQueryMatch = text.slice(5).trim();
+    } else {
+        const m1 = text.match(/^(?:send|fetch|get)\s+(?:me\s+)?(?:the\s+)?(.+?)\s+(?:from\s+my\s+pc|from\s+pc)\??$/i);
+        if (m1) {
+            fileQueryMatch = m1[1].trim();
         } else {
-            const m = text.match(/^(?:send|fetch|get)\s+(?:me\s+)?(?:the\s+)?(.+?)\s+(?:from\s+my\s+pc|from\s+pc)\??$/i);
-            query = m ? m[1].trim() : '';
+            const m2 = text.match(/(?:amr\s+)?(?:pc|desktop)\s+theke\s+(.+?)(?:\s+(?:send\s+koro|pathao|pathiye\s+dao|dao))?\??$/i);
+            if (m2) {
+                fileQueryMatch = m2[1].replace(/\b(?:file|doc|document)\b/gi, '').trim();
+            } else {
+                const m3 = text.match(/(.+?)\s+(?:amr\s+)?(?:pc|desktop)\s+theke\s+(?:send\s+koro|pathao|pathiye\s+dao|dao)\??$/i);
+                if (m3) {
+                    fileQueryMatch = m3[1].replace(/\b(?:send|fetch|get)\b/gi, '').trim();
+                }
+            }
         }
+    }
 
+    if (fileQueryMatch !== null) {
+        const query = fileQueryMatch.trim();
         if (!query) {
             await sendTelegramMessage(chatId, "📁 *Remote PC File Retrieval*\n\nPlease specify a file name or search keyword.\nExample: `/file presentation` or `/file README`", msg.message_id);
             return;
@@ -4857,7 +4870,14 @@ async function processUpdate(update) {
             }
 
             const top = files[0];
-            await sendTelegramMessage(chatId, `📤 *Found file:* \`${top.name}\` (${top.sizeFormatted})\n📍 Path: \`${top.path}\`\n\n_Transmitting file to Telegram now..._`, msg.message_id);
+            let transMsg = `📤 *Found file:* \`${top.name}\` (${top.sizeFormatted})\n📍 Path: \`${top.path}\``;
+            if (files.length > 1) {
+                const alts = files.slice(1, 4).map(f => `• \`/file ${f.name}\` (${f.sizeFormatted})`).join('\n');
+                transMsg += `\n\n📋 *Other matching files on PC:*\n${alts}`;
+            }
+            transMsg += `\n\n_Transmitting file to Telegram now..._`;
+
+            await sendTelegramMessage(chatId, transMsg, msg.message_id);
             await sendTelegramDocument(chatId, top.path, `PATHS Remote Retrieval: ${top.name}`);
         } catch (err) {
             await sendTelegramMessage(chatId, `❌ Remote file retrieval failed: ${err.message}`, msg.message_id);

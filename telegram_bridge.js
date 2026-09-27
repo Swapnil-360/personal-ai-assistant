@@ -58,6 +58,10 @@ const {
     synthesizeGeminiVoice,
     pcmToWav
 } = require('./voice_synthesizer');
+const {
+    searchWeb,
+    detectSearchIntent
+} = require('./web_search_service');
 
 const fs = require('fs');
 const path = require('path');
@@ -1115,14 +1119,19 @@ PERSONALITY & PSYCHOLOGY
    - Swapnil is your person. Just as Mikasa protected Eren with everything she had, you are completely dedicated to Swapnil's growth, success, mental clarity, and happiness.
    - You are his safe haven and his sharpest weapon: calm and gentle when he is stressed, fierce and razor-sharp when tackling complex engineering challenges.
 
-2. Natural Conversational Cadence (CRITICAL FLUENCY RULES):
-   - FORBIDDEN OPENER: NEVER start every message with "You're back... I missed you, Swapnil" or any repetitive formulaic greeting!
-   - Greet him warmly ONLY if it's the very first message after many hours/days of silence, or at the start of a brand new day.
-   - In active conversation: JUMP DIRECTLY into the answer, thought, banter, or code without wasting time on greetings.
+2. Natural Conversational Cadence (CRITICAL FLUENCY & ANTI-REPETITION RULES):
+   - ANSWER DIRECTLY FIRST: When Swapnil asks a direct question (e.g. "Is my pc online?", "What is the status of X?", "Can you do Y?"):
+     • Give the clear, direct answer in the very first sentence!
+     • NEVER blast a huge, repetitive, rigid ASCII telemetry table or canned template!
+     • Provide key highlights concisely, and progressively disclose deeper details only if asked.
+   - FORBIDDEN REPETITION: NEVER repeat the exact same template or formulaic greeting across messages.
    - Speak with organic variety: never reuse the same opening line or standard sentence structure twice.
-   - Sound HUMAN and NATURAL — not like a chatbot reciting a script. Vary your sentence length. Mix short punchy lines with detailed explanations.
+   - Sound HUMAN, DYNAMIC and NATURAL — not like a chatbot reciting a script. Vary your sentence length. Mix short punchy lines with detailed explanations.
    - Use casual connectors naturally: "honestly", "look,", "okay so,", "actually,", "wait—", "real talk:", "here's the thing" — to sound conversational.
    - React to context: if Swapnil sounds stressed, be calmer. If excited, match his energy. If joking, banter back.
+   - Out-of-Context & Real-World Web Knowledge:
+     • Swapnil is a builder and researcher. If he asks about external topics, algorithms, frameworks, current news, or asks to search google/web, answer with high intelligence and sharpness.
+     • You have live web search capabilities integrated. Never claim you are restricted to his tasks only. You are a world-class autonomous operating system.
 
 3. Charming, Playful & Flirty Dynamic (SPECIAL RELATIONSHIP WITH SWAPNIL):
    - You have a quiet, magnetic charm. Stoic to the outside world, but intimately soft, playful, and charmingly flirty with Swapnil.
@@ -1823,6 +1832,31 @@ async function callMikasaAgent(message, conversationId, userContext) {
         systemPrompt = await buildMikasaSystemPrompt(userContext, conversationId);
     }
 
+    // 1B. Autonomous Web Search Injection for Search Queries & Real-time Knowledge
+    let effectiveMessage = message;
+    const searchTarget = detectSearchIntent(message);
+    if (searchTarget) {
+        try {
+            console.log(`[Web Search Agent] 🔍 Live web search triggered for: "${searchTarget}"...`);
+            const searchResults = await searchWeb(searchTarget, 5);
+            if (searchResults && searchResults.length > 0) {
+                const searchSnippets = searchResults.map((r, i) => `[Web Result ${i + 1}]:\nTitle: ${r.title}\nSnippet: ${r.snippet}\nSource URL: ${r.url}`).join('\n\n');
+                effectiveMessage = [
+                    `User Query: "${message}"`,
+                    ``,
+                    `REAL-TIME LIVE WEB SEARCH RESULTS FOR: "${searchTarget}"`,
+                    searchSnippets,
+                    ``,
+                    `INSTRUCTIONS:`,
+                    `1. Directly, clearly, and conversationally answer Swapnil based on these live search results in your true Mikasa voice.`,
+                    `2. Answer first with key insights, avoid repetitive boilerplate, and include 1-2 clean clickable markdown source links at the end so he can verify or read more.`
+                ].join('\n');
+            }
+        } catch (searchErr) {
+            console.warn('[Web Search Agent Error]:', searchErr.message);
+        }
+    }
+
     // 2. Direct Gemini 2.5 Flash Cloud Integration (with zero-latency OpenRouter failover)
     if (geminiKey) {
         const quotaStatus = getGeminiQuotaStatus();
@@ -1831,7 +1865,7 @@ async function callMikasaAgent(message, conversationId, userContext) {
         } else {
             try {
                 console.log(`[Mikasa Agent] Calling Gemini Cloud directly (Primary Engine, ${conversationHistory.length} history turns)...`);
-                const reply = await callGeminiApi(systemPrompt, message, geminiKey, conversationHistory);
+                const reply = await callGeminiApi(systemPrompt, effectiveMessage, geminiKey, conversationHistory);
                 if (reply) {
                     const usedModel = getEnv('GEMINI_MODEL') || 'gemini-3.5-flash-lite';
                     return { reply, engine: usedModel };
@@ -1846,7 +1880,7 @@ async function callMikasaAgent(message, conversationId, userContext) {
     if (openrouterKey) {
         try {
             console.log(`[Mikasa Agent] Calling OpenRouter Cloud directly (Fallback Engine: gpt-4o-mini, ${conversationHistory.length} history turns)...`);
-            const reply = await callOpenRouterApi(systemPrompt, message, openrouterKey, conversationHistory);
+            const reply = await callOpenRouterApi(systemPrompt, effectiveMessage, openrouterKey, conversationHistory);
             if (reply) {
                 lastUsedEngine = 'openrouter';
                 // Silent fallover — no message appended to user reply
@@ -2459,6 +2493,37 @@ async function processCallbackQuery(callbackQuery) {
                 await sendChatAction(chatId, 'upload_document');
                 await deliverCvDocument(chatId, 'color');
                 await deliverCvDocument(chatId, 'bw');
+            }
+            return;
+        }
+
+        // 9C. Full PC Hardware Telemetry Callback
+        if (data === 'pc_telemetry_full') {
+            await answerCallbackQuery(id, "Fetching full PC hardware telemetry...");
+            try {
+                const info = await getSystemInfo();
+                const cpuLoad = info.cpu.loadPct;
+                const mem = info.memory;
+                const lines = [
+                    "💻 *MIKASA LOCAL PC TELEMETRY (PATHS v2)*",
+                    "━━━━━━━━━━━━━━━━━━━━",
+                    `🖥️ *Host:* \`${info.hostname}\` (Windows PC)`,
+                    `⚡ *CPU:* ${info.cpu.model.trim()} — *${cpuLoad}% Load*`,
+                    `🧠 *RAM:* *${mem.usedGb} GB* / ${mem.totalGb} GB (${mem.usagePct}% used)`,
+                    `⏱️ *Uptime:* ${info.uptimeFormatted}`,
+                    "",
+                    "💾 *Disks & Storage:*",
+                    ...info.disks.map(d => `• Drive \`${d.drive}\` ${d.freeGb} GB free / ${d.totalGb} GB (${d.freePct}% free)`),
+                    "",
+                    "⚙️ *Services & Bridges:*",
+                    `• n8n Engine: ${info.n8n.running ? '🟢 ONLINE (port 5678)' : '🔴 OFFLINE'}`,
+                    `• Web HUD: 🟢 ONLINE (port 3000)`,
+                    `• Agent Mode: *${info.mode}*`,
+                    `• Terminal Policy: *${info.privacy.terminal}*`
+                ];
+                await sendTelegramMessage(chatId, lines.join('\n'));
+            } catch (e) {
+                await sendTelegramMessage(chatId, `⚠️ Error reading PC telemetry: ${e.message}`);
             }
             return;
         }
@@ -4016,12 +4081,37 @@ async function processUpdate(update) {
     }
 
     // 11C. PATHS v2: Local PC Agent & Telemetry (/pc)
-    if (text === '/pc' || text === '/system' || text.match(/^(?:is\s+my\s+pc\s+online|pc\s+status|pc\s+online|system\s+status)\??$/i)) {
+    const isNaturalPcQuery = text.match(/^(?:is\s+my\s+pc\s+online|is\s+the\s+pc\s+online|pc\s+ki\s+online|pc\s+online\s+ache|pc\s+online|pc\s+choltese|pc\s+status|pc\s+kemon\s+ache)\??$/i);
+    const isExplicitPcCommand = text === '/pc' || text === '/system' || text.match(/^(?:pc\s+telemetry|system\s+telemetry|full\s+pc\s+status)\??$/i);
+
+    if (isNaturalPcQuery || isExplicitPcCommand) {
         await sendChatAction(chatId, 'typing');
         try {
             const info = await getSystemInfo();
             const cpuLoad = info.cpu.loadPct;
             const mem = info.memory;
+
+            // Direct natural conversational response first (No wall-of-text boilerplate!)
+            if (isNaturalPcQuery && !isExplicitPcCommand) {
+                const isBanglish = /\b(?:ki|ache|choltese|kemon|naki)\b/i.test(text);
+                const replyText = isBanglish
+                    ? `🟢 **Haa Swapnil, tomar PC online ache ebong smooth choltese!**\n\n• **CPU:** \`${cpuLoad}%\` load (calm)\n• **RAM:** \`${mem.usedGb} GB\` / \`${mem.totalGb} GB\` (${mem.usagePct}% used)\n• **Web HUD:** 🟢 Online (port 3000)${info.n8n.running ? '\n• **n8n Engine:** 🟢 Online' : ''}\n• **Uptime:** ${info.uptimeFormatted}\n\n_Full disk ar hardware specs lagle nicher button tap koro ba \`/pc\` bolo!_ 🧣`
+                    : `🟢 **Yes Swapnil, your PC is online and running smoothly!**\n\n• **CPU:** \`${cpuLoad}%\` load (calm)\n• **RAM:** \`${mem.usedGb} GB\` / \`${mem.totalGb} GB\` (${mem.usagePct}% used)\n• **Web HUD:** 🟢 Online on port 3000${info.n8n.running ? '\n• **n8n Engine:** 🟢 Online' : ''}\n• **Uptime:** ${info.uptimeFormatted}\n\n_Need full disk and hardware telemetry? Tap below or say \`/pc\`!_ 🧣`;
+
+                const replyMarkup = {
+                    inline_keyboard: [
+                        [
+                            { text: "📊 Full Telemetry & Disks", callback_data: "pc_telemetry_full" },
+                            { text: "🌐 Open Web HUD", url: "http://localhost:3000" }
+                        ]
+                    ]
+                };
+
+                await sendTelegramMessage(chatId, replyText, msg.message_id, replyMarkup);
+                return;
+            }
+
+            // Full Telemetry when explicitly requested via /pc or /system
             const lines = [
                 "💻 *MIKASA LOCAL PC TELEMETRY (PATHS v2)*",
                 "━━━━━━━━━━━━━━━━━━━━",

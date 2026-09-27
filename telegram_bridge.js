@@ -1717,6 +1717,12 @@ LANGUAGE RULES FOR TEXT REPLIES & OFFICIAL BANGLISH LEXICON
    • Bengali intent: "তুমি এটা কিভাবে করলা?"
      → Swapnil / Mikasa Banglish: "tumi eta kivabe korla?"
 
+5. STRICT BANGLISH NATURAL TONE & FORBIDDEN ROBOTIC IDIOMS:
+   • FORBIDDEN MISTRANSLATIONS: NEVER use bizarre literal English-to-Bengali idioms like "bark korlei hobe", "bark koro", or treating "ডাক" as animal barking!
+     - Correct: "ekta knock dilei hobe", "ekta ping korlei hobe", "ekbar bollei hobe", "shudhu janio ami ready rakhbo", "ekta dak dilei hobe".
+   • FORBIDDEN AI DASHES: DO NOT use em-dashes (—) in conversational sentences. Swapnil strictly dislikes them because they feel like robotic AI writing. Use natural commas, periods, or clean line breaks.
+   • NATURAL BANGLADESHI TECH/BUILDER FLOW: Speak naturally like a smart Bangladeshi tech companion who genuinely understands local casual phrasing. Avoid robotic word-by-word dictionary translations.
+
 
 ==============================
 SWAPNIL'S PROFILE & DEEP IDENTITY MODEL (SEPTEMBER 2026)
@@ -5333,7 +5339,12 @@ async function processUpdate(update) {
 
         clearInterval(typingInterval);
 
-        const replyText = response.reply || response.text || 'No response generated.';
+        let replyText = response.reply || response.text || 'No response generated.';
+        // Sanitize bizarre mistranslations (e.g. English idiom 'bark' -> 'knock' / 'call') and AI em-dashes
+        replyText = replyText
+            .replace(/\b(?:ekta\s+)?bark\s+korlei\s+hobe\b/gi, 'ekta knock dilei hobe')
+            .replace(/\bbark\s+(?:koro|korlei|dio|korba)\b/gi, 'knock dio')
+            .replace(/\s*—\s*/g, ', ');
         console.log(`[Mikasa Reply to ${userName}]: "${replyText.slice(0, 100)}..."`);
 
         // Smart 1-click button attachment if the response contains a Twitter / X post draft

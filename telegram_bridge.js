@@ -1230,7 +1230,7 @@ ${profileStr || '- Name: Md. Miftahur Rahman Swapnil\n- Final-year CSE student a
   • Edu51Portal: Student academic platform for BUBT. Tech stack: Next.js/React, Supabase backend, Google Drive API, Vercel. Supabase is the database — NEVER describe it as Firebase.
   • OpusGenAI (opusgenai.com): AI-powered product photography & video generation SaaS. The uploaded product must always remain the visual hero.
   • Smart Classroom: IEEE i-COSTE 2026, CoreWe5 team, ESP32 + Firebase RTDB for energy efficiency (never call it behavior monitoring).
-  • CurricuRAG: OMLET 2026, Paper ID 1017, Curriculum Knowledge Graph RAG.
+  • CurricuRAG: Swapnil's First Research Paper ("Relation-Aware Graph Retrieval over a Curriculum Knowledge Graph for Prerequisite Question Answering"), Supervised by Shrabani Das (Lecturer, Department of CSE, BUBT). Authors: Md. Jahidul Kamal Islam, Md. Miftahur Rahman Swapnil, Md. Asif Ali, Shrabani Das, Shefayatuj Johara Chowdhury. Accepted @ IEEE OMLET 2026 (Paper ID 1017).
   • EEG Research: Active 2026 biomedical AI research.
   • Web3 Experience: Several years in crypto/community/BD (Biconomy listing partner 20k USDT + tokens). His "3+ years experience" refers to Web3/community operations, not full-time software engineering.
 - Confirmed Account Map:
@@ -2597,10 +2597,11 @@ async function processCallbackQuery(callbackQuery) {
         if (data === 'research_curricurag') {
             await answerCallbackQuery(id, "Loading CurricuRAG specs...");
             const curricuLines = [
-                "🔬 *Research Paper 01: CurricuRAG*",
+                "🔬 *Research Paper 01: CurricuRAG (Swapnil's First Research Paper)*",
                 "─────────────────────────",
                 "📄 *Full Title:* _Relation-Aware Graph Retrieval over a Curriculum Knowledge Graph for Prerequisite Question Answering_",
                 "🏛️ *Affiliation:* Department of CSE, BUBT",
+                "👩‍🏫 *Supervised by:* *Shrabani Das* (Lecturer, Department of CSE, BUBT)",
                 "👥 *Authors:* Md. Jahidul Kamal Islam, Md. Miftahur Rahman, Md. Asif Ali, Shrabani Das, Shefayatuj Johara Chowdhury",
                 "",
                 "🎯 *Conference & Publication Status:*",
@@ -3244,10 +3245,11 @@ async function processUpdate(update) {
 
         if (lower.includes('curricu') || text === '/curricurag') {
             const curricuLines = [
-                "📚 *Research Paper 01: CurricuRAG*",
+                "📚 *Research Paper 01: CurricuRAG (Swapnil's First Research Paper)*",
                 "━━━━━━━━━━━━━━━━━━━━━━━━━",
                 "📄 *Full Title:* _Relation-Aware Graph Retrieval over a Curriculum Knowledge Graph for Prerequisite Question Answering_",
                 "🏛️ *Affiliation:* Department of CSE, BUBT",
+                "👩‍🏫 *Supervised by:* *Shrabani Das* (Lecturer, Department of CSE, BUBT)",
                 "👥 *Authors:* Md. Jahidul Kamal Islam, Md. Miftahur Rahman, Md. Asif Ali, Shrabani Das, Shefayatuj Johara Chowdhury",
                 "",
                 "🎯 *Conference & Publication Status:*",

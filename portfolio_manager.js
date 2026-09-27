@@ -199,15 +199,15 @@ function addResearchInterestInContent(currentContent, research) {
 const CURRICURAG_PROJECT = {
     id: "proj-curricurag",
     slug: "curricurag",
-    title: "CurricuRAG",
-    subtitle: "Relation-Aware Curriculum Knowledge Graph Retrieval & QA (IEEE OMLET 2026)",
+    title: "Relation-Aware Graph Retrieval over a Curriculum Knowledge Graph for Prerequisite QA",
+    subtitle: "Relation-Aware Curriculum Knowledge Graph Retrieval & QA (IEEE OMLET 2026) · Supervised by Shrabani Das (Lecturer, CSE, BUBT)",
     category: "ai",
     categoryLabel: "AI & Knowledge Graphs",
-    shortDescription: "Curriculum Knowledge Graph-enhanced RAG system using 2-layer Relational Graph Convolutional Networks (R-GCN) and local LLMs for prerequisite reasoning with zero query-time LLM overhead.",
-    fullDescription: "CurricuRAG bridges graph neural network retrieval with locally deployed instruction-tuned LLMs (Qwen2.5-7B-Instruct 4-bit NF4) over a Neo4j-verified curriculum knowledge graph of 418 nodes and 558 typed edges. Accepted with Minor Revision at 2026 IEEE International Conference on Optics, Machine Learning and Emerging Technology (OMLET, Nairobi, Kenya).",
+    shortDescription: "First research paper. Curriculum Knowledge Graph-enhanced RAG system using 2-layer Relational Graph Convolutional Networks (R-GCN) and local LLMs for prerequisite reasoning with zero query-time LLM overhead. Supervised by Shrabani Das (Lecturer, CSE, BUBT).",
+    fullDescription: "CurricuRAG bridges graph neural network retrieval with locally deployed instruction-tuned LLMs (Qwen2.5-7B-Instruct 4-bit NF4) over a Neo4j-verified curriculum knowledge graph of 418 nodes and 558 typed edges. Supervised by Shrabani Das (Lecturer, Department of CSE, BUBT). Accepted with Minor Revision at 2026 IEEE International Conference on Optics, Machine Learning and Emerging Technology (OMLET, Nairobi, Kenya).",
     problem: "Standard dense text RAG and closed-book LLMs struggle with multi-hop prerequisite paths and hallucinate false prerequisites when navigating complex academic curriculum dependencies.",
     solution: "Engineered a 2-layer R-GCN encoder with 384-d Sentence-BERT node embeddings and DistMult decoder to rank prerequisite triples, followed by constrained grounded fact-list generation.",
-    role: "Undergraduate Researcher & Core Author",
+    role: "Undergraduate Researcher & Core Author (Supervised by Shrabani Das)",
     status: "Completed",
     heroImage: "/images/projects/opusgen.jpg",
     gallery: [
@@ -220,20 +220,21 @@ const CURRICURAG_PROJECT = {
     displayOrder: 2,
     year: "2026",
     keyFeatures: [
+        "First research paper authored by Swapnil (Accepted at IEEE OMLET 2026, Paper ID: 1017)",
+        "Supervised by Shrabani Das, Lecturer, Department of CSE, BUBT",
         "418-node, 558-edge curriculum knowledge graph verified in Neo4j",
         "2-layer Relational GCN (R-GCN) with DistMult decoder for relation-aware scoring",
         "Zero query-time LLM retriever calls (high throughput, no LLM fine-tuning needed)",
         "45.5% exact-set match vs 22.7% text-RAG and 12.7% closed-book LLM",
-        "100% correct abstention rate (24/24) on unanswerable questions",
-        "Accepted at 2026 IEEE OMLET (Nairobi, Kenya; Paper ID: 1017)"
+        "100% correct abstention rate (24/24) on unanswerable questions"
     ],
     challenges: "Preventing knowledge leakage across cross-validation splits and ensuring deterministic grounding to eliminate hallucination.",
     outcome: "Achieved 37.7% structural generalization on unseen triples (vs 3%-5% baselines) and secured IEEE international conference acceptance."
 };
 
 const CURRICURAG_RESEARCH_INTEREST = {
-    title: "CurricuRAG: Curriculum Knowledge-Graph Enhanced RAG",
-    description: "Relation-aware graph retrieval with 2-layer R-GCN and local LLM grounding for university curriculum prerequisite question answering (Accepted at IEEE OMLET 2026).",
+    title: "Relation-Aware Graph Retrieval over a Curriculum Knowledge Graph for Prerequisite QA",
+    description: "First research paper. Relation-aware graph retrieval with 2-layer R-GCN and local LLM grounding for university curriculum prerequisite QA. Supervised by Shrabani Das, Lecturer, CSE, BUBT (Accepted at IEEE OMLET 2026).",
     icon: "Network"
 };
 

@@ -312,11 +312,15 @@ Team: CoreWe5
 The system involves: ESP32 DevKit, ESP32-CAM, edge/cloud architecture, intelligent classroom modes, energy efficiency, Firebase RTDB, Expo Android.  
 *Avoid describing the project using "behavior monitoring" unless Swapnil specifically requests it.*
 
-### CurricuRAG
-Paper: **Relation-Aware Graph Retrieval over a Curriculum Knowledge Graph for Prerequisite Question Answering**  
-Conference/event: OMLET 2026  
-Paper ID: 1017  
-Core concepts: curriculum knowledge graphs, relation-aware graph retrieval, prerequisite reasoning, question answering, RAG.
+### CurricuRAG (Swapnil's First Research Paper)
+- **Status**: Swapnil's First Research Paper (Accepted with Minor Revision at IEEE OMLET 2026, Paper ID: 1017)
+- **Full Title**: **Relation-Aware Graph Retrieval over a Curriculum Knowledge Graph for Prerequisite Question Answering**  
+- **Supervised by**: **Shrabani Das** (Lecturer, Department of Computer Science & Engineering, BUBT)
+- **Authors**: Md. Jahidul Kamal Islam, Md. Miftahur Rahman Swapnil, Md. Asif Ali, Shrabani Das, Shefayatuj Johara Chowdhury (BUBT CSE)
+- **Conference / Venue**: 2026 IEEE International Conference on Optics, Machine Learning and Emerging Technology (OMLET, Nairobi, Kenya, 29-31 Oct 2026)
+- **Publication Indexing**: Scheduled for IEEE Xplore & Scopus inclusion (IEEE Electronic Publication Agreement executed)
+- **Core Architecture**: Deterministic 418-node, 558-edge Curriculum Knowledge Graph in Neo4j, 2-layer Relational GCN (R-GCN) encoder + DistMult decoder, zero query-time LLM retriever overhead, grounded with Qwen2.5-7B-Instruct (4-bit NF4) with 100% correct abstention mechanism.
+
 
 ### EEG Research
 Another EEG-related research project is planned/in progress and is intended to be completed within 2026.

@@ -1323,8 +1323,35 @@ async function getDecisions() {
     return await supabaseRequest('/project_decisions?select=id,decision,reason,status,project_id,created_at&order=created_at.desc', 'GET');
 }
 
-async function getMemories(limit = 20) {
-    return await supabaseRequest(`/memories?select=id,content,memory_type,importance,confidence,created_at&order=created_at.desc&limit=${limit}`, 'GET');
+async function getMemories(limit = 100, type = null, search = null) {
+    let endpoint = `/memories?select=id,content,memory_type,importance,confidence,created_at&order=created_at.desc&limit=${limit}`;
+    if (type && type !== 'all') {
+        endpoint += `&memory_type=eq.${encodeURIComponent(type.toLowerCase())}`;
+    }
+    if (search && search.trim()) {
+        endpoint += `&content=ilike.*${encodeURIComponent(search.trim())}*`;
+    }
+    return await supabaseRequest(endpoint, 'GET');
+}
+
+async function deleteMemory(id) {
+    if (!id) return { success: false, error: 'Memory ID is required' };
+    return await supabaseRequest(`/memories?id=eq.${encodeURIComponent(id)}`, 'DELETE');
+}
+
+async function getMemoryStats() {
+    const rows = await supabaseRequest('/memories?select=id,memory_type,importance,created_at&limit=250', 'GET');
+    const total = rows ? rows.length : 0;
+    const byType = {};
+    (rows || []).forEach(r => {
+        const t = (r.memory_type || 'fact').toLowerCase();
+        byType[t] = (byType[t] || 0) + 1;
+    });
+    return {
+        total,
+        byType,
+        recent: (rows || []).slice(0, 5)
+    };
 }
 
 /**
@@ -2464,6 +2491,8 @@ module.exports = {
     getProjects,
     getDecisions,
     getMemories,
+    deleteMemory,
+    getMemoryStats,
     getLiveWeather,
     formatWeatherReport,
     matchProject,

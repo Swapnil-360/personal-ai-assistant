@@ -16,6 +16,8 @@ const {
     getDecisions,
     logDecision,
     getMemories,
+    deleteMemory,
+    getMemoryStats,
     clearChatHistory,
     fetchGitHubRepos,
     generateLinkedInDraft,
@@ -536,10 +538,25 @@ const server = http.createServer(async (req, res) => {
             return sendJson(res, 201, created);
         }
 
-        // Memories API
+        // Memories API (supports category filter, search, stats, and deletion)
+        if (pathname === '/api/memories/stats' && req.method === 'GET') {
+            const stats = await getMemoryStats();
+            return sendJson(res, 200, stats);
+        }
+
         if (pathname === '/api/memories' && req.method === 'GET') {
-            const memories = await getMemories(30);
+            const type = parsedUrl.searchParams.get('type') || null;
+            const search = parsedUrl.searchParams.get('search') || null;
+            const limit = parseInt(parsedUrl.searchParams.get('limit') || '100', 10);
+            const memories = await getMemories(limit, type, search);
             return sendJson(res, 200, memories);
+        }
+
+        if (pathname.startsWith('/api/memories/') && req.method === 'DELETE') {
+            if (!await requireCommander()) return;
+            const memoryId = pathname.replace('/api/memories/', '');
+            const delRes = await deleteMemory(memoryId);
+            return sendJson(res, 200, { success: true, result: delRes });
         }
 
         // Live Chat with Mikasa

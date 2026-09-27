@@ -942,9 +942,47 @@
                             <span class="hud-icon">🧠</span> Continuous Neural Memory Vault
                         </div>
                         <div class="card-hud-subtitle">
-                            Auto-extracted via OpenRouter 1536-dim vector embeddings
+                            Autonomous Semantic Extraction with Dynamic Vector Indexing
                         </div>
                     </div>
+
+                    <!-- Memory Controls & Filters -->
+                    <div class="memory-vault-controls">
+                        <!-- Stats & Distribution Bar -->
+                        <div class="memory-stats-banner">
+                            <div class="memory-stat-pill">🧠 Total Learned: <b id="mem-stat-total">123</b></div>
+                            <div class="memory-stat-pill"><span style="color:#34d399">●</span> Facts: <b id="mem-stat-fact">0</b></div>
+                            <div class="memory-stat-pill"><span style="color:#c084fc">●</span> Preferences: <b id="mem-stat-pref">0</b></div>
+                            <div class="memory-stat-pill"><span style="color:#38bdf8">●</span> Workflows: <b id="mem-stat-flow">0</b></div>
+                            <div class="memory-stat-pill"><span style="color:#fbbf24">●</span> Instructions: <b id="mem-stat-inst">0</b></div>
+                            <div class="memory-stat-pill"><span style="color:#f87171">●</span> Decisions: <b id="mem-stat-dec">0</b></div>
+                            <div class="memory-dist-track" id="mem-dist-track">
+                                <div class="memory-dist-segment" id="seg-fact" style="background:#10b981; width:44%;"></div>
+                                <div class="memory-dist-segment" id="seg-pref" style="background:#a855f7; width:30%;"></div>
+                                <div class="memory-dist-segment" id="seg-flow" style="background:#38bdf8; width:9%;"></div>
+                                <div class="memory-dist-segment" id="seg-inst" style="background:#f59e0b; width:9%;"></div>
+                                <div class="memory-dist-segment" id="seg-dec" style="background:#ef4444; width:8%;"></div>
+                            </div>
+                        </div>
+
+                        <!-- Search Bar & Category Filter Pills -->
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between;">
+                            <div class="memory-filter-pills" id="memory-filter-pills">
+                                <button class="mem-pill-btn active" data-type="all">All Memories</button>
+                                <button class="mem-pill-btn" data-type="fact">Facts</button>
+                                <button class="mem-pill-btn" data-type="preference">Preferences</button>
+                                <button class="mem-pill-btn" data-type="workflow">Workflows</button>
+                                <button class="mem-pill-btn" data-type="instruction">Instructions</button>
+                                <button class="mem-pill-btn" data-type="decision">Decisions</button>
+                            </div>
+
+                            <div class="memory-search-bar" style="min-width: 240px; flex: 1; max-width: 360px;">
+                                <span>🔍</span>
+                                <input type="text" id="memory-search-input" class="memory-search-input" placeholder="Search memories (e.g. Iron Man, UI, PC)...">
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="memories-hud-grid" id="memories-container">
                         <div class="loading-state">Loading neural memories...</div>
                     </div>

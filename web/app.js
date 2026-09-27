@@ -270,6 +270,8 @@ document.addEventListener('DOMContentLoaded', () => {
     loadGoals();
     loadDecisions();
     loadMemories();
+    loadMemoryStats();
+    initMemoryControls();
     loadProjects();
     loadGitHub();
     loadReminders();
@@ -699,32 +701,147 @@ async function loadDecisions() {
 }
 
 // 4. Memories
+// 4. Milestone 5: Continuous Neural Memory Vault & Category Explorer
+let currentMemoryType = 'all';
+let currentMemorySearch = '';
+let memorySearchDebounce = null;
+
+async function loadMemoryStats() {
+    try {
+        const res = await fetch('/api/memories/stats');
+        const d = await res.json();
+        if (!d || !d.byType) return;
+
+        const total = d.total || 0;
+        const byType = d.byType || {};
+
+        const elTotal = document.getElementById('mem-stat-total');
+        const elFact = document.getElementById('mem-stat-fact');
+        const elPref = document.getElementById('mem-stat-pref');
+        const elFlow = document.getElementById('mem-stat-flow');
+        const elInst = document.getElementById('mem-stat-inst');
+        const elDec = document.getElementById('mem-stat-dec');
+
+        if (elTotal) elTotal.textContent = total;
+        if (elFact) elFact.textContent = byType.fact || 0;
+        if (elPref) elPref.textContent = byType.preference || 0;
+        if (elFlow) elFlow.textContent = byType.workflow || 0;
+        if (elInst) elInst.textContent = byType.instruction || 0;
+        if (elDec) elDec.textContent = byType.decision || 0;
+
+        if (total > 0) {
+            const segFact = document.getElementById('seg-fact');
+            const segPref = document.getElementById('seg-pref');
+            const segFlow = document.getElementById('seg-flow');
+            const segInst = document.getElementById('seg-inst');
+            const segDec = document.getElementById('seg-dec');
+
+            if (segFact) segFact.style.width = ((byType.fact || 0) / total * 100).toFixed(1) + '%';
+            if (segPref) segPref.style.width = ((byType.preference || 0) / total * 100).toFixed(1) + '%';
+            if (segFlow) segFlow.style.width = ((byType.workflow || 0) / total * 100).toFixed(1) + '%';
+            if (segInst) segInst.style.width = ((byType.instruction || 0) / total * 100).toFixed(1) + '%';
+            if (segDec) segDec.style.width = ((byType.decision || 0) / total * 100).toFixed(1) + '%';
+        }
+    } catch (e) {
+        console.warn('Memory stats load error:', e);
+    }
+}
+
 async function loadMemories() {
     const container = document.getElementById('memories-container');
+    if (!container) return;
     try {
-        const res = await fetch('/api/memories');
+        let url = `/api/memories?limit=150`;
+        if (currentMemoryType && currentMemoryType !== 'all') {
+            url += `&type=${encodeURIComponent(currentMemoryType)}`;
+        }
+        if (currentMemorySearch && currentMemorySearch.trim()) {
+            url += `&search=${encodeURIComponent(currentMemorySearch.trim())}`;
+        }
+
+        const res = await fetch(url);
         const memories = await res.json();
         if (!memories || memories.length === 0) {
-            container.innerHTML = `<div style="color: var(--text-muted);">Memory vault is synchronizing...</div>`;
+            container.innerHTML = `<div style="color: var(--text-muted); grid-column: 1 / -1; padding: 20px; text-align: center;">No neural memories matching this query or filter.</div>`;
             return;
         }
 
         container.innerHTML = memories.map(m => {
             const stars = '★'.repeat(m.importance || 3);
-            const typeBadge = (m.memory_type || 'FACT').toUpperCase();
+            const mType = (m.memory_type || 'fact').toLowerCase();
+            const badgeClass = `badge-${mType}`;
+            const typeLabel = mType.toUpperCase();
+            const dateStr = new Date(m.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
             return `
-                <div class="memory-item">
-                    <div class="memory-top">
-                        <span class="memory-type">${typeBadge}</span>
+                <div class="memory-hud-card" id="mem-card-${m.id}">
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                        <span class="memory-type-badge ${badgeClass}">${typeLabel}</span>
                         <span style="color: var(--amber); font-size: 0.75rem;">${stars}</span>
                     </div>
-                    <div class="memory-content">${escapeHtml(m.content)}</div>
-                    <div class="memory-date">${new Date(m.created_at).toLocaleDateString()}</div>
+                    <div class="memory-content-text">${escapeHtml(m.content)}</div>
+                    <div class="mem-card-footer">
+                        <span>🕒 ${dateStr}</span>
+                        <button class="mem-delete-btn" data-mem-id="${m.id}" title="Forget / Delete memory">🗑️</button>
+                    </div>
                 </div>
             `;
         }).join('');
+
+        // Attach delete listeners
+        container.querySelectorAll('.mem-delete-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const memId = btn.getAttribute('data-mem-id');
+                if (!isCommander) {
+                    showToast("🔒 Deleting memories requires Commander passkey.", "warning");
+                    openModal('modal-commander-login');
+                    return;
+                }
+                if (!confirm("Are you sure you want Mikasa to forget this memory?")) return;
+
+                try {
+                    const delRes = await authFetch(`/api/memories/${memId}`, { method: 'DELETE' });
+                    const d = await delRes.json();
+                    if (d.success) {
+                        showToast("🧠 Memory pruned from neural database.", "info");
+                        const card = document.getElementById(`mem-card-${memId}`);
+                        if (card) card.remove();
+                        loadMemoryStats();
+                    } else {
+                        showToast("Error deleting memory", "error");
+                    }
+                } catch (err) {
+                    showToast("Delete failed: " + err.message, "error");
+                }
+            });
+        });
     } catch (err) {
         container.innerHTML = `<div class="error-state">Error loading memories: ${err.message}</div>`;
+    }
+}
+
+function initMemoryControls() {
+    const pills = document.querySelectorAll('.mem-pill-btn[data-type]');
+    pills.forEach(p => {
+        p.addEventListener('click', (e) => {
+            e.preventDefault();
+            pills.forEach(x => x.classList.remove('active'));
+            p.classList.add('active');
+            currentMemoryType = p.getAttribute('data-type');
+            loadMemories();
+        });
+    });
+
+    const searchInput = document.getElementById('memory-search-input');
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            clearTimeout(memorySearchDebounce);
+            memorySearchDebounce = setTimeout(() => {
+                currentMemorySearch = e.target.value;
+                loadMemories();
+            }, 300);
+        });
     }
 }
 
@@ -1228,6 +1345,7 @@ async function sendMessageToMikasa(text, isSpoken = false) {
         // Auto-refresh memories and tasks silently
         setTimeout(() => {
             loadMemories();
+            loadMemoryStats();
             loadTasks();
             loadReminders();
             loadQuotaTelemetry();

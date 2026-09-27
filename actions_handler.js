@@ -561,6 +561,52 @@ function fetchGitHubRepos(username = 'Swapnil-360') {
     });
 }
 
+// Fetch commits for a specific repository
+function fetchGitHubCommits(repoName, username = 'Swapnil-360', limit = 5) {
+    return new Promise((resolve, reject) => {
+        let token = process.env.GITHUB_TOKEN;
+        if (!token) {
+            try {
+                const fs = require('fs');
+                const path = require('path');
+                const envContent = fs.readFileSync(path.join(__dirname, '.env'), 'utf8');
+                const match = envContent.match(/GITHUB_TOKEN=([^\r\n]+)/);
+                if (match) token = match[1].trim();
+            } catch (e) {}
+        }
+        const headers = {
+            'User-Agent': 'Mikasa-OS',
+            ...(token ? { 'Authorization': `token ${token}` } : {})
+        };
+        const url = `https://api.github.com/repos/${username}/${repoName}/commits?per_page=${limit}`;
+
+        https.get(url, { headers }, (res) => {
+            let data = '';
+            res.on('data', chunk => data += chunk);
+            res.on('end', () => {
+                try {
+                    const commits = JSON.parse(data);
+                    if (Array.isArray(commits)) {
+                        const formatted = commits.map(c => ({
+                            sha: c.sha ? c.sha.slice(0, 7) : '',
+                            message: c.commit && c.commit.message ? c.commit.message.trim() : '',
+                            firstLine: c.commit && c.commit.message ? c.commit.message.split('\n')[0].trim() : '',
+                            author: c.commit && c.commit.author ? c.commit.author.name : '',
+                            date: c.commit && c.commit.author ? c.commit.author.date : '',
+                            url: c.html_url
+                        }));
+                        resolve(formatted);
+                    } else {
+                        resolve([]);
+                    }
+                } catch (e) {
+                    resolve([]);
+                }
+            });
+        }).on('error', reject);
+    });
+}
+
 // 8. LinkedIn Post Generator
 function generateLinkedInDraft(topicOrProject = 'Edu51Portal') {
     const topic = topicOrProject.trim();
@@ -2400,6 +2446,7 @@ module.exports = {
     addNote,
     clearChatHistory,
     fetchGitHubRepos,
+    fetchGitHubCommits,
     generateLinkedInDraft,
     generateTwitterThread,
     generateSingleTweet,

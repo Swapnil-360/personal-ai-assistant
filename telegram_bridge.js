@@ -11,6 +11,7 @@ const {
     addNote,
     clearChatHistory,
     fetchGitHubRepos,
+    fetchGitHubCommits,
     generateLinkedInDraft,
     tailorCvForJob,
     matchJobOpportunity,
@@ -1089,6 +1090,142 @@ async function handlePcStatusQuery(chatId, text, msg, isCommander, quotedContext
     }
 
     await sendTelegramMessage(chatId, reply, msg.message_id);
+}
+
+// ── ROBUST GITHUB REPO & COMMIT QUERY MATCHER & HANDLER ──
+function formatRelativeTime(dateStr) {
+    if (!dateStr) return { formattedDate: 'Unknown', rel: 'recently' };
+    const d = new Date(dateStr);
+    const now = new Date();
+    const diffMs = Math.max(0, now - d);
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    const options = { timeZone: 'Asia/Dhaka', hour: 'numeric', minute: '2-digit', hour12: true, month: 'short', day: 'numeric', year: 'numeric' };
+    const formattedDate = d.toLocaleString('en-US', options);
+
+    let rel = '';
+    if (diffMins < 2) rel = 'just now';
+    else if (diffMins < 60) rel = `${diffMins}m ago`;
+    else if (diffHours < 24) rel = `${diffHours}h ${diffMins % 60}m ago`;
+    else if (diffDays === 1) rel = 'yesterday';
+    else rel = `${diffDays} days ago`;
+
+    return { formattedDate, rel };
+}
+
+function isGitHubQuery(rawText, quotedContext = null) {
+    if (!rawText) return false;
+    const t = rawText.toLowerCase().trim();
+    if (/^\/(?:github|commits?|repos?)\b/.test(t)) return true;
+    if (/\b(?:commit|commits)\b/.test(t) && /\b(?:last|recent|latest|kobe|kokhon|check|dekho|dekhoto|message|history|ki|hoyechilo|hoyse)\b/.test(t)) return true;
+    if (/\b(?:github|repo|repos|repository)\b/.test(t) && /\b(?:check|dekho|dekhoto|see|show|list|status|inspect|update|radar|commit|commits|last|recent|kokhon|kobe)\b/.test(t)) return true;
+    if (quotedContext && quotedContext.text) {
+        const q = quotedContext.text.toLowerCase();
+        if (/\b(?:github|commit|repo|repository|stark-os|personal-ai)\b/.test(q)) {
+            if (/\b(?:commit|details|last|when|kobe|kokhon|link|url|more)\b/.test(t)) return true;
+        }
+    }
+    return false;
+}
+
+async function handleGitHubQuery(chatId, text, msg, isCommander) {
+    await sendChatAction(chatId, 'typing');
+    try {
+        const repos = await fetchGitHubRepos('Swapnil-360');
+        if (!repos || repos.length === 0) {
+            await sendTelegramMessage(chatId, "⚠️ Could not retrieve repositories from GitHub at this moment.", msg.message_id);
+            return;
+        }
+
+        const isCommitQuery = /\b(?:commit|commits|pushed|push)\b/i.test(text);
+
+        if (isCommitQuery) {
+            // Match the target repository
+            const q = text.toLowerCase();
+            let matched = repos.filter(r => {
+                const name = r.name.toLowerCase();
+                if (q.includes(name)) return true;
+                if (q.includes('portfolio') && (name.includes('portfolio') || name.includes('protfolio'))) return true;
+                if (q.includes('assistant') && name.includes('assistant')) return true;
+                if (q.includes('edu51') && name.includes('edu51')) return true;
+                if (q.includes('opus') && name.includes('opus')) return true;
+                if (q.includes('escape') && name.includes('escape')) return true;
+                if (q.includes('pawfect') && name.includes('pawfect')) return true;
+                return false;
+            });
+            // Sort by updated_at descending so the most recently active one wins
+            matched.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+            const targetRepo = matched[0] || repos[0];
+
+            const commits = await fetchGitHubCommits(targetRepo.name, 'Swapnil-360', 3);
+            if (!commits || commits.length === 0) {
+                await sendTelegramMessage(chatId, `⚠️ \`${targetRepo.name}\` repo-te kono commit paoa jayni.`, msg.message_id);
+                return;
+            }
+
+            const latest = commits[0];
+            const timeInfo = formatRelativeTime(latest.date);
+            const isBanglish = /\b(?:ki|ache|kemon|naki|amr|tomar|kobe|kokhon|boloto|dekhoto|dekho|hoyechilo|chilo)\b/i.test(text);
+
+            let reply = '';
+            if (isBanglish) {
+                const lines = [
+                    `🐙 **Swapnil, tomar \`${targetRepo.name}\` repo te last commit:**`,
+                    ``,
+                    `🕒 **Time:** ${timeInfo.formattedDate} _(${timeInfo.rel})_`,
+                    `💬 **Message:** \`${latest.firstLine}\``,
+                    `🔑 **Commit:** [\`${latest.sha}\`](${latest.url})`
+                ];
+                if (commits[1]) {
+                    const prevTime = formatRelativeTime(commits[1].date);
+                    lines.push(`\n_Previous commit (${prevTime.rel}):_ \`${commits[1].firstLine}\``);
+                }
+                lines.push(``);
+                lines.push(`🔗 [View GitHub Repository](${targetRepo.url}) 🧣`);
+                reply = lines.join('\n');
+            } else {
+                const lines = [
+                    `🐙 **Commander, the latest commit on \`${targetRepo.name}\`:**`,
+                    ``,
+                    `🕒 **Time:** ${timeInfo.formattedDate} _(${timeInfo.rel})_`,
+                    `💬 **Message:** \`${latest.firstLine}\``,
+                    `🔑 **Commit:** [\`${latest.sha}\`](${latest.url})`
+                ];
+                if (commits[1]) {
+                    const prevTime = formatRelativeTime(commits[1].date);
+                    lines.push(`\n_Previous commit (${prevTime.rel}):_ \`${commits[1].firstLine}\``);
+                }
+                lines.push(``);
+                lines.push(`🔗 [View GitHub Repository](${targetRepo.url}) 🧣`);
+                reply = lines.join('\n');
+            }
+
+            await sendTelegramMessage(chatId, reply, msg.message_id);
+            return;
+        }
+
+        // General repo radar / repo list
+        let ghMsg = "🐙 *Swapnil's GitHub Radar (`Swapnil-360`)*\n\n";
+        ghMsg += `*Found ${repos.length} active repositories:*\n\n`;
+
+        repos.slice(0, 6).forEach((r, idx) => {
+            const langBadge = r.language ? `[${r.language}]` : '';
+            const starBadge = r.stars > 0 ? `⭐ ${r.stars}` : '';
+            const privBadge = r.private ? '🔒 Private' : '🌐 Public';
+            ghMsg += `${idx + 1}. *${r.name}* ${langBadge} ${starBadge} (${privBadge})\n`;
+            if (r.description && r.description !== 'Core engineering build') {
+                ghMsg += `   _${r.description}_\n`;
+            }
+            ghMsg += `   🔗 [Repo Link](${r.url})\n\n`;
+        });
+
+        ghMsg += "_Ask for any repo's commits anytime (e.g. 'portfolio repo te last commit kokhon?')! 🧣_";
+        await sendTelegramMessage(chatId, ghMsg, msg.message_id);
+    } catch (err) {
+        await sendTelegramMessage(chatId, `⚠️ Error querying GitHub: ${err.message}`, msg.message_id);
+    }
 }
 
 // Fetch file buffer from GitHub repository (supports raw content, authenticated private/public repo access)
@@ -3434,6 +3571,12 @@ async function processUpdate(update) {
     // ── PC STATUS & ONLINE INQUIRY (Accessible by Commander & Group Members) ──
     if (isPcOnlineInquiry(text, quotedContext)) {
         await handlePcStatusQuery(chatId, text, msg, isCommander, quotedContext);
+        return;
+    }
+
+    // ── GITHUB REPO & COMMIT INQUIRY (Accessible by Commander & Group Members) ──
+    if (isGitHubQuery(text, quotedContext)) {
+        await handleGitHubQuery(chatId, text, msg, isCommander);
         return;
     }
 

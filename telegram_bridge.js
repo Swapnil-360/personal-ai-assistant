@@ -3930,8 +3930,34 @@ async function processUpdate(update) {
         const dueMinutes = Math.round(diffMs / 60000);
         const timeFriendly = dueMinutes >= 60 ? `~${dueHours} hour${dueHours === '1' ? '' : 's'}` : `~${dueMinutes} min${dueMinutes === 1 ? '' : 's'}`;
 
-        const reply = `⏰ *Reminder locked in, Swapnil.*\n\nI will ping you in *${timeStr}* (${timeFriendly}) for:\n*"${task}"*\n\n_Don't worry about forgetting. I've got your back._ 🛡️`;
-        await sendTelegramMessage(chatId, reply, msg.message_id);
+        const gCalUrl = remindersManager.createGoogleCalendarUrl(task, rem.dueAt);
+        const dueDateFormatted = new Date(rem.dueAt).toLocaleString('en-US', {
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true
+        });
+
+        const reply = [
+            `⏰ *Reminder locked in, Swapnil!*`,
+            ``,
+            `📌 *Task:* *"${task}"*`,
+            `⏱️ *Time:* ${dueDateFormatted} (${timeFriendly})`,
+            ``,
+            `_I will chime your phone on Telegram the second it's due! Tap below to also sync it directly with your phone's Google/Apple Calendar:_ 🛡️`
+        ].join('\n');
+
+        const replyMarkup = {
+            inline_keyboard: [
+                [
+                    { text: "📅 Add to Phone Calendar", url: gCalUrl }
+                ]
+            ]
+        };
+
+        await sendTelegramMessage(chatId, reply, msg.message_id, replyMarkup);
         return;
     }
 

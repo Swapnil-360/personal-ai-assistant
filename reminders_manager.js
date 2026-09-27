@@ -69,18 +69,51 @@ class RemindersManager {
         }
     }
 
-    // Parse friendly relative times like "10m", "1h", "6hr later", "about 6hr later", "6 ghonta por", etc.
+    /**
+     * Generate an instant 1-tap Google Calendar link
+     * Pre-fills the event title, start time, end time, and details for mobile calendar apps
+     */
+    createGoogleCalendarUrl(title, dueAtMs, details = 'Reminder created by Mikasa AI Assistant 🧣') {
+        const start = new Date(dueAtMs);
+        const end = new Date(dueAtMs + 30 * 60 * 1000); // 30 min event block
+        const formatGCal = (d) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+        const dates = `${formatGCal(start)}/${formatGCal(end)}`;
+        return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&dates=${dates}&details=${encodeURIComponent(details)}`;
+    }
+
+    // Parse friendly relative and absolute times: e.g. "tomorrow at 4pm", "today at 8pm", "5pm", "10m", "1h", "6hr later", "kal bikal 4ta"
     parseTime(timeStr) {
         if (!timeStr) return null;
         let text = timeStr.trim().toLowerCase();
         const now = Date.now();
 
         // Strip leading common prepositions/filler
-        text = text.replace(/^(?:in|after|about|around|for|nearly|at)\s+/i, '').trim();
+        text = text.replace(/^(?:in|after|about|around|for|nearly|at|on)\s+/i, '').trim();
         // Strip trailing common words
-        text = text.replace(/\s+(?:later|after|por|theke|dhore|pore|from\s+now)$/i, '').trim();
+        text = text.replace(/\s+(?:later|after|por|theke|dhore|pore|from\s+now|shomoy)$/i, '').trim();
 
-        // 0. Compound format: "1 hour 30 mins", "2h 15m", "1 hr and 20 mins"
+        // 0A. Day + Time compound: "tomorrow at 4pm", "tomorrow 4pm", "today at 8:30pm", "kal 4pm", "kal 4ta"
+        const dayTimeMatch = text.match(/^(tomorrow|kal|agamikal|today|aj|ajke)\s+(?:at\s+|shomoy\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm|ta)?$/i);
+        if (dayTimeMatch) {
+            const dayWord = dayTimeMatch[1].toLowerCase();
+            let hours = parseInt(dayTimeMatch[2]);
+            const minutes = dayTimeMatch[3] ? parseInt(dayTimeMatch[3]) : 0;
+            const meridiem = (dayTimeMatch[4] || '').toLowerCase();
+
+            if (meridiem === 'pm' && hours < 12) hours += 12;
+            if (meridiem === 'am' && hours === 12) hours = 0;
+            // If "ta" or no meridiem, if hour <= 7 assume PM (e.g. 4ta -> 4pm, 5ta -> 5pm)
+            if ((meridiem === 'ta' || !meridiem) && hours <= 7) hours += 12;
+
+            const target = new Date(now);
+            if (dayWord === 'tomorrow' || dayWord === 'kal' || dayWord === 'agamikal') {
+                target.setDate(target.getDate() + 1);
+            }
+            target.setHours(hours, minutes, 0, 0);
+            return target.getTime();
+        }
+
+        // 0B. Compound format: "1 hour 30 mins", "2h 15m", "1 hr and 20 mins"
         const compoundMatch = text.match(/^(\d+(?:\.\d+)?)\s*(?:h|hr|hrs|hours?|ghonta)\s*(?:and\s*)?(\d+)\s*(?:m|min|mins|minutes?|minit)$/i);
         if (compoundMatch) {
             const hrs = parseFloat(compoundMatch[1]);
@@ -146,7 +179,6 @@ class RemindersManager {
             return now + n * 60 * 1000;
         }
 
-        // Return null instead of corrupting with 15 minutes
         return null;
     }
 
@@ -154,28 +186,30 @@ class RemindersManager {
         if (!rawText) return null;
         const text = rawText.trim();
 
-        // Pattern 1: Slash command: /remind 10m Push code OR /remind in 1h Check n8n
-        let m = text.match(/^\/remind\s+(?:in\s+|after\s+|about\s+)?(\d+(?:\.\d+)?\s*(?:m|min|mins|minutes?|h|hr|hrs|hours?|ghonta|d|days?|s|sec|seconds?)(?:\s+(?:later|after|por|theke))?)\s*(?:to\s+|about\s+|:\s*|\s+)?(.+)$/i);
+        const timeSpecRegex = '(?:tomorrow(?:\\s+at)?\\s+\\d{1,2}(?::\\d{2})?\\s*(?:am|pm)?|today(?:\\s+at)?\\s+\\d{1,2}(?::\\d{2})?\\s*(?:am|pm)?|kal(?:\\s+(?:at|shomoy))?\\s+\\d{1,2}(?::\\d{2})?\\s*(?:am|pm|ta|tay)?(?:\\s+shomoy)?|\\d{1,2}(?::\\d{2})?\\s*(?:am|pm|ta|tay)|\\d+(?:\\.\\d+)?\\s*(?:m|min|mins|minutes?|h|hr|hrs|hours?|ghonta|d|days?|s|sec|seconds?)(?:\\s+(?:later|after|por|from\\s+now))?|tomorrow|tonight|kal|agamikal)';
+
+        // Pattern 1: Slash command: /remind [time] [task]
+        let m = text.match(new RegExp(`^\\/remind\\s+(?:in\\s+|at\\s+|on\\s+)?(${timeSpecRegex})\\s*(?:to\\s+|about\\s+|:\\s*|\\s+)?(.+)$`, 'i'));
         if (m) return { timeStr: m[1].trim(), task: m[2].trim() };
 
-        // Pattern 2: English postfix: 'remind me to check server 6hr later' OR 'remind me about server in 6 hours'
-        m = text.match(/^(?:please\s+)?(?:remind\s+me|remind)(?:\s+to|\s+about)?\s+(.+?)\s+(?:in|after|about)?\s*(\d+(?:\.\d+)?\s*(?:m|min|mins|minutes?|h|hr|hrs|hours?|ghonta|d|days?|s|sec|seconds?)(?:\s+(?:later|after|por|from\s+now))?)\s*$/i);
+        // Pattern 2: "remind me [time] to [task]" e.g. "remind me tomorrow at 4pm to meet with supervisor"
+        m = text.match(new RegExp(`^(?:please\\s+)?(?:remind\\s+me|remind)\\s+(?:in\\s+|at\\s+|on\\s+)?(${timeSpecRegex})\\s*(?:to\\s+|about\\s+|:\\s*|\\s+)(.+)$`, 'i'));
+        if (m) return { timeStr: m[1].trim(), task: m[2].trim() };
+
+        // Pattern 3: "remind me to [task] [time]" e.g. "remind me to check server in 30m" OR "remind me to meet supervisor tomorrow at 4pm"
+        m = text.match(new RegExp(`^(?:please\\s+)?(?:remind\\s+me|remind)(?:\\s+to|\\s+about)?\\s+(.+?)\\s+(?:at|on|in|around)?\\s*(${timeSpecRegex})\\s*$`, 'i'));
         if (m) return { timeStr: m[2].trim(), task: m[1].trim() };
-
-        // Pattern 3: English prefix: 'remind me in 6 hours to check n8n' OR 'remind me 6hr later to deploy'
-        m = text.match(/^(?:please\s+)?(?:remind\s+me|remind)\s+(?:in\s+|after\s+|about\s+)?(\d+(?:\.\d+)?\s*(?:m|min|mins|minutes?|h|hr|hrs|hours?|ghonta|d|days?|s|sec|seconds?)(?:\s+(?:later|after|por|from\s+now))?)\s*(?:to\s+|about\s+|:\s*|\s+)(.+)$/i);
-        if (m) return { timeStr: m[1].trim(), task: m[2].trim() };
 
         // Pattern 4: Task then Time then 'remind me': 'call prince 2 hours later remind me'
-        m = text.match(/^(.+?)\s+(?:in|after|about)?\s*(\d+(?:\.\d+)?\s*(?:m|min|mins|minutes?|h|hr|hrs|hours?|ghonta|d|days?|s|sec|seconds?)(?:\s+(?:later|after|por|from\s+now))?)\s+(?:remind\s+me|remind\s*koro)$/i);
+        m = text.match(new RegExp(`^(.+?)\\s+(?:in|after|about|at|on)?\\s*(${timeSpecRegex})\\s+(?:remind\\s+me|remind\\s*koro)$`, 'i'));
         if (m) return { timeStr: m[2].trim(), task: m[1].trim() };
 
-        // Pattern 5: Banglish prefix: 'amake 6 ghonta por mone koriye dio medicine khete hobe'
-        m = text.match(/^(?:amake\s+)?(?:about\s+)?(\d+(?:\.\d+)?\s*(?:h|hr|hrs|hours?|ghonta|m|min|mins|minute)\s*(?:por|pore|theke)?)\s*(?:mone\s+koriye\s+(?:dio|diyo|rekho)|remind\s+koro)\s*[:,\-]?\s*(.+)$/i);
+        // Pattern 5: Banglish prefix: 'amake kal 4ta shomoy mone koriye dio meeting ache'
+        m = text.match(new RegExp(`^(?:amake\\s+)?(?:about\\s+)?(${timeSpecRegex})\\s*(?:mone\\s+koriye\\s+(?:dio|diyo|rekho)|remind\\s+koro)\\s*[:,-]?\\s*(.+)$`, 'i'));
         if (m) return { timeStr: m[1].trim(), task: m[2].trim() };
 
         // Pattern 6: Banglish postfix: 'medicine khete hobe amake 6 ghonta por mone koriye dio'
-        m = text.match(/^(?:amake\s+)?(.+?)\s*(?:eta\s+)?(?:about\s+)?(\d+(?:\.\d+)?\s*(?:h|hr|hrs|hours?|ghonta|m|min|mins|minute)\s*(?:por|pore|later))\s*(?:mone\s+koriye\s+(?:dio|diyo|rekho)|remind\s+koro)$/i);
+        m = text.match(new RegExp(`^(?:amake\\s+)?(.+?)\\s*(?:eta\\s+)?(?:about\\s+)?(${timeSpecRegex})\\s*(?:mone\\s+koriye\\s+(?:dio|diyo|rekho)|remind\\s+koro)$`, 'i'));
         if (m) return { timeStr: m[2].trim(), task: m[1].trim() };
 
         return null;

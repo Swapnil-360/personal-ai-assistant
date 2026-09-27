@@ -64,6 +64,9 @@ const {
     searchWeb,
     detectSearchIntent
 } = require('./web_search_service');
+const {
+    callGeminiWithTools
+} = require('./tools_agent');
 
 const fs = require('fs');
 const path = require('path');
@@ -2365,21 +2368,29 @@ async function callMikasaAgent(message, conversationId, userContext) {
         }
     }
 
-    // 2. Direct Gemini 2.5 Flash Cloud Integration (with zero-latency OpenRouter failover)
+    // 2. Direct Gemini Cloud Integration with Native Tool Calling & OpenRouter failover
     if (geminiKey) {
         const quotaStatus = getGeminiQuotaStatus();
         if (quotaStatus.is_cooldown) {
             console.log(`[Mikasa Instant Failover] Gemini is in cooldown (${quotaStatus.cooldown_remaining_seconds}s remaining). Routing INSTANTLY to OpenRouter!`);
         } else {
             try {
-                console.log(`[Mikasa Agent] Calling Gemini Cloud directly (Primary Engine, ${conversationHistory.length} history turns)...`);
-                const reply = await callGeminiApi(systemPrompt, effectiveMessage, geminiKey, conversationHistory);
-                if (reply) {
-                    const usedModel = getEnv('GEMINI_MODEL') || 'gemini-3.5-flash-lite';
-                    return { reply, engine: usedModel };
+                console.log(`[Mikasa Agent] Calling Gemini Agent with Native Tools (Primary Engine, ${conversationHistory.length} history turns)...`);
+                const toolAgentRes = await callGeminiWithTools(systemPrompt, effectiveMessage, geminiKey, conversationHistory, userContext);
+                if (toolAgentRes && toolAgentRes.reply) {
+                    return { reply: toolAgentRes.reply, engine: toolAgentRes.engine, tools_used: toolAgentRes.tools_used };
                 }
-            } catch (err) {
-                console.warn('[Direct Gemini Call Failed, switching instantly to OpenRouter]:', err.message || err);
+            } catch (toolErr) {
+                console.warn('[Gemini Tool-Calling Error, falling back to standard Gemini API]:', toolErr.message);
+                try {
+                    const reply = await callGeminiApi(systemPrompt, effectiveMessage, geminiKey, conversationHistory);
+                    if (reply) {
+                        const usedModel = getEnv('GEMINI_MODEL') || 'gemini-3.5-flash-lite';
+                        return { reply, engine: usedModel };
+                    }
+                } catch (err) {
+                    console.warn('[Direct Gemini Call Failed, switching instantly to OpenRouter]:', err.message || err);
+                }
             }
         }
     }

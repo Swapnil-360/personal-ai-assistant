@@ -676,6 +676,9 @@ The mission is to help Swapnil **actually become more capable, more focused, mor
 | কোথায় | `kothay` | Avoid `kotay` |
 | কী | `ki` | |
 | না | `na` | |
+| চলো | `cholo` | Avoid 'chalo'| 
+| খবর | `khobor` | Avoid 'khabar'| 
+| খেয়েছ? | `khaiso?,kheyeso?` | Avoid 'khayaso?'| 
 
 ### Swapnil Writing Style Exemplar Pairs
 - **Bangla**: আমি এখন এটা করতে চাচ্ছি  

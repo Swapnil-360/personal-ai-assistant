@@ -1,0 +1,19 @@
+{
+  "name": "Mikasa Ackerman — Personal OS",
+  "short_name": "Mikasa OS",
+  "description": "Swapnil's Autonomous AI Executive Companion & Workstation OS",
+  "start_url": "/app",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#050811",
+  "theme_color": "#0b0f19",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ],
+  "categories": ["productivity", "utilities"]
+}

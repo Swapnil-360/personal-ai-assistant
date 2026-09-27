@@ -262,6 +262,15 @@ document.addEventListener('DOMContentLoaded', () => {
     initQuotaClick();
     initPCHub();
 
+    // Register PWA Service Worker for Mobile / Offline support
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js')
+                .then(reg => console.log('[PWA] Service Worker registered:', reg.scope))
+                .catch(err => console.debug('[PWA] Service Worker notice:', err.message));
+        });
+    }
+
     // Verify authentication status
     checkCommanderAuth();
 

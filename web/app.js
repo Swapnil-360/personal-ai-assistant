@@ -1510,6 +1510,40 @@ function initPCHub() {
                 } else if (action === 'open-crypto-sourcing') {
                     showToast("💎 Querying live Web3 & Crypto Radar...", "info");
                     await sendMessageToMikasa("Find newly listed crypto projects and tokens");
+                } else if (action === 'lock-pc') {
+                    showToast("🔒 Locking Windows Workstation...", "info");
+                    const res = await authFetch('/api/pc/lock', { method: 'POST' });
+                    const d = await res.json();
+                    showToast(d.message || "PC Locked", d.success ? "success" : "info");
+                } else if (action === 'toggle-mute') {
+                    const res = await authFetch('/api/pc/volume', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({})
+                    });
+                    const d = await res.json();
+                    showToast(d.message || "Master Volume Toggled", "success");
+                } else if (action === 'media-play-pause') {
+                    const res = await authFetch('/api/pc/media', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ action: 'play_pause' })
+                    });
+                    const d = await res.json();
+                    showToast(d.message || "Media Key Sent", "success");
+                } else if (action === 'screen-off') {
+                    showToast("💤 Powering down monitors...", "info");
+                    const res = await authFetch('/api/pc/screen', { method: 'POST' });
+                    const d = await res.json();
+                    showToast(d.message || "Monitors sleeping", "success");
+                } else if (action === 'trigger-sitrep') {
+                    showToast("🌅 Fetching Morning Sitrep...", "info");
+                    const res = await authFetch('/api/pc/briefing', { method: 'POST' });
+                    const d = await res.json();
+                    if (d.briefing) {
+                        alert(d.briefing);
+                    }
+                    showToast("Sitrep Briefing ready!", "success");
                 }
             } catch (err) {
                 showToast("Action error: " + err.message, "warning");

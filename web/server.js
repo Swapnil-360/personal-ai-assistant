@@ -50,8 +50,14 @@ const {
     setAgentMode,
     openBrowserUrl,
     launchDesktopApp,
-    openLocalFolder
+    openLocalFolder,
+    lockWorkstation,
+    toggleVolumeMute,
+    changeVolume,
+    controlMedia,
+    turnOffMonitors
 } = require('../local_pc_bridge');
+const { runMorningBriefing } = require('../proactive_monitor');
 
 const COMMANDER_EMAIL = process.env.COMMANDER_EMAIL || 'miftahurr503@gmail.com';
 const COMMANDER_PASSKEY = process.env.COMMANDER_PASSKEY || 'MikasaCommander360!';
@@ -813,6 +819,45 @@ const server = http.createServer(async (req, res) => {
                 resLaunch = launchDesktopApp(body.app);
             }
             return sendJson(res, 200, resLaunch);
+        }
+
+        // Remote PC Workstation Controls (Lock, Volume, Media, Screen, Sitrep)
+        if (pathname === '/api/pc/lock' && req.method === 'POST') {
+            if (!await requireCommander()) return;
+            const resLock = lockWorkstation();
+            return sendJson(res, 200, resLock);
+        }
+
+        if (pathname === '/api/pc/volume' && req.method === 'POST') {
+            if (!await requireCommander()) return;
+            const body = await parseBody(req);
+            let resVol;
+            if (body.direction === 'up' || body.direction === 'down') {
+                resVol = changeVolume(body.direction);
+            } else {
+                resVol = toggleVolumeMute();
+            }
+            return sendJson(res, 200, resVol);
+        }
+
+        if (pathname === '/api/pc/media' && req.method === 'POST') {
+            if (!await requireCommander()) return;
+            const body = await parseBody(req);
+            const resMedia = controlMedia(body.action || 'play_pause');
+            return sendJson(res, 200, resMedia);
+        }
+
+        if (pathname === '/api/pc/screen' && req.method === 'POST') {
+            if (!await requireCommander()) return;
+            const resScreen = turnOffMonitors();
+            return sendJson(res, 200, resScreen);
+        }
+
+        if (pathname === '/api/pc/briefing' && req.method === 'POST') {
+            if (!await requireCommander()) return;
+            let briefingText = '';
+            await runMorningBriefing(null, (chatId, text) => { briefingText = text; }, true);
+            return sendJson(res, 200, { success: true, briefing: briefingText });
         }
 
         // Native Gemini Cute Female Voice TTS API ("Kore" voice, spoken in English without emojis)

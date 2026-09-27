@@ -2609,13 +2609,20 @@ async function processBusinessMessage(bMsg) {
         const replyText = typeof response === 'string' ? response : (response.reply || response.text || response.message || '');
         if (replyText) {
             await sendTelegramMessage(chatId, replyText, bMsg.message_id, null, connId);
+            console.log(`[Business Chatbot Replied to ${fromName} in chat ${chatId}]: "${replyText}"`);
 
-            // Also notify Commander Swapnil on his main Telegram channel/DM so he knows a contact reached out
-            if (SWAPNIL_USER_ID && !isFromCommander) {
-                sendTelegramMessage(
-                    SWAPNIL_USER_ID,
-                    `📩 *[Business Chat Auto-Reply]*\n*Chat:* ${chatId} | *From:* ${fromName} (@${fromUsername || 'no_user'})\n*Message:* _"${text.slice(0, 100)}"_\n\n🧣 *Mikasa answered:* _"${replyText.slice(0, 150)}"_`
-                ).catch(() => {});
+            await recordConversationTurn(conversationId, businessPrompt, replyText, (response && response.engine) || 'gemini-3.5-flash-lite').catch(() => {});
+
+            // Also notify Commander Swapnil on his active Telegram channel/DM so he knows a contact reached out
+            if (!isFromCommander) {
+                for (const commanderId of COMMANDER_USER_IDS) {
+                    if (Number(commanderId) !== Number(fromId)) {
+                        sendTelegramMessage(
+                            commanderId,
+                            `📩 *[Business Chat Auto-Reply]*\n*Chat:* ${chatId} | *From:* ${fromName} (@${fromUsername || 'no_user'})\n*Message:* _"${text.slice(0, 100)}"_\n\n🧣 *Mikasa answered:* _"${replyText.slice(0, 150)}"_`
+                        ).catch(() => {});
+                    }
+                }
             }
         }
     } catch (err) {

@@ -313,6 +313,72 @@ async function sendTelegramDocumentBuffer(chatId, buffer, fileName, caption = ''
     });
 }
 
+async function sendTelegramAudioBuffer(chatId, buffer, fileName = 'mikasa_voice.wav', caption = '', title = 'Mikasa Ackerman', performer = 'Mikasa') {
+    const token = getEnv('TELEGRAM_BOT_TOKEN');
+    if (!token) throw new Error('TELEGRAM_BOT_TOKEN is not configured.');
+
+    const boundary = '----WebKitFormBoundary' + Math.random().toString(16).slice(2);
+
+    const parts = [];
+    parts.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="chat_id"\r\n\r\n${chatId}\r\n`));
+    if (caption) {
+        parts.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="caption"\r\n\r\n${caption}\r\n`));
+    }
+    if (title) {
+        parts.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="title"\r\n\r\n${title}\r\n`));
+    }
+    if (performer) {
+        parts.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="performer"\r\n\r\n${performer}\r\n`));
+    }
+    parts.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="audio"; filename="${fileName}"\r\nContent-Type: audio/wav\r\n\r\n`));
+    parts.push(buffer);
+    parts.push(Buffer.from(`\r\n--${boundary}--\r\n`));
+
+    const payload = Buffer.concat(parts);
+
+    return new Promise((resolve, reject) => {
+        const req = https.request({
+            hostname: 'api.telegram.org',
+            path: `/bot${token}/sendAudio`,
+            method: 'POST',
+            headers: {
+                'Content-Type': `multipart/form-data; boundary=${boundary}`,
+                'Content-Length': payload.length
+            },
+            timeout: 35000
+        }, (res) => {
+            let data = '';
+            res.on('data', c => data += c);
+            res.on('end', async () => {
+                try {
+                    const parsed = JSON.parse(data);
+                    if (parsed.ok) {
+                        await recordAuditLog({
+                            action: 'telegram_voice_transferred',
+                            target: fileName,
+                            details: `Sent voice audio ${fileName} (${(buffer.length / 1024).toFixed(1)} KB) to Telegram chat ${chatId}`,
+                            verified: true
+                        });
+                        resolve({ success: true, messageId: parsed.result.message_id, file: fileName });
+                    } else {
+                        reject(new Error(`Telegram sendAudio failed: ${parsed.description || data}`));
+                    }
+                } catch (e) {
+                    reject(new Error(`Failed to parse Telegram audio response: ${data}`));
+                }
+            });
+        });
+
+        req.on('timeout', () => {
+            req.destroy();
+            reject(new Error('Telegram sendAudio timed out after 35s'));
+        });
+        req.on('error', reject);
+        req.write(payload);
+        req.end();
+    });
+}
+
 // 4. LOCAL SYSTEM INFORMATION & TELEMETRY (Section 6)
 async function getSystemInfo() {
     const totalMem = os.totalmem();
@@ -764,6 +830,7 @@ module.exports = {
     searchAllowedFiles,
     sendTelegramDocument,
     sendTelegramDocumentBuffer,
+    sendTelegramAudioBuffer,
     getSystemInfo,
     executeControlledTerminal,
     checkServiceMonitors,

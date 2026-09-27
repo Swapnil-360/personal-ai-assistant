@@ -48,6 +48,7 @@ const {
     searchAllowedFiles,
     sendTelegramDocument,
     sendTelegramDocumentBuffer,
+    sendTelegramAudioBuffer,
     executeControlledTerminal,
     checkServiceMonitors,
     privacyControls,
@@ -3557,6 +3558,33 @@ async function processUpdate(update) {
         return;
     }
 
+    // Direct /voice or /speak without arguments
+    if (text.match(/^\/(?:voice|speak)$/i)) {
+        await sendChatAction(chatId, 'upload_voice');
+        const greeting = isCommander
+            ? "Bolo Swapnil, ami shunchi! 🧣 Tell me what you need, and I'll answer directly in voice."
+            : `Hello ${userName}! I am Mikasa. Ask me anything, and I'll speak back to you. 🧣`;
+        try {
+            const resSynth = await synthesizeGeminiVoice(greeting, 'Kore');
+            const wavBuffer = Buffer.isBuffer(resSynth) ? resSynth : resSynth?.wav;
+            if (wavBuffer) {
+                await sendTelegramAudioBuffer(chatId, wavBuffer, 'mikasa_voice.wav', '🧣 Mikasa Voice Active', 'Mikasa Voice Note', 'Mikasa Ackerman');
+            } else {
+                await sendTelegramMessage(chatId, greeting, msg.message_id);
+            }
+        } catch (e) {
+            await sendTelegramMessage(chatId, greeting, msg.message_id);
+        }
+        return;
+    }
+
+    // Direct /voice or /speak with query arguments
+    let isExplicitVoiceCmd = false;
+    if (text.match(/^\/(?:voice|speak)\s+/i)) {
+        isExplicitVoiceCmd = true;
+        text = text.replace(/^\/(?:voice|speak)\s+/i, '').trim();
+    }
+
     // Construct enriched user prompt incorporating quoted context if present
     let effectiveUserPrompt = text;
     if (quotedContext) {
@@ -5234,14 +5262,21 @@ async function processUpdate(update) {
         }
         await sendTelegramMessage(chatId, finalText, msg.message_id, replyMarkup);
 
-        // Attempt to synthesize and send Mikasa's cute Kore voice note
-        if (hasVoice) {
+        // Attempt to synthesize and send Mikasa's voice note
+        const wantsVoice = Boolean(hasVoice) ||
+            Boolean(isExplicitVoiceCmd) ||
+            Boolean(text.match(/^\/(?:voice|speak)\b/i)) ||
+            Boolean(text.match(/\b(?:voice\s*(?:e|a|te)?\s*bolo|voice\s*note\s*dao|amake\s*shonao|shunate\s*paro|voice\s*reply|speak\s*to\s*me|read\s*(?:it\s*)?out\s*loud|kore\s*voice)\b/i));
+
+        if (wantsVoice) {
             try {
-                await sendChatAction(chatId, 'record_voice');
+                await sendChatAction(chatId, 'upload_voice');
+                console.log(`[Telegram Voice] Synthesizing spoken voice reply for ${userName} (${replyText.length} chars)...`);
                 const resSynth = await synthesizeGeminiVoice(replyText, 'Kore');
                 const wavBuffer = Buffer.isBuffer(resSynth) ? resSynth : resSynth?.wav;
                 if (wavBuffer && wavBuffer.length > 0) {
-                    await sendTelegramVoiceBuffer(chatId, wavBuffer, msg.message_id, '🧣 Mikasa Voice Note');
+                    await sendTelegramAudioBuffer(chatId, wavBuffer, 'mikasa_voice.wav', '🧣 Mikasa Voice Note', 'Mikasa Voice Note', 'Mikasa Ackerman');
+                    console.log(`[Telegram Voice] Successfully delivered voice note (${wavBuffer.length} bytes) to chat ${chatId}`);
                 }
             } catch (ttsErr) {
                 console.warn('[Telegram Voice Reply Notice]:', ttsErr.message);

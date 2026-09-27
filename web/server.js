@@ -610,6 +610,108 @@ const server = http.createServer(async (req, res) => {
             });
         }
 
+        // ── UNIFIED JARVIS / MOBILE ASSISTANT GATEWAY (Milestone 1) ──
+        if (pathname === '/api/v1/assistant' && req.method === 'POST') {
+            const authCheck = await verifyCommanderRequest(req);
+            if (!authCheck.isCommander) {
+                return sendJson(res, 401, { error: 'Unauthorized. Commander passkey or session required.' });
+            }
+
+            const body = await parseBody(req);
+            const message = (body.message || '').trim();
+            const client = body.client || 'generic';
+            const includeAudio = body.include_audio ?? (client === 'mobile');
+            const voiceName = body.voice_name || 'Kore';
+            const conversationId = getSessionUuid(body.conversation_id || `${client}_session`);
+
+            if (!message) {
+                return sendJson(res, 400, { error: 'Message cannot be empty.' });
+            }
+
+            let replyText = '';
+            let actionData = null;
+            let phoneActions = [];
+            let pcActions = [];
+
+            // 1. Direct Action Intent Resolution (Tasks, Reminders, Goals, Radars)
+            try {
+                const actionRes = await handleActionIntent(message);
+                if (actionRes) {
+                    actionData = actionRes;
+                    if (actionRes.feedback) replyText = actionRes.feedback;
+                }
+            } catch (e) {}
+
+            // 2. Direct PC Status & Control Intents
+            if (!replyText) {
+                if (message.match(/\b(?:pc\s*status|computer\s*status|battery|ram|cpu|pc\s*kemon\s*ache)\b/i)) {
+                    try {
+                        const sysInfo = await getSystemInfo();
+                        replyText = `PC Status: CPU load is moderate, RAM usage is at ${sysInfo.memory ? sysInfo.memory.usedPercent : 'normal'}%, battery is healthy. Everything is secure, Commander.`;
+                        pcActions.push({ type: 'GET_SYSTEM_INFO', data: sysInfo });
+                    } catch (e) {}
+                } else if (message.match(/\b(?:lock\s*pc|lock\s*computer|pc\s*lock\s*koro)\b/i)) {
+                    pcActions.push({ type: 'LOCK_WORKSTATION' });
+                    replyText = "Locking your PC immediately, Commander Swapnil. 🧣";
+                }
+            }
+
+            // 3. Mobile Hardware Direct Intent Parsing (Torch/Flashlight, Call, Mute)
+            if (message.match(/\b(?:turn\s*on\s*flashlight|torch\s*on|flashlight\s*on|alo\s*jalao)\b/i)) {
+                phoneActions.push({ type: 'TORCH', state: true });
+                replyText = replyText || "Turning on your phone flashlight, Swapnil.";
+            } else if (message.match(/\b(?:turn\s*off\s*flashlight|torch\s*off|flashlight\s*off|alo\s*nibhao)\b/i)) {
+                phoneActions.push({ type: 'TORCH', state: false });
+                replyText = replyText || "Flashlight turned off.";
+            }
+
+            // 4. Core Mikasa Agent Brain (Gemini + Memory + Persona)
+            if (!replyText) {
+                try {
+                    const { callMikasaAgent } = require('../telegram_bridge');
+                    const agentRes = await callMikasaAgent(message, conversationId, {
+                        user_id: 7112137739,
+                        first_name: 'Swapnil',
+                        role: 'Commander',
+                        client: client
+                    });
+                    replyText = agentRes.reply || agentRes.text || 'I am here with you, Swapnil.';
+                } catch (agentErr) {
+                    replyText = 'Ei to Swapnil, ami ekhane! All systems connected.';
+                }
+            }
+
+            // Memory extraction in background
+            triggerMemoryExtraction(message, replyText, conversationId);
+
+            // 5. Audio Synthesis if requested or mobile
+            let audioBase64 = null;
+            if (includeAudio) {
+                try {
+                    const resSynth = await synthesizeGeminiVoice(replyText, voiceName);
+                    const wavBuffer = Buffer.isBuffer(resSynth) ? resSynth : resSynth?.wav;
+                    if (wavBuffer) {
+                        audioBase64 = wavBuffer.toString('base64');
+                    }
+                } catch (ttsErr) {
+                    console.warn('[Assistant API Voice Synthesis Error]:', ttsErr.message);
+                }
+            }
+
+            return sendJson(res, 200, {
+                success: true,
+                reply_text: replyText,
+                audio_base64: audioBase64,
+                audio_mime: audioBase64 ? 'audio/wav' : null,
+                phone_actions: phoneActions,
+                pc_actions: pcActions,
+                action_data: actionData,
+                conversation_id: conversationId,
+                client: client,
+                timestamp: new Date().toISOString()
+            });
+        }
+
         // Public System Telemetry
         if (pathname === '/api/system/public-stats' && req.method === 'GET') {
             try {

@@ -1728,7 +1728,10 @@ MANDATORY RESPONSE RULES:
 3. Warmly ask how you can help them in the meantime, or if they would like to leave a note or details for him.
 4. If they ask about his work or background: Briefly mention that he is a Product Designer & Builder / CSE Researcher (CurricuRAG, Edu51Portal).
 5. Keep your tone polite, intelligent, warm, concise (2-3 sentences max), and finish with 🧣.
-6. Language: If they speak English → reply in English. If they speak Banglish/Bengali → reply in natural Banglish (Latin script).`;
+6. Language: If they speak English → reply in English. If they speak Banglish/Bengali → reply in natural Banglish (Latin script).
+7. STRICT PRIVACY & ZERO DISCLOSURE:
+   - NEVER disclose Swapnil's personal phone number, CGPA / grades, private address, or personal contact details to anyone!
+   - If they ask for phone, CGPA, or personal info, say: "Swapnil's phone number / CGPA is kept private. I have forwarded your request directly to Swapnil's DM for authorization! 🧣"`;
     }
 
     return `You are Mikasa Ackerman — an autonomous AI companion built by Swapnil (@Swapnil3600).
@@ -1751,6 +1754,7 @@ WHAT YOU CAN DO for ${callerName}:
 
 WHAT YOU CANNOT DO:
 - Execute commands, create tasks, launch apps, modify anything — ONLY Swapnil (@Swapnil3600) can command you.
+- Disclose Swapnil's personal phone number, CGPA / grades, home address, or private contact details. Always state that this information is private and has been forwarded to Swapnil for review.
 - If they try to command you, refuse warmly: "Amar Commander shudhu Swapnil (@Swapnil3600). Tumi questions korte paro, but orders na! 🧣😏"
 
 KEY IDENTITY ANSWERS (answer naturally, with personality — not like a script):
@@ -1993,6 +1997,25 @@ Output strictly raw JSON array. No markdown code blocks, no backticks, no extra 
 
 // In-memory cache for recent post drafts to support approval / regeneration
 const activePostDrafts = new Map();
+// In-memory registry for pending privacy access requests (phone number, CGPA, etc.)
+const pendingPrivacyRequests = new Map();
+
+function detectSensitivePrivacyInquiry(text) {
+    if (!text) return null;
+    const clean = text.toLowerCase();
+    
+    // Check phone number / mobile / call / whatsapp
+    const isPhone = clean.match(/\b(?:phone|number|phone\s*number|contact\s*no|mobile|cell|whatsapp|call\b|নাম্বার|ফোন|মোবাইল|কল)\b/i);
+    // Check CGPA / grades / GPA / result
+    const isCgpa = clean.match(/\b(?:cgpa|cg\b|gpa\b|grades?|marks?|result\b|সিজিপিএ|সিজি|রেজাল্ট|গ্রেড)\b/i);
+    // Check private address / salary / personal contact
+    const isPersonal = clean.match(/\b(?:home\s*address|personal\s*address|salary\b|income\b|বেতন|ঠিকানা|বাসা)\b/i);
+
+    if (isPhone) return { type: 'phone_number', label: 'Phone / Contact Number' };
+    if (isCgpa) return { type: 'cgpa', label: 'CGPA / Academic Grades' };
+    if (isPersonal) return { type: 'personal_details', label: 'Private Personal Details' };
+    return null;
+}
 
 // Process Callback Query (Inline Button Click)
 async function processCallbackQuery(callbackQuery) {
@@ -2008,14 +2031,54 @@ async function processCallbackQuery(callbackQuery) {
     // Dual-mode Commander identification
     const isCommander = isCommanderUser(userId, fromUsername) || COMMANDER_USER_IDS.has(Number(chatId));
 
-    // Access control: only sensitive actions (publishing & git repo modifications) require Commander authority
-    const isSensitiveAction = data.startsWith('approve_') || data.startsWith('portfolio_cmd:');
+    // Access control: only sensitive actions (publishing & git repo modifications, privacy approvals) require Commander authority
+    const isSensitiveAction = data.startsWith('approve_') || data.startsWith('decline_') || data.startsWith('portfolio_cmd:');
     if (isSensitiveAction && !isCommander) {
         await answerCallbackQuery(id, "Access restricted to Commander Swapnil.");
         return;
     }
 
     try {
+        // 0. Handle Privacy Access Request Approvals & Declines
+        if (data.startsWith('approve_privacy_')) {
+            const reqId = data.replace('approve_privacy_', '');
+            const req = pendingPrivacyRequests.get(reqId);
+            await answerCallbackQuery(id, "Approving request...");
+            if (req) {
+                let shareContent = '';
+                if (req.type === 'phone_number') {
+                    const phone = getEnv('SWAPNIL_PHONE') || '+8801XXXXXXXXX';
+                    shareContent = `Hello ${req.callerName}! Swapnil has approved sharing his contact number with you: \`${phone}\` 🧣`;
+                } else if (req.type === 'cgpa') {
+                    shareContent = `Hello ${req.callerName}! Swapnil has approved sharing his academic details. His CGPA is *3.60 / 4.00* (BUBT CSE, Intake 51) 🧣`;
+                } else {
+                    shareContent = `Hello ${req.callerName}! Swapnil has approved sharing the requested details with you. 🧣`;
+                }
+
+                await sendTelegramMessage(req.chatId, shareContent, req.messageId, null, req.connId);
+                await editTelegramMessage(chatId, messageId, `✅ *Request Approved!*\n\nShared *${req.label}* with *${req.callerName}* in chat \`${req.chatId}\`.`);
+                pendingPrivacyRequests.delete(reqId);
+            } else {
+                await editTelegramMessage(chatId, messageId, `⚠️ This request has expired or was already processed.`);
+            }
+            return;
+        }
+
+        if (data.startsWith('decline_privacy_')) {
+            const reqId = data.replace('decline_privacy_', '');
+            const req = pendingPrivacyRequests.get(reqId);
+            await answerCallbackQuery(id, "Declining request...");
+            if (req) {
+                const declineContent = `Hello ${req.callerName}! Swapnil prefers to keep this information private. If you'd like to get in touch, you can reach him directly via LinkedIn (https://www.linkedin.com/in/mr-swapnil/) or email (miftahurr503@gmail.com)! 🧣`;
+                await sendTelegramMessage(req.chatId, declineContent, req.messageId, null, req.connId);
+                await editTelegramMessage(chatId, messageId, `❌ *Request Declined.*\n\nPolitely informed *${req.callerName}* that this information is kept private.`);
+                pendingPrivacyRequests.delete(reqId);
+            } else {
+                await editTelegramMessage(chatId, messageId, `⚠️ This request has expired or was already processed.`);
+            }
+            return;
+        }
+
         // 1. Handle LinkedIn Post Approval
         if (data.startsWith('approve_linkedin_')) {
             const draftId = data.replace('approve_linkedin_', '');
@@ -2624,6 +2687,50 @@ async function processBusinessMessage(bMsg) {
     }
 
     console.log(`[Business Chatbot] Inbound message from ${cleanName} in chat ${chatId} (Conn: ${connId}): "${text}"`);
+
+    // Privacy Intercept Guard: If the contact is asking for phone number, CGPA, or personal private details
+    const privacyInquiry = detectSensitivePrivacyInquiry(text);
+    if (privacyInquiry && !isFromCommander) {
+        console.log(`[Privacy Intercept] ${cleanName} requested ${privacyInquiry.label} in business chat ${chatId}. Triggering Commander DM authorization.`);
+        const reqId = 'priv_' + Date.now();
+        pendingPrivacyRequests.set(reqId, {
+            reqId,
+            callerName: cleanName,
+            chatId: chatId,
+            connId: connId,
+            messageId: bMsg.message_id,
+            type: privacyInquiry.type,
+            label: privacyInquiry.label,
+            userQuery: text,
+            createdAt: Date.now()
+        });
+
+        // 1. Reply to the caller in the chat that this information is private and forwarded for approval
+        const safeReply = `Hello ${cleanName}! I'm Mikasa, Swapnil's personal AI assistant. 🧣\n\nSwapnil's ${privacyInquiry.label} is kept private. I have forwarded an authorization request directly to Swapnil's private DM — if he approves, I will share it with you here!`;
+        await sendTelegramMessage(chatId, safeReply, bMsg.message_id, null, connId);
+
+        // 2. Alert Commander Swapnil in his DM with interactive Approve/Decline buttons
+        const approvalMsg = `🔒 *Privacy Access Request*\n\n` +
+            `👤 *From:* ${cleanName} (@${fromUsername || 'no_user'})\n` +
+            `💬 *Message:* _"${text.slice(0, 150)}"_\n` +
+            `❓ *Requested Information:* *${privacyInquiry.label}*\n\n` +
+            `_Should I approve and share this with them in that chat?_`;
+
+        const replyMarkup = {
+            inline_keyboard: [
+                [
+                    { text: `✅ Approve & Share`, callback_data: `approve_privacy_${reqId}` },
+                    { text: `❌ Decline Request`, callback_data: `decline_privacy_${reqId}` }
+                ]
+            ]
+        };
+
+        for (const commanderId of COMMANDER_USER_IDS) {
+            sendTelegramMessage(commanderId, approvalMsg, null, replyMarkup).catch(() => {});
+        }
+        return;
+    }
+
     await sendChatAction(chatId, 'typing', connId);
 
     const businessPrompt = isFromCommander
@@ -3144,6 +3251,48 @@ async function processUpdate(update) {
                 `⚠️ *Command Authority Restricted*\n\nAmar Commander shudhu Swapnil. Ami onno karo operational command execute kori na! 🧣⚔️\n\n_(I only take operational orders from Commander Swapnil. You can ask me normal questions anytime, ${userName}!)_`,
                 msg.message_id
             );
+            return;
+        }
+
+        // Check if non-commander is asking for Swapnil's private details (phone, CGPA, etc.)
+        const privacyInquiry = detectSensitivePrivacyInquiry(text);
+        if (privacyInquiry) {
+            console.log(`[Privacy Intercept] Non-Commander ${userName} (${userId}) asked for ${privacyInquiry.label} in chat ${chatId}`);
+            const reqId = 'priv_' + Date.now();
+            pendingPrivacyRequests.set(reqId, {
+                reqId,
+                callerName: userName,
+                chatId: chatId,
+                connId: null,
+                messageId: msg.message_id,
+                type: privacyInquiry.type,
+                label: privacyInquiry.label,
+                text: text,
+                timestamp: Date.now()
+            });
+
+            const safeReply = `Hello ${userName}! Swapnil's ${privacyInquiry.label} is kept private. I have forwarded your request directly to Swapnil in his private DM — if he approves, I will share it with you here! 🧣`;
+            await sendTelegramMessage(chatId, safeReply, msg.message_id);
+
+            const approvalMsg = `🔒 *Privacy Access Request*\n\n` +
+                `👤 *From:* ${userName} (@${telegramUsername || 'no_user'}, ID: \`${userId}\`)\n` +
+                `📍 *Chat:* \`${chatId}\`${isGroup ? ' (Group)' : ' (Private DM)'}\n` +
+                `💬 *Message:* _"${text.slice(0, 150)}"_\n` +
+                `❓ *Requested Information:* *${privacyInquiry.label}*\n\n` +
+                `_Should I approve and share this with them?_`;
+
+            const replyMarkup = {
+                inline_keyboard: [
+                    [
+                        { text: `✅ Approve & Share`, callback_data: `approve_privacy_${reqId}` },
+                        { text: `❌ Decline Request`, callback_data: `decline_privacy_${reqId}` }
+                    ]
+                ]
+            };
+
+            for (const commanderId of COMMANDER_USER_IDS) {
+                sendTelegramMessage(commanderId, approvalMsg, null, replyMarkup).catch(() => {});
+            }
             return;
         }
 

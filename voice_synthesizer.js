@@ -35,6 +35,41 @@ function pcmToWav(pcmBuffer, sampleRate = 24000, numChannels = 1, bitDepth = 16)
     return buffer;
 }
 
+// Clean Gemini audio buffer: strips trailing C2PA cryptographic signature chunk that sounds like static/screech
+function cleanGeminiWav(rawBuffer) {
+    if (!Buffer.isBuffer(rawBuffer) || rawBuffer.length < 12) return rawBuffer;
+    
+    // Check if Gemini returned a standard RIFF/WAVE container
+    if (rawBuffer.slice(0, 4).toString('ascii') === 'RIFF' && rawBuffer.slice(8, 12).toString('ascii') === 'WAVE') {
+        let offset = 12;
+        let pcmData = null;
+        let sampleRate = 24000;
+        let numChannels = 1;
+        let bitDepth = 16;
+        
+        while (offset < rawBuffer.length - 8) {
+            const chunkId = rawBuffer.slice(offset, offset + 4).toString('ascii');
+            const chunkSize = rawBuffer.readUInt32LE(offset + 4);
+            if (chunkId === 'fmt ') {
+                numChannels = rawBuffer.readUInt16LE(offset + 8 + 2);
+                sampleRate = rawBuffer.readUInt32LE(offset + 8 + 4);
+                bitDepth = rawBuffer.readUInt16LE(offset + 8 + 14);
+            } else if (chunkId === 'data') {
+                pcmData = rawBuffer.slice(offset + 8, offset + 8 + chunkSize);
+                break; // Extracted pure PCM payload, discarding trailing C2PA metadata
+            }
+            offset += 8 + chunkSize;
+            if (chunkSize % 2 === 1) offset++; // 16-bit word alignment
+        }
+        
+        if (pcmData) {
+            return pcmToWav(pcmData, sampleRate, numChannels, bitDepth);
+        }
+    }
+    
+    return pcmToWav(rawBuffer, 24000, 1, 16);
+}
+
 function stripEmojis(text) {
     if (!text) return '';
     return text
@@ -154,8 +189,8 @@ async function callSingleTtsModel(modelName, speechText, voiceName, apiKey) {
                     if (!base64) {
                         return reject(new Error(`No audio data returned from ${modelName}`));
                     }
-                    const pcm = Buffer.from(base64, 'base64');
-                    const wav = pcmToWav(pcm, 24000, 1, 16);
+                    const rawAudio = Buffer.from(base64, 'base64');
+                    const wav = cleanGeminiWav(rawAudio);
                     resolve({ wav, speechText, model: modelName });
                 } catch (e) {
                     reject(e);
@@ -205,6 +240,7 @@ async function synthesizeGeminiVoice(text, voiceName = 'Kore') {
 module.exports = {
     getGeminiApiKey,
     pcmToWav,
+    cleanGeminiWav,
     stripEmojis,
     toSpokenEnglish,
     synthesizeGeminiVoice

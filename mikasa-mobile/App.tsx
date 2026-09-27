@@ -5,7 +5,6 @@ import {
   View,
   TouchableOpacity,
   ScrollView,
-  SafeAreaView,
   ActivityIndicator,
   TextInput,
   Platform,
@@ -15,6 +14,7 @@ import {
   Alert,
   Modal
 } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as Haptics from 'expo-haptics';
 import * as Battery from 'expo-battery';
@@ -399,10 +399,11 @@ export default function App() {
   });
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar style="light" />
+    <SafeAreaProvider>
+      <SafeAreaView style={styles.container}>
+        <StatusBar style="light" />
 
-      {/* 1. TOP SYSTEM BAR */}
+        {/* 1. TOP SYSTEM BAR */}
       <View style={styles.topBar}>
         <View style={styles.topBarLeft}>
           <View style={styles.identityRing}>
@@ -894,7 +895,8 @@ export default function App() {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+      </SafeAreaView>
+    </SafeAreaProvider>
   );
 }
 

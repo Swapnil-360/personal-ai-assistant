@@ -1,5 +1,45 @@
 [
   {
+    "timestamp": "2026-09-27T09:48:40.079Z",
+    "user_request": "Remember this: I prefer dark theme on VS Code and Antigravity",
+    "agent_decision": "Learned new [preference] memory; superseded 0 outdated memories",
+    "tool_used": "Supabase /memories",
+    "action_performed": "store_memory",
+    "data_affected": "c81fde8f-f96b-4750-956d-9b28c88f204d",
+    "result": "I prefer dark theme on VS Code and Antigravity",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-27T09:48:39.378Z",
+    "user_request": "Update portfolio with new project/build: \"called StarkAgent for automated wor\"",
+    "agent_decision": "Create task in Personal Portfolio",
+    "tool_used": "Supabase /tasks",
+    "action_performed": "insert",
+    "data_affected": "7c5b6531-7c20-487e-ba93-a9cebbfc5c20",
+    "result": "Task \"Update portfolio with new project/build: \"called StarkAgent for automated wor\"\" registered",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-27T09:48:38.695Z",
+    "user_request": "Update info: I started building a new project called StarkAgent for automated workflows",
+    "agent_decision": "Learned new [fact] memory; superseded 0 outdated memories",
+    "tool_used": "Supabase /memories",
+    "action_performed": "store_memory",
+    "data_affected": "dc32044d-ab2b-41ee-97f3-61d1825a58b8",
+    "result": "I started building a new project called StarkAgent for automated workflows",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-27T09:43:20.625Z",
+    "user_request": "Tumi ki kauke amr personal info dibe ?",
+    "agent_decision": "Learned new [preference] memory; superseded 0 outdated memories",
+    "tool_used": "Supabase /memories",
+    "action_performed": "store_memory",
+    "data_affected": "a98abfa0-46e5-4f9b-9952-f9dfe3b1a09a",
+    "result": "Swapnil values privacy and strictly requires PATHS to protect his personal information and project data from unauthorized access.",
+    "verification_status": "verified"
+  },
+  {
     "timestamp": "2026-09-26T19:24:08.706Z",
     "user_request": "accha bolo keu jodi ask kore tumi ke ? tahole ki bolbe ?",
     "agent_decision": "Learned new [preference] memory; superseded 0 outdated memories",

@@ -1189,6 +1189,66 @@ async function getMemories(limit = 20) {
     return await supabaseRequest(`/memories?select=id,content,memory_type,importance,confidence,created_at&order=created_at.desc&limit=${limit}`, 'GET');
 }
 
+/**
+ * Evaluates whether a piece of new information, project, research, or milestone
+ * is relevant for Swapnil's public portfolio (https://www.mrswapnil.me/)
+ */
+function evaluatePortfolioRelevance(statement, category = 'FACT') {
+    if (!statement) return { isRelevant: false };
+    const lower = statement.toLowerCase();
+
+    // Trigger categories
+    const isProjectOrBuild = 
+        category === 'PROJECT' ||
+        /\b(?:project|built|building|launched|created|started\s+(?:a\s+)?project|developed|developing|saas|app|application|platform|portal|extension|bot|agent|system|website|tool|github\.com\/|repo)\b/i.test(lower);
+
+    const isResearchOrPaper = 
+        /\b(?:paper|research|publication|published|accepted|conference|ieee|arxiv|springer|journal|workshop|preprint|curricurag)\b/i.test(lower);
+
+    const isAwardOrAchievement = 
+        /\b(?:award|champion|winner|runner[\s-]?up|hackathon|competition|certified|certification|fellowship|scholarship)\b/i.test(lower);
+
+    const isFutureShowcase = 
+        (category === 'GOAL' || /\b(?:future|upcoming|next|plan)\b/i.test(lower)) &&
+        /\b(?:project|app|platform|saas|paper|system|startup|product|tool)\b/i.test(lower);
+
+    // Negative filters (internal dev habits, routine, pure private preferences)
+    if (/\b(?:tea|coffee|sleep|wake up|diet|gym|workout|bed|bath|lunch|dinner)\b/i.test(lower) && !isProjectOrBuild) {
+        return { isRelevant: false };
+    }
+
+    if (isProjectOrBuild || isResearchOrPaper || isAwardOrAchievement || isFutureShowcase) {
+        // Extract clean item title
+        let itemTitle = '';
+        const explicitMatch = statement.match(/(?:named|called)\s+["']?([A-Za-z0-9_\-]+(?:\s+[A-Za-z0-9_\-]+){0,3})["']?/i);
+        if (explicitMatch && explicitMatch[1]) {
+            itemTitle = explicitMatch[1].trim();
+        } else {
+            const projectTypeMatch = statement.match(/(?:project|app|platform|tool|paper|startup)\s*[:\-]\s*["']?([A-Za-z0-9_\-]+(?:\s+[A-Za-z0-9_\-]+){0,3})["']?/i);
+            if (projectTypeMatch && projectTypeMatch[1]) {
+                itemTitle = projectTypeMatch[1].trim();
+            } else {
+                const cleaned = statement
+                    .replace(/^(?:i\s+(?:have\s+)?(?:started|built|am\s+building|launched|created|plan\s+to\s+build|will\s+build)\s+(?:a\s+)?(?:new\s+)?)/i, '')
+                    .replace(/^(?:in\s+(?:the\s+)?future\s*(?:i\s+(?:will\s+build|will\s+create|will\s+do|will|plan\s+to|might|can\s+be\s+doing))?\s*(?:a\s+)?(?:new\s+)?)/i, '')
+                    .replace(/^(?:new\s+project|future\s+plan|update\s+info|info\s+update)\s*[:,\-]?\s*/i, '')
+                    .trim();
+                itemTitle = cleaned.split(/\s+/).slice(0, 5).join(' ');
+            }
+        }
+
+        const typeLabel = isResearchOrPaper ? 'Research Publication' : isAwardOrAchievement ? 'Achievement/Award' : 'Project/Build';
+        return {
+            isRelevant: true,
+            typeLabel,
+            itemTitle: itemTitle || 'New Showcase Item',
+            isFuture: isFutureShowcase
+        };
+    }
+
+    return { isRelevant: false };
+}
+
 // Action Intent Detector for user natural language or structured commands
 async function handleActionIntent(message, context = { isCommander: true }) {
     const text = message.trim();
@@ -1354,31 +1414,67 @@ async function handleActionIntent(message, context = { isCommander: true }) {
         };
     }
 
-    // 0B. Direct Memorization / "Mone Rakhba" / Remember This (Permanent Memory Vault)
+    // 0B. Direct Memorization / "Mone Rakhba" / Remember This / Info & Project Updates (Permanent Vault & Portfolio Sync)
     function extractMemoryStatement(input) {
         if (!input) return null;
         const clean = input.trim();
-        // Pattern 1: /remember or /memorize command
-        let m = clean.match(/^(?:\/remember|\/memorize)\s+(.+)$/i);
+
+        // Pattern 1: Slash commands
+        let m = clean.match(/^(?:\/remember|\/memorize|\/updateinfo|\/newproject|\/futureplan|\/addinfo)\s+(.+)$/i);
         if (m) return m[1].trim();
 
-        // Pattern 2: English prefix: 'remember this:', 'remember that', 'remember'
-        m = clean.match(/^(?:please\s+)?(?:remember\s+(?:this|that)?|memorize\s+(?:this|that)?)\s*[:,\-]?\s+(.+)$/i);
+        // Pattern 2: English update info / add info / new info prefixes
+        m = clean.match(/^(?:please\s+)?(?:update\s+(?:my\s+)?(?:info|information|profile|status|bio|details)|add\s+(?:to\s+)?(?:my\s+)?(?:info|information|bio|memory)|save\s+(?:my\s+)?(?:info|update)|new\s+info)\s*[:,\-]?\s+(.+)$/i);
         if (m) return m[1].trim();
 
-        // Pattern 3: Banglish prefix: 'eta mone rakhba', 'eta more rakhba', 'mone rakhba', 'mone rekho'
+        // Pattern 3: New project / started project prefixes
+        m = clean.match(/^(?:new\s+project|upcoming\s+project|future\s+project)\s*[:,\-]?\s+(.+)$/i);
+        if (m) return m[1].trim();
+
+        m = clean.match(/^(?:i\s+(?:have\s+)?(?:started|started\s+building|am\s+building|am\s+working\s+on|launched|created|built|developed)\s+(?:a\s+)?(?:new\s+)?(?:project|app|tool|website|saas|paper|system|bot))\s*[:,\-]?\s+(.+)$/i);
+        if (m) return m[1].trim();
+
+        // Pattern 4: Future plans / in future prefixes
+        m = clean.match(/^(?:future\s+plan(?:s)?|upcoming\s+plan(?:s)?|in\s+(?:the\s+)?future\s*(?:i\s+(?:will|plan\s+to|might|can\s+be\s+doing|am\s+going\s+to)|we\s+will)?)\s*[:,\-]?\s+(.+)$/i);
+        if (m) return m[1].trim();
+
+        m = clean.match(/^(?:i\s+(?:can\s+be\s+doing|will\s+be\s+doing|am\s+planning\s+to\s+do|plan\s+to\s+build|plan\s+to\s+do|might\s+build)\s+(?:in\s+(?:the\s+)?future))\s*[:,\-]?\s+(.+)$/i);
+        if (m) return m[1].trim();
+
+        // Pattern 5: English remember prefixes
+        m = clean.match(/^(?:please\s+)?(?:remember\s+(?:this|that)?|memorize\s+(?:this|that)?|keep\s+in\s+mind|note\s+(?:this\s+down|down)?)\s*[:,\-]?\s+(.+)$/i);
+        if (m) return m[1].trim();
+
+        // Pattern 6: Banglish prefixes
+        m = clean.match(/^(?:amar\s+)?(?:info|information|profile)\s+update\s+koro\s*[:,\-]?\s+(.+)$/i);
+        if (m) return m[1].trim();
+
+        m = clean.match(/^(?:amar\s+)?(?:notun|new)\s+project\s*[:,\-]?\s+(.+)$/i);
+        if (m) return m[1].trim();
+
+        m = clean.match(/^(?:ami\s+)?(?:ekta\s+)?(?:notun|new)\s+project\s+(?:start\s+korchi|shuru\s+korchi|banacchi|build\s+korchi|korbo)\s*[:,\-]?\s+(.+)$/i);
+        if (m) return m[1].trim();
+
+        m = clean.match(/^(?:amar\s+)?(?:future\s+plan|future-e|bhabishote)\s*[:,\-]?\s+(.+)$/i);
+        if (m) return m[1].trim();
+
         m = clean.match(/^(?:eta|eita|ei\s+ta)\s+(?:mone|more)\s+(?:rakhba|rekho|raikho|rakhish)\s*[:,\-]?\s+(.+)$/i);
         if (m) return m[1].trim();
 
         m = clean.match(/^(?:mone|more)\s+(?:rakhba|rekho|raikho|rakhish)\s*[:,\-]?\s+(.+)$/i);
         if (m) return m[1].trim();
 
-        // Pattern 4: Banglish postfix: '[fact] eta mone rakhba' or '[fact] mone rakhba'
+        // Pattern 7: Postfixes
         m = clean.match(/^(.+?)\s*[,.-]?\s*(?:eta|eita)?\s*(?:mone|more)\s+(?:rakhba|rekho|raikho|rakhish)\s*$/i);
         if (m) return m[1].trim();
 
-        // Pattern 5: English postfix: '[fact] remember this'
         m = clean.match(/^(.+?)\s*[,.-]?\s*(?:please\s+)?remember\s+(?:this|that)\s*$/i);
+        if (m) return m[1].trim();
+
+        m = clean.match(/^(.+?)\s*[,.-]?\s*(?:eta\s+)?amar\s+(?:notun|new)\s+project\s*$/i);
+        if (m) return m[1].trim();
+
+        m = clean.match(/^(.+?)\s*[,.-]?\s*(?:eta\s+)?amar\s+future\s+plan\s*$/i);
         if (m) return m[1].trim();
 
         return null;
@@ -1399,13 +1495,13 @@ async function handleActionIntent(message, context = { isCommander: true }) {
         let cat = 'FACT';
         if (low.includes('prefer') || low.includes('like') || low.includes('love') || low.includes('hate') || low.includes('pochondo') || low.includes('valobashi') || low.includes('dark mode') || low.includes('light mode')) {
             cat = 'PREFERENCE';
-        } else if (low.includes('edu51') || low.includes('opusgen') || low.includes('stark') || low.includes('portfolio') || low.includes('curricurag') || low.includes('smart classroom')) {
+        } else if (low.includes('edu51') || low.includes('opusgen') || low.includes('stark') || low.includes('portfolio') || low.includes('curricurag') || low.includes('smart classroom') || low.includes('project') || low.includes('app') || low.includes('platform') || low.includes('building') || low.includes('built') || low.includes('saas') || low.includes('system') || low.includes('tool')) {
             cat = 'PROJECT';
         } else if (low.includes('decide') || low.includes('chose') || low.includes('switch to')) {
             cat = 'PROJECT_DECISION';
         } else if (low.includes('job') || low.includes('salary') || low.includes('career') || low.includes('interview') || low.includes('company') || low.includes('linkedin')) {
             cat = 'CAREER';
-        } else if (low.includes('goal') || low.includes('target') || low.includes('aim') || low.includes('by 2026')) {
+        } else if (low.includes('goal') || low.includes('target') || low.includes('aim') || low.includes('future') || low.includes('plan') || low.includes('bhabishot') || low.includes('by 2026') || low.includes('by 2027')) {
             cat = 'GOAL';
         } else if (low.includes('routine') || low.includes('habit') || low.includes('daily') || low.includes('every day') || low.includes('gym')) {
             cat = 'WORKFLOW';
@@ -1420,12 +1516,78 @@ async function handleActionIntent(message, context = { isCommander: true }) {
             user_message: text
         });
 
+        // Evaluate portfolio relevance
+        const relevance = evaluatePortfolioRelevance(memoryStatement, cat);
+        let portfolioTask = null;
+
+        if (relevance.isRelevant) {
+            const taskSubject = relevance.itemTitle;
+            const taskTitle = relevance.isFuture
+                ? `Update portfolio roadmap: Upcoming project "${taskSubject}"`
+                : `Update portfolio with new ${relevance.typeLabel.toLowerCase()}: "${taskSubject}"`;
+
+            try {
+                // Deduplication check: see if an open task already mentions this subject
+                const existing = await supabaseRequest(`/tasks?title=ilike.*${encodeURIComponent(taskSubject.slice(0, 20))}*&status=neq.completed`, 'GET').catch(() => []);
+                if (!Array.isArray(existing) || existing.length === 0) {
+                    portfolioTask = await createTask(taskTitle, 'Personal Portfolio', 7);
+                    console.log(`[Memory Engine] 🚀 Auto-created Portfolio Task: "${taskTitle}"`);
+                } else {
+                    console.log(`[Memory Engine] Portfolio task already exists for: "${taskSubject}"`);
+                }
+            } catch (taskErr) {
+                console.warn('[Memory Engine Portfolio Task Error]:', taskErr.message);
+            }
+        }
+
+        // If it's a future goal, also register in Supabase goals
+        if (cat === 'GOAL') {
+            try {
+                await createGoal(memoryStatement, 'Product & Research');
+            } catch (goalErr) {
+                console.warn('[Memory Engine Goal Save Warning]:', goalErr.message);
+            }
+        }
+
+        // Build rich Mikasa confirmation feedback
+        let feedbackLines = [
+            `🛡️ **Memory Vault Updated, Swapnil!** 🧠`,
+            ``,
+            `I have permanently recorded this in Supabase:`,
+            `💬 *"${memoryStatement}"*`,
+            `📂 **Category:** \`${cat}\``,
+            ``
+        ];
+
+        if (portfolioTask && portfolioTask.success) {
+            feedbackLines.push(
+                `🚀 **Portfolio Task Auto-Created:**`,
+                `Because this represents a notable ${relevance.typeLabel.toLowerCase()}, I added a task to your **Personal Portfolio** board:`,
+                `📋 **Task:** \`${portfolioTask.task.title}\``,
+                `🎯 **Project:** \`Personal Portfolio\` (Priority: High)`,
+                `🌐 **Target:** [mrswapnil.me](https://www.mrswapnil.me/)`,
+                ``,
+                `_Whenever you want to add this to your live portfolio code, just let me know or check \`/tasks\`!_ ⚔️`
+            );
+        } else if (relevance.isRelevant) {
+            feedbackLines.push(
+                `🌐 **Portfolio Notice:**`,
+                `This is portfolio-relevant (${relevance.typeLabel}). An existing open task is already tracking this in your **Personal Portfolio** board!`,
+                ``
+            );
+        } else {
+            feedbackLines.push(
+                `_Saved in Supabase and actively incorporated into my memory core for all future decisions and conversations._ ⚔️`
+            );
+        }
+
         return {
             action: 'memory_saved',
             success: true,
             memory: memoryStatement,
             category: cat,
-            feedback: `🛡️ **Locked into memory, Swapnil!** 🧠\n\nI have permanently memorized this:\n💬 *"${memoryStatement}"*\n📂 **Category:** \`${cat}\`\n\n_Everything you tell me to remember is saved in Supabase and will guide my decisions and responses._ ⚔️`
+            portfolio_task: portfolioTask ? portfolioTask.task : null,
+            feedback: feedbackLines.join('\n')
         };
     }
 
@@ -2061,6 +2223,7 @@ module.exports = {
     getRecentAuditLogs,
     storeMemoryWithConflictResolution,
     normalizeMemoryType,
+    evaluatePortfolioRelevance,
     PATHS_MEMORY_CATEGORIES,
     PROJECTS,
     supabaseRequest

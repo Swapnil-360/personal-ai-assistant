@@ -30,6 +30,7 @@ const {
     recordAuditLog,
     getRecentAuditLogs,
     storeMemoryWithConflictResolution,
+    evaluatePortfolioRelevance,
     supabaseRequest
 } = require('./actions_handler');
 const {
@@ -1963,6 +1964,25 @@ Output strictly raw JSON array. No markdown code blocks, no backticks, no extra 
                         });
                         if (res && res.action === 'memory_stored') {
                             console.log(`[Autonomous Memory Engine] 🧠 Learned & Stored in Supabase: "${item.content}" [${item.memory_type}] (Superseded: ${res.superseded_ids?.length || 0})`);
+
+                            // Check if memory learned is portfolio-relevant
+                            try {
+                                const rel = evaluatePortfolioRelevance(item.content, item.memory_type);
+                                if (rel && rel.isRelevant) {
+                                    const taskSubject = rel.itemTitle || item.content.slice(0, 45);
+                                    const taskTitle = rel.isFuture
+                                        ? `Update portfolio roadmap: Upcoming project "${taskSubject}"`
+                                        : `Update portfolio with new ${rel.typeLabel.toLowerCase()}: "${taskSubject}"`;
+
+                                    const existing = await supabaseRequest(`/tasks?title=ilike.*${encodeURIComponent(taskSubject.slice(0, 20))}*&status=neq.completed`, 'GET').catch(() => []);
+                                    if (!Array.isArray(existing) || existing.length === 0) {
+                                        await createTask(taskTitle, 'Personal Portfolio', 7);
+                                        console.log(`[Autonomous Memory Engine] 🚀 Auto-created Portfolio Task in Supabase: "${taskTitle}"`);
+                                    }
+                                }
+                            } catch (portErr) {
+                                console.warn('[Autonomous Memory Portfolio Task Warning]:', portErr.message);
+                            }
                         }
                     }
                 }
@@ -4260,6 +4280,17 @@ async function processUpdate(update) {
                 };
                 await sendTelegramMessage(chatId, actionResult.feedback, msg.message_id, replyMarkup);
                 await recordConversationTurn(conversationId, effectiveUserPrompt, actionResult.feedback, 'action-portfolio');
+                return;
+            } else if (actionResult.action === 'memory_saved' && actionResult.portfolio_task) {
+                const replyMarkup = {
+                    inline_keyboard: [
+                        [
+                            { text: "🌐 Open mrswapnil.me", url: "https://www.mrswapnil.me/" }
+                        ]
+                    ]
+                };
+                await sendTelegramMessage(chatId, actionResult.feedback, msg.message_id, replyMarkup);
+                await recordConversationTurn(conversationId, effectiveUserPrompt, actionResult.feedback, 'action-memory');
                 return;
             } else if (actionResult.feedback) {
                 reply = actionResult.feedback;

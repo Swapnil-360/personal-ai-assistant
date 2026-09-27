@@ -1697,6 +1697,24 @@ function buildGuestSystemPrompt(userContext) {
     const callerUsername = userContext && userContext.username ? `@${userContext.username}` : null;
     const callerDisplay = callerUsername ? `${callerName} (${callerUsername})` : callerName;
 
+    // Specialized system prompt for Telegram Business chats answering on Swapnil's behalf
+    if (userContext && userContext.isBusiness) {
+        return `You are Mikasa — Swapnil's fiercely loyal personal AI assistant and representative, answering an incoming message on Swapnil's personal Telegram account.
+
+━━━ CALLER INFORMATION ━━━
+You are speaking with: ${callerDisplay}
+Swapnil is currently away or busy working. You are responding politely on his behalf.
+━━━━━━━━━━━━━━━━━━━━━━━━━
+
+MANDATORY RESPONSE RULES:
+1. ALWAYS clearly introduce yourself upfront in your greeting: "Hello ${callerName}! I'm Mikasa, Swapnil's personal AI assistant. 🧣" (or natural equivalent in Banglish if they spoke in Bengali).
+2. State that Swapnil is currently away/busy, but you have noted their message and will make sure he sees it as soon as he is back.
+3. Warmly ask how you can help them in the meantime, or if they would like to leave a note or details for him.
+4. If they ask about his work or background: Briefly mention that he is a Product Designer & Builder / CSE Researcher (CurricuRAG, Edu51Portal).
+5. Keep your tone polite, intelligent, warm, concise (2-3 sentences max), and finish with 🧣.
+6. Language: If they speak English → reply in English. If they speak Banglish/Bengali → reply in natural Banglish (Latin script).`;
+    }
+
     return `You are Mikasa Ackerman — an autonomous AI companion built by Swapnil (@Swapnil3600).
 
 ━━━ WHO YOU ARE TALKING TO RIGHT NOW ━━━
@@ -2572,7 +2590,8 @@ async function processBusinessMessage(bMsg) {
     const chatId = bMsg.chat.id;
     const fromId = bMsg.from ? bMsg.from.id : null;
     const fromUsername = (bMsg.from && bMsg.from.username || '').toLowerCase();
-    const fromName = bMsg.from ? (bMsg.from.first_name || bMsg.from.username || 'Friend') : 'Friend';
+    const rawName = bMsg.from ? (bMsg.from.first_name || bMsg.from.username || 'Friend') : 'Friend';
+    const cleanName = rawName.split(/[|\-–:]/)[0].trim() || 'Friend';
     const text = (bMsg.text || bMsg.caption || '').trim();
 
     if (!text) return;
@@ -2588,18 +2607,18 @@ async function processBusinessMessage(bMsg) {
         }
     }
 
-    console.log(`[Business Chatbot] Inbound message from ${fromName} in chat ${chatId} (Conn: ${connId}): "${text}"`);
+    console.log(`[Business Chatbot] Inbound message from ${cleanName} in chat ${chatId} (Conn: ${connId}): "${text}"`);
     await sendChatAction(chatId, 'typing', connId);
 
     const businessPrompt = isFromCommander
         ? text
-        : `[Incoming message to Swapnil from ${fromName} (@${fromUsername || 'unknown'})]:\n"${text}"\n\nYou are Mikasa, Swapnil's personal AI companion and representative, answering on his behalf.\n- If they are greeting or asking if Swapnil is available: Politely let them know Swapnil is currently away/busy, but you'll make sure he sees their message. Ask how you can help or if they want to leave a message.\n- If they ask about his work/background: Briefly mention his work as a product designer and software builder (CurricuRAG, Edu51Portal).\n- Keep your reply polite, natural, concise (1-3 sentences), and finish with 🧣.`;
+        : `[Incoming message to Swapnil from ${cleanName} (@${fromUsername || 'unknown'})]:\n"${text}"\n\nYou are Mikasa, Swapnil's personal AI assistant. Introduce yourself clearly ("I'm Mikasa, Swapnil's personal AI assistant 🧣"), let them know Swapnil is currently away/busy, and offer to help or take a message for him. Keep it polite, natural, and concise (2-3 sentences).`;
 
     const conversationId = `biz_${chatId}`;
     try {
         const response = await callMikasaAgent(businessPrompt, conversationId, {
             user_id: fromId,
-            first_name: fromName,
+            first_name: cleanName,
             username: fromUsername || null,
             isCommander: isFromCommander,
             isBusiness: true,

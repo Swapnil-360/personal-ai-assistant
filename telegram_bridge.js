@@ -5271,27 +5271,33 @@ async function processUpdate(update) {
         if (hasVoice) {
             finalText = `🎤 *[Voice Transcribed]*: _"${text}"_\n\n${replyText}`;
         }
-        await sendTelegramMessage(chatId, finalText, msg.message_id, replyMarkup);
 
-        // Attempt to synthesize and send Mikasa's voice note
+        // Check if voice audio was requested (voice message, /voice, /speak, or explicit voice intent)
         const wantsVoice = Boolean(hasVoice) ||
             Boolean(isExplicitVoiceCmd) ||
             Boolean(text.match(/^\/(?:voice|speak)\b/i)) ||
             Boolean(text.match(/\b(?:voice\s*(?:e|a|te)?\s*bolo|voice\s*note\s*dao|amake\s*shonao|shunate\s*paro|voice\s*reply|speak\s*to\s*me|read\s*(?:it\s*)?out\s*loud|kore\s*voice)\b/i));
 
         if (wantsVoice) {
+            // Direct Voice Note Mode: Send ONLY the voice audio directly! No duplicate text wall.
             try {
                 await sendChatAction(chatId, 'upload_voice');
-                console.log(`[Telegram Voice] Synthesizing spoken voice reply for ${userName} (${replyText.length} chars)...`);
+                console.log(`[Telegram Voice] Synthesizing voice note reply for ${userName} (${replyText.length} chars)...`);
                 const resSynth = await synthesizeGeminiVoice(replyText, 'Kore');
                 const wavBuffer = Buffer.isBuffer(resSynth) ? resSynth : resSynth?.wav;
                 if (wavBuffer && wavBuffer.length > 0) {
                     await sendTelegramAudioBuffer(chatId, wavBuffer, 'mikasa_voice.wav', '🧣 Mikasa Voice Note', 'Mikasa Voice Note', 'Mikasa Ackerman');
                     console.log(`[Telegram Voice] Successfully delivered voice note (${wavBuffer.length} bytes) to chat ${chatId}`);
+                } else {
+                    await sendTelegramMessage(chatId, finalText, msg.message_id, replyMarkup);
                 }
             } catch (ttsErr) {
-                console.warn('[Telegram Voice Reply Notice]:', ttsErr.message);
+                console.warn('[Telegram Voice Reply Notice, falling back to text]:', ttsErr.message);
+                await sendTelegramMessage(chatId, finalText, msg.message_id, replyMarkup);
             }
+        } else {
+            // Standard Text Mode
+            await sendTelegramMessage(chatId, finalText, msg.message_id, replyMarkup);
         }
 
         // Proactive low-quota warning: ONLY warn when limit is critically close to finishing (<=2 remaining this minute, or daily >= 1485)

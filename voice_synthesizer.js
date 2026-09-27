@@ -117,7 +117,7 @@ async function toSpokenEnglish(text) {
 
 async function callSingleTtsModel(modelName, speechText, voiceName, apiKey) {
     return new Promise((resolve, reject) => {
-        const ttsPrompt = `Read the following text directly as audio: ${speechText}`;
+        const ttsPrompt = speechText;
         const payload = JSON.stringify({
             contents: [{ role: 'user', parts: [{ text: ttsPrompt }] }],
             generationConfig: {

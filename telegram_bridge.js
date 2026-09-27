@@ -54,7 +54,12 @@ const {
     privacyControls,
     updatePrivacyControls,
     currentAgentMode,
-    setAgentMode
+    setAgentMode,
+    lockWorkstation,
+    toggleVolumeMute,
+    changeVolume,
+    controlMedia,
+    turnOffMonitors
 } = require('./local_pc_bridge');
 const {
     synthesizeGeminiVoice,
@@ -67,6 +72,11 @@ const {
 const {
     callGeminiWithTools
 } = require('./tools_agent');
+const {
+    initProactiveMonitor
+} = require('./proactive_monitor');
+
+let proactiveMonitorInstance = null;
 
 const fs = require('fs');
 const path = require('path');
@@ -4834,6 +4844,54 @@ async function processUpdate(update) {
         return;
     }
 
+    // 11G. Remote PC Workstation Controls (/lock, /mute, /volup, /voldown, /media, /screen_off, /briefing)
+    if (isCommander) {
+        if (text === '/lock' || text === '/lock_pc' || text.match(/^(?:lock\s+(?:my\s+)?pc|pc\s+lock\s+koro)\??$/i)) {
+            const res = lockWorkstation();
+            await sendTelegramMessage(chatId, `${res.message} 🧣 Workstation secure and locked, Commander.`, msg.message_id);
+            return;
+        }
+
+        if (text === '/mute' || text === '/unmute' || text.match(/^(?:mute\s+pc|unmute\s+pc|toggle\s+mute)\??$/i)) {
+            const res = toggleVolumeMute();
+            await sendTelegramMessage(chatId, `${res.message} 🧣`, msg.message_id);
+            return;
+        }
+
+        if (text === '/volup' || text === '/volume_up' || text.match(/^(?:volume\s+up|sound\s+barao)\??$/i)) {
+            const res = changeVolume('up');
+            await sendTelegramMessage(chatId, `${res.message} 🧣`, msg.message_id);
+            return;
+        }
+
+        if (text === '/voldown' || text === '/volume_down' || text.match(/^(?:volume\s+down|sound\s+kamao)\??$/i)) {
+            const res = changeVolume('down');
+            await sendTelegramMessage(chatId, `${res.message} 🧣`, msg.message_id);
+            return;
+        }
+
+        if (text.startsWith('/media') || text.match(/^(?:media\s+(?:play|pause|next|prev))\??$/i)) {
+            const action = text.replace(/^\/media\s*/i, '').replace(/^media\s*/i, '').trim().toLowerCase() || 'play_pause';
+            const res = controlMedia(action);
+            await sendTelegramMessage(chatId, `${res.message} 🧣`, msg.message_id);
+            return;
+        }
+
+        if (text === '/screen_off' || text === '/sleep_pc' || text.match(/^(?:turn\s+off\s+screen|sleep\s+pc|display\s+off)\??$/i)) {
+            const res = turnOffMonitors();
+            await sendTelegramMessage(chatId, `${res.message} 🧣 Sleep mode activated.`, msg.message_id);
+            return;
+        }
+
+        if (text === '/briefing' || text === '/sitrep' || text.match(/^(?:give\s+me\s+sitrep|morning\s+briefing|status\s+report)\??$/i)) {
+            await sendChatAction(chatId, 'typing');
+            if (proactiveMonitorInstance) {
+                await proactiveMonitorInstance.triggerBriefingNow(chatId);
+            }
+            return;
+        }
+    }
+
     // 11F. PATHS v2: Website & Service Health Monitors (/monitor)
     if (text === '/monitor' || text === '/health' || text.match(/^(?:check\s+my\s+websites|check\s+websites|is\s+my\s+portfolio\s+up)\??$/i)) {
         await sendChatAction(chatId, 'typing');
@@ -5345,6 +5403,16 @@ async function startPolling() {
         console.log(`[Reminder Fired]: "${rem.text}" for Chat ${rem.chatId}`);
         const alertText = `⏰ *Reminder from Mikasa, Swapnil!*\n\n*"${rem.text}"*\n\n_I promised I'd keep you on track. Ready to execute on this now?_`;
         sendTelegramMessage(rem.chatId, alertText);
+    });
+
+    // Initialize Proactive Surveillance Engine (Battery watcher, 8:30 AM Sitrep, Late Night Watch)
+    proactiveMonitorInstance = initProactiveMonitor({
+        getCommanderChatId: () => {
+            return Array.from(COMMANDER_USER_IDS)[0] || 7112137739;
+        },
+        sendTelegramMessage: (chatId, text) => sendTelegramMessage(chatId, text),
+        sendTelegramAudioBuffer: (chatId, buffer, filename, caption, title, performer) =>
+            sendTelegramAudioBuffer(chatId, buffer, filename, caption, title, performer)
     });
 
     console.log(`[Telegram Bridge] 🚀 Long polling active (${IS_RENDER_CLOUD ? 'Cloud 24/7 Mode' : 'Local PC Mode'})...`);

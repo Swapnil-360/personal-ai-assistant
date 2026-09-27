@@ -823,6 +823,55 @@ function openLocalFolder(folderPath) {
     }
 }
 
+function lockWorkstation() {
+    try {
+        exec('rundll32.exe user32.dll,LockWorkStation');
+        return { success: true, message: '🔒 PC workstation locked immediately.' };
+    } catch (e) {
+        return { success: false, error: e.message };
+    }
+}
+
+function toggleVolumeMute() {
+    try {
+        exec('powershell -NoProfile -Command "(New-Object -ComObject WScript.Shell).SendKeys([char]173)"');
+        return { success: true, message: '🔇 Volume mute toggled.' };
+    } catch (e) {
+        return { success: false, error: e.message };
+    }
+}
+
+function changeVolume(direction = 'up') {
+    try {
+        const charCode = direction === 'up' ? 175 : 174;
+        exec(`powershell -NoProfile -Command "1..5 | ForEach-Object { (New-Object -ComObject WScript.Shell).SendKeys([char]${charCode}) }"`);
+        return { success: true, message: `🔊 Volume turned ${direction}.` };
+    } catch (e) {
+        return { success: false, error: e.message };
+    }
+}
+
+function controlMedia(action = 'play_pause') {
+    try {
+        let charCode = 179; // play/pause
+        if (action === 'next') charCode = 176;
+        if (action === 'prev') charCode = 177;
+        exec(`powershell -NoProfile -Command "(New-Object -ComObject WScript.Shell).SendKeys([char]${charCode})"`);
+        return { success: true, action, message: `🎵 Media command [${action}] dispatched.` };
+    } catch (e) {
+        return { success: false, error: e.message };
+    }
+}
+
+function turnOffMonitors() {
+    try {
+        exec(`powershell -NoProfile -Command "(Add-Type '[DllImport(\\\"user32.dll\\\")]public static extern int SendMessage(int hWnd, int hMsg, int wParam, int lParam);' -Name a -Passthru)::SendMessage(-1, 0x0112, 0xF170, 2)"`);
+        return { success: true, message: '💤 Display monitors powered down.' };
+    } catch (e) {
+        return { success: false, error: e.message };
+    }
+}
+
 module.exports = {
     ALLOWED_DIRECTORIES,
     SENSITIVE_PATTERNS,
@@ -840,5 +889,10 @@ module.exports = {
     setAgentMode,
     openBrowserUrl,
     launchDesktopApp,
-    openLocalFolder
+    openLocalFolder,
+    lockWorkstation,
+    toggleVolumeMute,
+    changeVolume,
+    controlMedia,
+    turnOffMonitors
 };

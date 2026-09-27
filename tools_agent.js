@@ -7,7 +7,8 @@ const {
     lockWorkstation, 
     toggleVolumeMute, 
     changeVolume, 
-    turnOffMonitors 
+    turnOffMonitors,
+    checkServiceMonitors 
 } = require('./local_pc_bridge');
 const { fetchGitHubCommits, getTasks, createTask, completeTask } = require('./actions_handler');
 const { searchWeb } = require('./web_search_service');
@@ -144,6 +145,15 @@ const MIKASA_TOOL_DECLARATIONS = [
                 }
             },
             required: ['action']
+        }
+    },
+    {
+        name: 'check_service_health',
+        description: 'Check live status, HTTP code, latency (ms), and SSL certificate validity of Swapnil\'s websites and infrastructure (Swapnil Portfolio mrswapnil.me, Mikasa Web Command Center, n8n engine).',
+        parameters: {
+            type: 'OBJECT',
+            properties: {},
+            required: []
         }
     }
 ];
@@ -299,6 +309,14 @@ async function executeLocalTool(toolName, args = {}, userContext = {}) {
                     return turnOffMonitors();
                 }
                 return { error: `Unknown workstation action: ${args.action}` };
+            }
+
+            case 'check_service_health': {
+                const monitors = await checkServiceMonitors();
+                return {
+                    checked_at: new Date().toISOString(),
+                    services: monitors
+                };
             }
 
             default:

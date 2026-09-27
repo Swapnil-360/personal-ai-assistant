@@ -134,23 +134,36 @@ async function runHealthAudit() {
     });
 
     await new Promise((resolve) => {
-        http.get('http://localhost:3000/api/memories/stats', (res) => {
+        http.get('http://localhost:3000/api/pc/monitors', (res) => {
             let data = '';
             res.on('data', chunk => data += chunk);
             res.on('end', () => {
                 try {
                     const parsed = JSON.parse(data);
-                    report('GET /api/memories/stats', Boolean(parsed.total && parsed.byType), `Total memories: ${parsed.total}`);
+                    report('GET /api/pc/monitors', Array.isArray(parsed) && parsed.length >= 3, `Monitored services: ${parsed.length}`);
                 } catch(e) {
-                    report('GET /api/memories/stats', false, 'Invalid JSON returned');
+                    report('GET /api/pc/monitors', false, 'Invalid JSON returned');
                 }
                 resolve();
             });
         }).on('error', (err) => {
-            report('GET /api/memories/stats', false, err.message);
+            report('GET /api/pc/monitors', false, err.message);
             resolve();
         });
     });
+
+    // 6. GEMINI TOOLS AGENT EXECUTION
+    console.log('\n--- 6. Gemini Native Tools Execution Engine ---');
+    try {
+        const { executeLocalTool } = require('../tools_agent');
+        const sRes = await executeLocalTool('search_pc_files', { query: 'README', limit: 2 });
+        report('Tool: search_pc_files', Boolean(sRes && sRes.count > 0), `Found ${sRes.count} files (Top: ${sRes.files?.[0]?.name})`);
+
+        const mRes = await executeLocalTool('check_service_health', {});
+        report('Tool: check_service_health', Boolean(mRes && mRes.services?.length >= 3), `Checked ${mRes.services?.length} services`);
+    } catch (err) {
+        report('Gemini Tools Agent Engine', false, err.message);
+    }
 
     console.log('\n======================================================');
     console.log(`🏁 AUDIT COMPLETE: ${passedTests} Passed | ${failedTests} Failed`);

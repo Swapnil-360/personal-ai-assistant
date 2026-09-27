@@ -276,9 +276,11 @@ document.addEventListener('DOMContentLoaded', () => {
     loadGitHub();
     loadReminders();
     loadQuotaTelemetry();
+    loadServiceMonitors();
 
-    // Poll quota telemetry every 15s
+    // Poll telemetry and monitors periodically
     setInterval(loadQuotaTelemetry, 15000);
+    setInterval(loadServiceMonitors, 60000);
 });
 
 // --- TAB & SECTOR SWITCHING ---
@@ -2167,6 +2169,17 @@ async function loadServiceMonitors() {
         grid.innerHTML = `<div style="padding: 12px; color: #f87171; grid-column: 1/-1;">Monitoring error: ${escapeHtml(e.message)}</div>`;
     }
 }
+
+// Wire refresh button for infrastructure monitors
+document.addEventListener('DOMContentLoaded', () => {
+    const btnRefreshMonitors = document.getElementById('btn-refresh-monitors');
+    if (btnRefreshMonitors) {
+        btnRefreshMonitors.addEventListener('click', (e) => {
+            e.preventDefault();
+            loadServiceMonitors();
+        });
+    }
+});
 
 // Quick Terminal Command Chips delegation
 document.addEventListener('click', (e) => {

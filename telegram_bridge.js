@@ -1003,24 +1003,36 @@ function buildAotDialogueMenu() {
 function isPcOnlineInquiry(rawText, quotedContext = null) {
     if (!rawText) return false;
     const t = rawText.toLowerCase().trim();
-    if (/^\/(?:pc|system|pcstatus)\b/.test(t)) return true;
-    if (/\b(?:pc|computer|laptop|machine)\b/.test(t) && /\b(?:online|offline|status|running|choltese|on|off|alive|active|up|down|kemon|kina|ache)\b/.test(t)) return true;
-    if (/\b(?:online|offline)\s*(?:or|naki)\s*(?:online|offline)\b/.test(t)) return true;
-    if (/\b(?:online|offline)\s+kina\b/.test(t)) return true;
-    if (/\b(?:check|tell|janao|dekho)\b/.test(t) && /\b(?:online|offline)\b/.test(t)) return true;
-    if (/\b(?:on\s*(?:or|naki)\s*off)\b/.test(t)) return true;
-    if (/\b(?:is\s+my\s+pc\s+on|pc\s+ki\s+on)\b/.test(t)) return true;
 
-    // Check if replying to a PC status message or telemetry message
+    // Guard: If user is drafting, editing, or giving conversational instructions, NEVER hijack it!
+    if (/\b(?:post|caption|draft|tweet|social|make\s+it|write|rewrite|edit|talking\s+about|intro|feature|features|interesting|add|change|tell|upgrade|stay\s+with|no\s+need|question)\b/i.test(t)) {
+        return false;
+    }
+
+    // 1. Explicit slash commands
+    if (/^\/(?:pc|system|pcstatus|telemetry)\b/i.test(t)) return true;
+
+    // 2. Focused standalone questions about PC online state
+    if (/^(?:is\s+(?:my\s+)?pc\s+(?:online|active|running|on|alive|up|connected)|pc\s+(?:ki\s+)?(?:online|active|running|on|choltese|ache\s*naki)|check\s+(?:my\s+)?pc\s+status|pc\s+status|pc\s+kemon\s+ache)\??$/i.test(t)) {
+        return true;
+    }
+
+    // 3. Banglish standalone query
+    if (/^(?:amr\s+)?pc\s+(?:ki\s+)?(?:online|choltese|active)\??$/i.test(t)) {
+        return true;
+    }
+
+    // 4. Replying to a PC status message ONLY if the entire user text is specifically asking for specs/details
     if (quotedContext && quotedContext.text) {
         const q = quotedContext.text.toLowerCase();
-        const isPcReply = /\b(?:pc|swapnil-pc|telemetry|computer|hardware|cpu|ram)\b/.test(q);
+        const isPcReply = /\b(?:pc|swapnil-pc|telemetry)\b/.test(q);
         if (isPcReply) {
-            if (/\b(?:online|offline|status|on|off|details|full\s+details|info|telemetry|more|kemon|specs)\b/.test(t)) {
+            if (/^(?:full\s+details|specs|telemetry|more\s+details|hardware\s+specs)\??$/i.test(t)) {
                 return true;
             }
         }
     }
+
     return false;
 }
 
@@ -1132,13 +1144,25 @@ function formatRelativeTime(dateStr) {
 function isGitHubQuery(rawText, quotedContext = null) {
     if (!rawText) return false;
     const t = rawText.toLowerCase().trim();
-    if (/^\/(?:github|commits?|repos?)\b/.test(t)) return true;
-    if (/\b(?:commit|commits)\b/.test(t) && /\b(?:last|recent|latest|kobe|kokhon|check|dekho|dekhoto|message|history|ki|hoyechilo|hoyse)\b/.test(t)) return true;
-    if (/\b(?:github|repo|repos|repository)\b/.test(t) && /\b(?:check|dekho|dekhoto|see|show|list|status|inspect|update|radar|commit|commits|last|recent|kokhon|kobe)\b/.test(t)) return true;
+
+    // Guard: If user is drafting, editing, or giving conversational instructions, NEVER hijack
+    if (/\b(?:post|caption|draft|tweet|social|make\s+it|write|rewrite|edit|talking\s+about|intro|feature|features|interesting|add|change|tell|stay\s+with|no\s+need|question)\b/i.test(t)) {
+        return false;
+    }
+
+    // 1. Explicit slash commands
+    if (/^\/(?:github|commits?|repos?)\b/i.test(t)) return true;
+
+    // 2. Focused standalone commit inquiry
+    if (/^(?:check\s+)?(?:last|recent|latest)\s+commits?\b/i.test(t)) return true;
+    if (/^(?:dekhoto\s+|dekho\s+)?(?:amr\s+)?(?:portfolio|repo|github|assistant)\s+(?:te|er)\s+(?:last\s+)?commit\b/i.test(t)) return true;
+    if (/^(?:show\s+me\s+)?(?:my\s+)?github\s+(?:repos?|commits?)\??$/i.test(t)) return true;
+
+    // 3. Quoted context
     if (quotedContext && quotedContext.text) {
         const q = quotedContext.text.toLowerCase();
         if (/\b(?:github|commit|repo|repository|stark-os|personal-ai)\b/.test(q)) {
-            if (/\b(?:commit|details|last|when|kobe|kokhon|link|url|more)\b/.test(t)) return true;
+            if (/^(?:show\s+commit|commit\s+details|last\s+commit|link|url)\??$/i.test(t)) return true;
         }
     }
     return false;

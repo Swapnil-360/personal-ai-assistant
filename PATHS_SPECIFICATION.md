@@ -255,7 +255,51 @@ USER INTENT (Voice / Telegram / Web HUD)
 
 ---
 
-## 18. Core Identity Summary
+## 18. Workstation Hardware Remote Control (PATHS v2.5)
+
+* **Lock Workstation:** Instant desktop locking (`user32.dll LockWorkStation`, equivalent to `Win + L`).
+* **Master Volume Mute / Level Adjustment:** Direct Windows multimedia control via PowerShell virtual audio keys (`0xAD` for mute toggle, `0xAF` for volume up, `0xAE` for volume down).
+* **Virtual Media Keys:** Dispatch play, pause, next track, and previous track (`0xB3`, `0xB0`, `0xB1`) to system media players, Spotify, and YouTube.
+* **Display Sleep:** Power down workstation displays and monitors on demand (`SendMessage 0x0112, 0xF170, 2`).
+
+---
+
+## 19. Proactive Surveillance & Late Night Watch
+
+* **Autonomous 2:00 AM Night Watch:** Runs continuously on local PC clock (Dhaka Time, UTC+6). When code is pushed or active late at night, Mikasa proactively sends rest reminders and voice note audio (`web/audio/over_night.mp3`).
+* **Workstation Battery Guard:** Monitors battery status; broadcasts audible and visual alerts when capacity drops below 15% on discharge.
+* **Autonomous Morning Sitrep:** Scheduled daily at 8:00 AM compiling live Dhaka weather, pending Supabase project tasks, active reminders, and recent Git commits.
+
+---
+
+## 20. Continuous Neural Memory Graph & Category Explorer
+
+* **Multi-Category Semantic Memory Indexing:** Automatically extracts and classifies memory into 6 distinct categories:
+  * 🟢 **Facts:** Academic, career, and research background.
+  * 🟣 **Preferences:** Writing tone, UI preferences, and communication habits.
+  * 🔵 **Workflows:** Development processes and engineering practices.
+  * 🟡 **Instructions:** Specific constraints, format rules, and anti-patterns.
+  * 🔴 **Decisions:** Confirmed architectural decisions and library choices.
+  * ⚪ **Experiences:** Real-world milestones, publications, and achievements.
+* **Interactive HUD Explorer:** Real-time filter pills, debounced live search, and visual distribution bar.
+* **Commander Memory Pruning:** Secure authenticated deletion (`DELETE /api/memories/:id`) allowing Commander to prune stale facts.
+
+---
+
+## 21. Gemini Native Tool-Calling Architecture (`tools_agent.js`)
+
+* **Direct Function Calling:** Autonomous tool execution matching user intents directly into executable schemas:
+  * `get_pc_status` — Live hardware metrics (CPU load, RAM usage, battery, active window).
+  * `lock_pc` — Instant workstation security lockdown.
+  * `fetch_github_commits` — Live GitHub repository commit history.
+  * `search_web` — Real-time Google web search integration.
+  * `manage_reminders` — In-memory and scheduled alert management.
+  * `manage_tasks` — Supabase tasks management (create, list, mark complete).
+* **Dynamic Failover:** Automatic fallback to OpenRouter (`gpt-4o-mini`) if Gemini API experiences rate limits.
+
+---
+
+## 22. Core Identity Summary
 
 > **MIKASA — Your Personal Agent OS**
 > Powered by **PATHS — Understand → Remember → Reason → Plan → Act → Verify → Learn**

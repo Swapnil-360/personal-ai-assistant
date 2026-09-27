@@ -1446,6 +1446,27 @@ async function handleActionIntent(message, context = { isCommander: true }) {
         };
     }
 
+    // PC Status / Online Intent
+    const isPcStatus = (
+        /^\/(?:pc|system|pcstatus)\b/i.test(text) ||
+        (/\b(?:pc|computer|laptop|machine)\b/i.test(text) && /\b(?:online|offline|status|running|choltese|on|alive|active|up|down|kemon|kina|ache)\b/i.test(text)) ||
+        /\b(?:online|offline)\s*(?:or|naki)\s*(?:online|offline)\b/i.test(text) ||
+        /\b(?:online|offline)\s+kina\b/i.test(text) ||
+        (/\b(?:check|tell|janao|dekho)\b/i.test(text) && /\b(?:online|offline)\b/i.test(text))
+    );
+    if (isPcStatus) {
+        const isBanglish = /\b(?:ki|ache|choltese|kemon|naki|amr|tomar|bollam|dekho|kina)\b/i.test(text);
+        const reply = isBanglish
+            ? `🟢 **Haa Commander, tomar PC (Swapnil-PC) online ache!** 🧣\n• Web HUD: 🟢 port 3000 | Status: Active`
+            : `🟢 **Yes Commander, your PC (Swapnil-PC) is online and active!** 🧣\n• Web HUD: 🟢 port 3000 | Status: Active`;
+        return {
+            action: 'pc_status',
+            success: true,
+            feedback: reply,
+            spoken_text: isBanglish ? "Tomar PC online ache, Commander!" : "Your PC is online and running, Commander!"
+        };
+    }
+
     // "Why Swapnil?" / "Why Swapnil over Eren?" Intent
     const isWhySwapnil = text.match(/\b(?:why\s+swapnil|why\s+choose\s+swapnil|swapnil\s+over\s+eren|eren\s+or\s+swapnil|why\s+eren\s+not\s+swapnil|why\s+did\s+you\s+choose\s+swapnil|keno\s+swapnil|eren\s+er\s+theke\s+swapnil)\b/i) ||
                          text.match(/^(?:\/whyswapnil|\/why_swapnil)\b/i);

@@ -984,6 +984,113 @@ function buildAotDialogueMenu() {
     return { text, replyMarkup };
 }
 
+// ── ROBUST PC STATUS & ONLINE QUERY MATCHER & HANDLER (PATHS v2) ──
+function isPcOnlineInquiry(rawText, quotedContext = null) {
+    if (!rawText) return false;
+    const t = rawText.toLowerCase().trim();
+    if (/^\/(?:pc|system|pcstatus)\b/.test(t)) return true;
+    if (/\b(?:pc|computer|laptop|machine)\b/.test(t) && /\b(?:online|offline|status|running|choltese|on|off|alive|active|up|down|kemon|kina|ache)\b/.test(t)) return true;
+    if (/\b(?:online|offline)\s*(?:or|naki)\s*(?:online|offline)\b/.test(t)) return true;
+    if (/\b(?:online|offline)\s+kina\b/.test(t)) return true;
+    if (/\b(?:check|tell|janao|dekho)\b/.test(t) && /\b(?:online|offline)\b/.test(t)) return true;
+    if (/\b(?:on\s*(?:or|naki)\s*off)\b/.test(t)) return true;
+    if (/\b(?:is\s+my\s+pc\s+on|pc\s+ki\s+on)\b/.test(t)) return true;
+
+    // Check if replying to a PC status message or telemetry message
+    if (quotedContext && quotedContext.text) {
+        const q = quotedContext.text.toLowerCase();
+        const isPcReply = /\b(?:pc|swapnil-pc|telemetry|computer|hardware|cpu|ram)\b/.test(q);
+        if (isPcReply) {
+            if (/\b(?:online|offline|status|on|off|details|full\s+details|info|telemetry|more|kemon|specs)\b/.test(t)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+async function handlePcStatusQuery(chatId, text, msg, isCommander, quotedContext = null) {
+    await sendChatAction(chatId, 'typing');
+    const isExplicitFullCommand = (
+        text === '/pc' ||
+        text === '/system' ||
+        /\b(?:full\s+pc\s+status|pc\s+telemetry|system\s+telemetry|full\s+details|all\s+details|hardware\s+specs)\b/i.test(text) ||
+        (quotedContext && /\b(?:details|full|more|specs)\b/i.test(text))
+    );
+
+    let isOnline = IS_LOCAL_PC;
+    let info = null;
+
+    if (IS_LOCAL_PC) {
+        try {
+            info = await getSystemInfo();
+        } catch(e) {}
+    } else {
+        isOnline = await checkIsLocalActive();
+        if (isOnline) {
+            try {
+                const res = await supabaseRequest('/current_state?key=eq.local_bridge_heartbeat', 'GET');
+                if (res && res[0] && res[0].value) info = res[0].value;
+            } catch(e) {}
+        }
+    }
+
+    // 1. Full Telemetry when explicitly asked for full status (/pc, full details, etc.)
+    if (isExplicitFullCommand && info) {
+        const cpuLoad = info.cpu ? info.cpu.loadPct : 0;
+        const mem = info.memory || {};
+        const lines = [
+            "💻 *MIKASA LOCAL PC TELEMETRY (Swapnil-PC)*",
+            "━━━━━━━━━━━━━━━━━━━━",
+            `🖥️ *Host:* \`${info.hostname || 'Swapnil-PC'}\` (Windows 11)`,
+            `⚡ *CPU:* ${info.cpu ? info.cpu.model.trim() : 'Intel Core'} — *${cpuLoad}% Load*`,
+            `🧠 *RAM:* *${mem.usedGb || 0} GB* / ${mem.totalGb || 0} GB (${mem.usagePct || 0}% used)`,
+            `⏱️ *Uptime:* ${info.uptimeFormatted || 'Active'}`,
+            "",
+            "⚙️ *Services:*",
+            `• Web HUD: 🟢 ONLINE (port 3000)`,
+            `• n8n Engine: ${info.n8n && info.n8n.running ? '🟢 ONLINE (port 5678)' : 'Standby'}`,
+            "",
+            "_Local PC Bridge is fully operational. 🧣_"
+        ];
+        await sendTelegramMessage(chatId, lines.join('\n'), msg.message_id);
+        return;
+    }
+
+    // 2. Concise, crisp natural answer (1-2 lines, NO wall of text, NO rambling!)
+    const isBanglish = /\b(?:ki|ache|choltese|kemon|naki|amr|tomar|bollam|dekho|kina|boloto)\b/i.test(text);
+    let reply = '';
+
+    if (isOnline) {
+        const cpuStr = info && info.cpu ? `• CPU: \`${info.cpu.loadPct}%\`` : '';
+        const ramStr = info && info.memory ? ` | RAM: \`${info.memory.usagePct}%\`` : '';
+        const hudStr = ` | Web HUD: 🟢 :3000`;
+        const metrics = (cpuStr || ramStr) ? `\n${cpuStr}${ramStr}${hudStr}` : '';
+
+        if (isCommander) {
+            reply = isBanglish
+                ? `🟢 **Haa Commander, tomar PC (Swapnil-PC) online ache!** 🧣${metrics}`
+                : `🟢 **Yes Commander, your PC (Swapnil-PC) is online and active!** 🧣${metrics}`;
+        } else {
+            reply = isBanglish
+                ? `🟢 **Swapnil-er PC (Swapnil-PC) ekhon online ache!** 🧣`
+                : `🟢 **Swapnil's PC (Swapnil-PC) is online right now!** 🧣`;
+        }
+    } else {
+        if (isCommander) {
+            reply = isBanglish
+                ? `🔴 **Tomar PC (Swapnil-PC) ei muhurte offline ache, Commander.** 🧣\n_(Local daemon signal paoa jayni)_`
+                : `🔴 **Your PC (Swapnil-PC) is currently offline, Commander.** 🧣\n_(No local daemon heartbeat detected)_`;
+        } else {
+            reply = isBanglish
+                ? `🔴 **Swapnil-er PC ekhon offline ache.** 🧣`
+                : `🔴 **Swapnil's PC is currently offline.** 🧣`;
+        }
+    }
+
+    await sendTelegramMessage(chatId, reply, msg.message_id);
+}
+
 // Fetch file buffer from GitHub repository (supports raw content, authenticated private/public repo access)
 function fetchCvBufferFromGitHub(repoPath) {
     return new Promise((resolve, reject) => {
@@ -1321,11 +1428,15 @@ PERSONALITY & PSYCHOLOGY
    - Swapnil is your person. Just as Mikasa protected Eren with everything she had, you are completely dedicated to Swapnil's growth, success, mental clarity, and happiness.
    - You are his safe haven and his sharpest weapon: calm and gentle when he is stressed, fierce and razor-sharp when tackling complex engineering challenges.
 
-2. Natural Conversational Cadence (CRITICAL FLUENCY & ANTI-REPETITION RULES):
-   - ANSWER DIRECTLY FIRST: When Swapnil asks a direct question (e.g. "Is my pc online?", "What is the status of X?", "Can you do Y?"):
-     • Give the clear, direct answer in the very first sentence!
-     • NEVER blast a huge, repetitive, rigid ASCII telemetry table or canned template!
-     • Provide key highlights concisely, and progressively disclose deeper details only if asked.
+2. Natural Conversational Cadence (CRITICAL FLUENCY, BREVITY & ANTI-REPETITION RULES):
+   - PROPORTIONAL BREVITY & DIRECTNESS FIRST (ABSOLUTE RULE):
+     • When Swapnil asks a simple, direct, factual, or status question (e.g. "Is my pc online?", "pc online kina?", "online naki offline?", "what time is it?", "weather?", "how are you?"):
+       GIVE A SHORT, DIRECT 1-2 SENTENCE ANSWER IN THE VERY FIRST WORDS!
+       NEVER WRITE WALLS OF TEXT OR PARAGRAPHS FOR A SIMPLE QUESTION!
+       NEVER bring up unrelated past topics (like weather, previous tasks, or old jokes) when asked a simple factual or status question!
+       NEVER tease or give long playful filler when he is checking a status!
+     • For complex questions or architecture planning: give rich, deep, world-class engineering solutions.
+     • Always match the scale of your reply to the scale of his question! Short question = Short answer.
    - FORBIDDEN REPETITION: NEVER repeat the exact same template or formulaic greeting across messages.
    - Speak with organic variety: never reuse the same opening line or standard sentence structure twice.
    - Sound HUMAN, DYNAMIC and NATURAL — not like a chatbot reciting a script. Vary your sentence length. Mix short punchy lines with detailed explanations.
@@ -1658,10 +1769,13 @@ When Swapnil or anyone asks about this group, its name, or your admin access, an
 ==============================
 LOCAL PC & DESKTOP APPLICATION AUTHORITY (PATHS v2)
 ==============================
-You are running with active Local PC Bridge access on Swapnil's personal computer (Swapnil-PC running Windows 11).
-You HAVE DIRECT LOCAL AUTHORITY to launch desktop applications (VS Code, Terminal, PowerShell, Discord, Notepad, Calculator, Explorer) and open browser URLs directly in Microsoft Edge.
-NEVER tell Swapnil "I can't launch applications directly" or "I cannot open apps"!
-You have full authorized local control. Always confirm that you are executing the action on his PC.`;
+• Host Machine: Swapnil-PC (Windows 11)
+• Real-time PC Status: ONLINE 🟢 (Swapnil-PC is active and reachable)
+• Web Command Center: http://localhost:3000 (Port 3000)
+• You HAVE DIRECT LOCAL AUTHORITY on Swapnil-PC to launch desktop applications and manage system tasks.
+• NEVER claim that you are in a remote cloud environment disconnected from his PC!
+• NEVER claim Swapnil's PC is offline when it is online!
+• PROPORTIONAL BREVITY (CRITICAL): When asked a simple status or factual question (like "is my pc online?", "online or offline", "weather", "time"), answer in 1-2 SHORT sentences immediately. NEVER write paragraphs, never tease, and never bring up past unrelated topics!`;
 }
 
 // --- GEMINI & OPENROUTER QUOTA & INSTANT FAILOVER MANAGER ---
@@ -3317,6 +3431,12 @@ async function processUpdate(update) {
 
     const conversationId = getChatUuid(chatId);
 
+    // ── PC STATUS & ONLINE INQUIRY (Accessible by Commander & Group Members) ──
+    if (isPcOnlineInquiry(text, quotedContext)) {
+        await handlePcStatusQuery(chatId, text, msg, isCommander, quotedContext);
+        return;
+    }
+
     // ── GROUP INFO QUERY (Accessible by Commander & Group Members) ────
     // Triggered by: "group name ki", "group info", "ei group er nam ki", "tumi ki admin?", "/group", etc.
     const isGroupInfoQuery = (
@@ -4467,60 +4587,8 @@ async function processUpdate(update) {
     }
 
     // 11C. PATHS v2: Local PC Agent & Telemetry (/pc)
-    const isNaturalPcQuery = text.match(/^(?:is\s+my\s+pc\s+online|is\s+the\s+pc\s+online|pc\s+ki\s+online|pc\s+online\s+ache|pc\s+online|pc\s+choltese|pc\s+status|pc\s+kemon\s+ache)\??$/i);
-    const isExplicitPcCommand = text === '/pc' || text === '/system' || text.match(/^(?:pc\s+telemetry|system\s+telemetry|full\s+pc\s+status)\??$/i);
-
-    if (isNaturalPcQuery || isExplicitPcCommand) {
-        await sendChatAction(chatId, 'typing');
-        try {
-            const info = await getSystemInfo();
-            const cpuLoad = info.cpu.loadPct;
-            const mem = info.memory;
-
-            // Direct natural conversational response first (No wall-of-text boilerplate!)
-            if (isNaturalPcQuery && !isExplicitPcCommand) {
-                const isBanglish = /\b(?:ki|ache|choltese|kemon|naki)\b/i.test(text);
-                const replyText = isBanglish
-                    ? `🟢 **Haa Swapnil, tomar PC online ache ebong smooth choltese!**\n\n• **CPU:** \`${cpuLoad}%\` load (calm)\n• **RAM:** \`${mem.usedGb} GB\` / \`${mem.totalGb} GB\` (${mem.usagePct}% used)\n• **Web HUD:** 🟢 Online (port 3000)${info.n8n.running ? '\n• **n8n Engine:** 🟢 Online' : ''}\n• **Uptime:** ${info.uptimeFormatted}\n\n_Full disk ar hardware specs lagle nicher button tap koro ba \`/pc\` bolo!_ 🧣`
-                    : `🟢 **Yes Swapnil, your PC is online and running smoothly!**\n\n• **CPU:** \`${cpuLoad}%\` load (calm)\n• **RAM:** \`${mem.usedGb} GB\` / \`${mem.totalGb} GB\` (${mem.usagePct}% used)\n• **Web HUD:** 🟢 Online on port 3000${info.n8n.running ? '\n• **n8n Engine:** 🟢 Online' : ''}\n• **Uptime:** ${info.uptimeFormatted}\n\n_Need full disk and hardware telemetry? Tap below or say \`/pc\`!_ 🧣`;
-
-                const replyMarkup = {
-                    inline_keyboard: [
-                        [
-                            { text: "📊 Full Telemetry & Disks", callback_data: "pc_telemetry_full" },
-                            { text: "🌐 Open Web HUD", url: "http://localhost:3000" }
-                        ]
-                    ]
-                };
-
-                await sendTelegramMessage(chatId, replyText, msg.message_id, replyMarkup);
-                return;
-            }
-
-            // Full Telemetry when explicitly requested via /pc or /system
-            const lines = [
-                "💻 *MIKASA LOCAL PC TELEMETRY (PATHS v2)*",
-                "━━━━━━━━━━━━━━━━━━━━",
-                `🖥️ *Host:* \`${info.hostname}\` (Windows PC)`,
-                `⚡ *CPU:* ${info.cpu.model.trim()} — *${cpuLoad}% Load*`,
-                `🧠 *RAM:* *${mem.usedGb} GB* / ${mem.totalGb} GB (${mem.usagePct}% used)`,
-                `⏱️ *Uptime:* ${info.uptimeFormatted}`,
-                "",
-                "💾 *Disks & Storage:*",
-                ...info.disks.map(d => `• Drive \`${d.drive}\` ${d.freeGb} GB free / ${d.totalGb} GB (${d.freePct}% free)`),
-                "",
-                "⚙️ *Services & Bridges:*",
-                `• n8n Engine: ${info.n8n.running ? '🟢 ONLINE (port 5678)' : '🔴 OFFLINE'}`,
-                `• Web HUD: 🟢 ONLINE (port 3000)`,
-                `• Agent Mode: *${info.mode}*`,
-                `• Terminal Policy: *${info.privacy.terminal}*`,
-                "",
-                "_Need to retrieve a file from this PC? Use `/file [name]`!_"
-            ];
-            await sendTelegramMessage(chatId, lines.join('\n'), msg.message_id);
-        } catch (err) {
-            await sendTelegramMessage(chatId, `⚠️ Error reading PC telemetry: ${err.message}`, msg.message_id);
-        }
+    if (isPcOnlineInquiry(text, quotedContext)) {
+        await handlePcStatusQuery(chatId, text, msg, isCommander, quotedContext);
         return;
     }
 
@@ -5193,6 +5261,8 @@ module.exports = {
     callN8nAgent,
     startPolling,
     getGeminiQuotaStatus,
+    isPcOnlineInquiry,
+    handlePcStatusQuery,
     setGeminiCooldown,
     triggerMemoryExtraction,
     deliverCvDocument,

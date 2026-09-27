@@ -800,7 +800,7 @@ const server = http.createServer(async (req, res) => {
         } else if (pathname === '/terms' || pathname === '/terms-of-service') {
             targetFile = 'terms.html';
         } else {
-            targetFile = pathname.startsWith('/') ? pathname.slice(1) : pathname;
+            targetFile = decodeURIComponent(pathname.startsWith('/') ? pathname.slice(1) : pathname);
         }
 
         let filePath = path.join(__dirname, targetFile);

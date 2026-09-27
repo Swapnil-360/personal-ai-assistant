@@ -27,6 +27,87 @@ function matchProject(text) {
     return null;
 }
 
+// Attack on Titan Canonical Dialogue Library
+const AOT_DIALOGUES = [
+    {
+        id: 'the_world_is_cruel',
+        title: 'The World is Cruel, but also Beautiful',
+        shortTitle: 'The World is Cruel...',
+        emoji: '🧣',
+        url: '/audio/aot/the-world-is-a-cruel-place.mp3',
+        quote: "The world is a cruel place... but it's also very beautiful.",
+        japanese: "この世界は残酷だ... そして、とても美しい",
+        context: "Battle of Trost. Facing a Titan alone with empty gas canisters, Mikasa reclaims her fighting spirit after remembering Eren's red scarf.",
+        keywords: ['cruel', 'beautiful', 'world is cruel', 'kono sekai', 'cruel place']
+    },
+    {
+        id: 'if_i_cant_beat_them',
+        title: 'If I Win, I Live (Tatakai)',
+        shortTitle: 'If I Win, I Live...',
+        emoji: '⚔️',
+        url: '/audio/aot/if-i-can-t-beat-them-then-i-died.mp3',
+        quote: "If I win, I live. If I lose, I die. If I don't fight, I can't win!",
+        japanese: "勝てば生きる、負ければ死ぬ、戦わなければ勝てない",
+        context: "The core philosophy taught to Mikasa by Eren in the mountain cabin, unlocking her dormant Ackerman strength.",
+        keywords: ['win', 'live', 'die', 'fight', 'cant beat them', 'tatakai']
+    },
+    {
+        id: 'cowardly_worms',
+        title: 'Surrounded by Cowardly Worms',
+        shortTitle: 'Surrounded by Cowards',
+        emoji: '😤',
+        url: '/audio/aot/i-am-surrounded-by-a-bunch-of-unskilled-cowardly-worms.mp3',
+        quote: "I am strong. Much stronger than you. Extremely capable. But I am surrounded by a bunch of unskilled, cowardly worms.",
+        japanese: "私は強い。あなたたちより強い。すごく強い！...ので、私はあそこの巨人どもを一掃できる。",
+        context: "Trost HQ. Trainees trapped and paralyzed by fear hear Mikasa's fierce rebuke before she charges the supply depot alone.",
+        keywords: ['worms', 'cowards', 'cowardly', 'unskilled', 'stronger than you']
+    },
+    {
+        id: 'not_leave_behind',
+        title: 'I Will Not Leave You Behind',
+        shortTitle: "Won't Leave Behind",
+        emoji: '🛡️',
+        url: '/audio/aot/i-will-not-leave-you-behind.mp3',
+        quote: "I will not leave you behind.",
+        japanese: "私はあなたを置いていかない",
+        context: "Mikasa's absolute loyalty and protection vow — ready to defy military courts, Titans, and gods to protect what she loves.",
+        keywords: ['leave behind', 'wont leave', 'behind']
+    },
+    {
+        id: 'dont_give_up',
+        title: "Don't Give Up, Eren!",
+        shortTitle: "Don't Give Up, Eren!",
+        emoji: '⚡',
+        url: '/audio/aot/don-t-give-up-eren.mp3',
+        quote: "Don't give up, Eren!",
+        japanese: "諦めないで、エレン！",
+        context: "The desperate struggle to seal Wall Rose with the massive boulder, awakening the Attack Titan's consciousness.",
+        keywords: ['dont give up', 'eren', 'akiramenaide']
+    },
+    {
+        id: 'still_alive',
+        title: "He's Still Alive!",
+        shortTitle: "He's Still Alive!",
+        emoji: '💓',
+        url: '/audio/aot/he-s-still-alive-he-s-still-alive.mp3',
+        quote: "He's still alive... he's still alive!",
+        japanese: "まだ生きてる... 生きてる！",
+        context: "Mikasa collapsing in tears against Eren's chest, hearing his heartbeat after recovering him from the Attack Titan's nape.",
+        keywords: ['still alive', 'alive', 'alive alive']
+    },
+    {
+        id: 'you_disappoint_me',
+        title: 'You Disappoint Me',
+        shortTitle: 'You Disappoint Me',
+        emoji: '❄️',
+        url: '/audio/aot/you-disappoint-me.mp3',
+        quote: "You disappoint me.",
+        japanese: "失望したわ",
+        context: "Mikasa's ice-cold, piercing rebuke when someone betrays trust, fails their duty, or acts without honor.",
+        keywords: ['disappoint', 'disappointed', 'disappoint me']
+    }
+];
+
 function supabaseRequest(path, method = 'GET', body = null, extraHeaders = {}) {
     return new Promise((resolve, reject) => {
         const payload = body ? JSON.stringify(body) : null;
@@ -1351,6 +1432,48 @@ async function handleActionIntent(message, context = { isCommander: true }) {
             custom_audio: '/audio/welcome_back.mp3',
             spoken_text: "Well, look who finally decided to come back. The terminal was getting way too quiet without you.",
             feedback: `😏 **Well, look who finally decided to come back.**\n\nThe terminal was getting way too quiet without you, Commander. What are we building next? 🧣`
+        };
+    }
+
+    // Attack on Titan Dialogue Intent
+    const isAotExplicit = text.match(/^(?:\/aot|\/dialogue)\b/i) ||
+                          text.match(/\b(?:aot\s+dialogue|play\s+(?:an?\s+)?aot|mikasa\s+dialogue|attack\s+on\s+titan\s+dialogue|play\s+dialogue|aot\s+voice|shingeki\s+dialogue)\b/i);
+    const matchedAot = AOT_DIALOGUES.find(d => 
+        (isAotExplicit || text.toLowerCase().includes('play') || text.toLowerCase().includes('shuno') || text.toLowerCase().includes('boloto') || text.toLowerCase().includes('dialogue')) &&
+        (d.keywords.some(k => text.toLowerCase().includes(k)) || text.toLowerCase().includes(d.title.toLowerCase()))
+    );
+
+    if (isAotExplicit || matchedAot) {
+        if (matchedAot) {
+            return {
+                action: 'aot_dialogue',
+                success: true,
+                custom_audio: matchedAot.url,
+                spoken_text: matchedAot.quote,
+                feedback: [
+                    `⚔️ **Mikasa Ackerman — "${matchedAot.title}"** 🧣`,
+                    ``,
+                    `💬 *"${matchedAot.quote}"*`,
+                    `🇯🇵 _${matchedAot.japanese}_`,
+                    ``,
+                    `📖 **Scene Context:** ${matchedAot.context}`
+                ].join('\n')
+            };
+        }
+
+        // Return the full list with options to choose
+        return {
+            action: 'aot_dialogue_menu',
+            success: true,
+            dialogues: AOT_DIALOGUES,
+            feedback: [
+                `⚔️ **Attack on Titan Dialogue Vault** 🧣`,
+                `Choose any dialogue to play, or ask me for a specific line:`,
+                ``,
+                ...AOT_DIALOGUES.map((d, i) => `${i + 1}. **${d.emoji} ${d.title}:** _"${d.quote}"_`),
+                ``,
+                `_Ask me: "play the world is cruel", "play if i win i live", or "play cowardly worms"!_`
+            ].join('\n')
         };
     }
 

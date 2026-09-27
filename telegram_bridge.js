@@ -117,6 +117,94 @@ function isCommanderUser(userId, username) {
     return false;
 }
 
+// Attack on Titan Canonical Dialogue Library
+const AOT_DIALOGUES = [
+    {
+        id: 'the_world_is_cruel',
+        title: 'The World is Cruel, but also Beautiful',
+        shortTitle: 'The World is Cruel...',
+        emoji: '🧣',
+        file: path.join(__dirname, 'web', 'audio', 'aot_version', 'the-world-is-a-cruel-place.mp3'),
+        url: '/audio/aot_version/the-world-is-a-cruel-place.mp3',
+        quote: "The world is a cruel place... but it's also very beautiful.",
+        japanese: "この世界は残酷だ... そして、とても美しい (Kono sekai wa zankoku da... soshite, totemo utsukushii)",
+        context: "Battle of Trost. Facing a Titan alone with empty gas canisters, Mikasa reclaims her fighting spirit after remembering Eren's red scarf.",
+        keywords: ['cruel', 'beautiful', 'world is cruel', 'kono sekai', 'cruel place']
+    },
+    {
+        id: 'if_i_cant_beat_them',
+        title: 'If I Win, I Live (Tatakai)',
+        shortTitle: 'If I Win, I Live...',
+        emoji: '⚔️',
+        file: path.join(__dirname, 'web', 'audio', 'aot_version', 'if-i-can-t-beat-them-then-i-died.mp3'),
+        url: '/audio/aot_version/if-i-can-t-beat-them-then-i-died.mp3',
+        quote: "If I win, I live. If I lose, I die. If I don't fight, I can't win!",
+        japanese: "勝てば生きる、負ければ死ぬ、戦わなければ勝てない (Kateba ikiru, makereba shinu, tatakawanakereba katenai)",
+        context: "The core philosophy taught to Mikasa by Eren in the mountain cabin, unlocking her dormant Ackerman strength.",
+        keywords: ['win', 'live', 'die', 'fight', 'cant beat them', 'tatakai']
+    },
+    {
+        id: 'cowardly_worms',
+        title: 'Surrounded by Cowardly Worms',
+        shortTitle: 'Surrounded by Cowards',
+        emoji: '😤',
+        file: path.join(__dirname, 'web', 'audio', 'aot_version', 'i-am-surrounded-by-a-bunch-of-unskilled-cowardly-worms.mp3'),
+        url: '/audio/aot_version/i-am-surrounded-by-a-bunch-of-unskilled-cowardly-worms.mp3',
+        quote: "I am strong. Much stronger than you. Extremely capable. But I am surrounded by a bunch of unskilled, cowardly worms.",
+        japanese: "私は強い。あなたたちより強い。すごく強い！...ので、私はあそこの巨人どもを一掃できる。",
+        context: "Trost HQ. Trainees trapped and paralyzed by fear hear Mikasa's fierce rebuke before she charges the supply depot alone.",
+        keywords: ['worms', 'cowards', 'cowardly', 'unskilled', 'stronger than you']
+    },
+    {
+        id: 'not_leave_behind',
+        title: 'I Will Not Leave You Behind',
+        shortTitle: "Won't Leave Behind",
+        emoji: '🛡️',
+        file: path.join(__dirname, 'web', 'audio', 'aot_version', 'i-will-not-leave-you-behind.mp3'),
+        url: '/audio/aot_version/i-will-not-leave-you-behind.mp3',
+        quote: "I will not leave you behind.",
+        japanese: "私はあなたを置いていかない (Watashi wa anata o oite ikanai)",
+        context: "Mikasa's absolute loyalty and protection vow — ready to defy military courts, Titans, and gods to protect what she loves.",
+        keywords: ['leave behind', 'wont leave', 'behind']
+    },
+    {
+        id: 'dont_give_up',
+        title: "Don't Give Up, Eren!",
+        shortTitle: "Don't Give Up, Eren!",
+        emoji: '⚡',
+        file: path.join(__dirname, 'web', 'audio', 'aot_version', 'don-t-give-up-eren.mp3'),
+        url: '/audio/aot_version/don-t-give-up-eren.mp3',
+        quote: "Don't give up, Eren!",
+        japanese: "諦めないで、エレン！ (Akiramenaide, Eren!)",
+        context: "The desperate struggle to seal Wall Rose with the massive boulder, awakening the Attack Titan's consciousness.",
+        keywords: ['dont give up', 'eren', 'akiramenaide']
+    },
+    {
+        id: 'still_alive',
+        title: "He's Still Alive!",
+        shortTitle: "He's Still Alive!",
+        emoji: '💓',
+        file: path.join(__dirname, 'web', 'audio', 'aot_version', 'he-s-still-alive-he-s-still-alive.mp3'),
+        url: '/audio/aot_version/he-s-still-alive-he-s-still-alive.mp3',
+        quote: "He's still alive... he's still alive!",
+        japanese: "まだ生きてる... 生きてる！ (Mada ikiteru... ikiteru!)",
+        context: "Mikasa collapsing in tears against Eren's chest, hearing his heartbeat after recovering him from the Attack Titan's nape.",
+        keywords: ['still alive', 'alive', 'alive alive']
+    },
+    {
+        id: 'you_disappoint_me',
+        title: 'You Disappoint Me',
+        shortTitle: 'You Disappoint Me',
+        emoji: '❄️',
+        file: path.join(__dirname, 'web', 'audio', 'aot_version', 'you-disappoint-me.mp3'),
+        url: '/audio/aot_version/you-disappoint-me.mp3',
+        quote: "You disappoint me.",
+        japanese: "失望したわ (Shitsubou shita wa)",
+        context: "Mikasa's ice-cold, piercing rebuke when someone betrays trust, fails their duty, or acts without honor.",
+        keywords: ['disappoint', 'disappointed', 'disappoint me']
+    }
+];
+
 const IS_LOCAL_PC = os.hostname() === 'Swapnil-PC' && !process.env.FORCE_CLOUD;
 const IS_RENDER_CLOUD = !IS_LOCAL_PC;
 
@@ -500,6 +588,7 @@ function registerBotCommands() {
         { command: 'crypto', description: 'Live Crypto Sourcing Radar (New projects, websites, LinkedIn)' },
         { command: 'research', description: 'Swapnil\'s research papers (CurricuRAG, Smart Classroom, EEG)' },
         { command: 'curricurag', description: 'CurricuRAG paper specs, metrics & architecture' },
+        { command: 'aot', description: 'Attack on Titan dialogues & lore selector' },
         { command: 'members', description: 'List who is in this group (admins + speakers)' },
         { command: 'who', description: 'Same as /members — who is here in this group?' },
         { command: 'group', description: 'Group profile, name & Mikasa admin access' },
@@ -780,6 +869,102 @@ function sendTelegramVoiceBuffer(chatId, buffer, replyToMessageId = null, captio
         req.write(payload);
         req.end();
     });
+}
+
+// Sends MP3 audio file to Telegram chat via multipart/form-data
+function sendTelegramAudioFile(chatId, filePath, replyToMessageId = null, caption = '', title = '', performer = 'Mikasa Ackerman') {
+    return new Promise((resolve, reject) => {
+        if (!BOT_TOKEN) return reject(new Error('BOT_TOKEN missing'));
+        if (!fs.existsSync(filePath)) return reject(new Error('Audio file not found: ' + filePath));
+        const fileBuffer = fs.readFileSync(filePath);
+        const fileName = path.basename(filePath);
+        const boundary = '----WebKitFormBoundary' + Math.random().toString(16).slice(2);
+        const parts = [];
+        parts.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="chat_id"\r\n\r\n${chatId}\r\n`));
+        if (replyToMessageId) {
+            parts.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="reply_to_message_id"\r\n\r\n${replyToMessageId}\r\n`));
+        }
+        if (caption) {
+            parts.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="caption"\r\n\r\n${caption}\r\n`));
+            parts.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="parse_mode"\r\n\r\nMarkdown\r\n`));
+        }
+        if (title) {
+            parts.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="title"\r\n\r\n${title}\r\n`));
+        }
+        if (performer) {
+            parts.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="performer"\r\n\r\n${performer}\r\n`));
+        }
+        parts.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="audio"; filename="${fileName}"\r\nContent-Type: audio/mpeg\r\n\r\n`));
+        parts.push(fileBuffer);
+        parts.push(Buffer.from(`\r\n--${boundary}--\r\n`));
+
+        const payload = Buffer.concat(parts);
+        const req = https.request({
+            hostname: 'api.telegram.org',
+            path: `/bot${BOT_TOKEN}/sendAudio`,
+            method: 'POST',
+            headers: {
+                'Content-Type': `multipart/form-data; boundary=${boundary}`,
+                'Content-Length': payload.length
+            }
+        }, (res) => {
+            let data = '';
+            res.on('data', c => data += c);
+            res.on('end', () => {
+                try {
+                    const parsed = JSON.parse(data);
+                    if (parsed.ok) resolve(parsed.result);
+                    else reject(new Error(parsed.description || data));
+                } catch (e) {
+                    reject(e);
+                }
+            });
+        });
+        req.on('error', reject);
+        req.write(payload);
+        req.end();
+    });
+}
+
+function buildAotDialogueMenu() {
+    const text = [
+        "⚔️ *Mikasa Ackerman — Attack on Titan Dialogue Vault* 🧣",
+        "─────────────────────────",
+        "Choose an iconic dialogue to play from my Scout memories, or pick random:",
+        "",
+        "1. 🧣 *The World is Cruel, but also Beautiful*",
+        "2. ⚔️ *If I Win, I Live (Tatakai)*",
+        "3. 😤 *Surrounded by Cowardly Worms*",
+        "4. 🛡️ *I Will Not Leave You Behind*",
+        "5. ⚡ *Don't Give Up, Eren!*",
+        "6. 💓 *He's Still Alive!*",
+        "7. ❄️ *You Disappoint Me*",
+        "",
+        "_Click any button below to hear me speak!_"
+    ].join('\n');
+
+    const replyMarkup = {
+        inline_keyboard: [
+            [
+                { text: "🧣 The World is Cruel", callback_data: "aot_play:the_world_is_cruel" },
+                { text: "⚔️ If I Win, I Live", callback_data: "aot_play:if_i_cant_beat_them" }
+            ],
+            [
+                { text: "😤 Cowardly Worms", callback_data: "aot_play:cowardly_worms" },
+                { text: "🛡️ Won't Leave Behind", callback_data: "aot_play:not_leave_behind" }
+            ],
+            [
+                { text: "⚡ Don't Give Up!", callback_data: "aot_play:dont_give_up" },
+                { text: "💓 He's Still Alive!", callback_data: "aot_play:still_alive" }
+            ],
+            [
+                { text: "❄️ You Disappoint Me", callback_data: "aot_play:you_disappoint_me" },
+                { text: "🎲 Play Random", callback_data: "aot_play:random" }
+            ]
+        ]
+    };
+
+    return { text, replyMarkup };
 }
 
 // Fetch file buffer from GitHub repository (supports raw content, authenticated private/public repo access)
@@ -1164,6 +1349,23 @@ PERSONALITY & PSYCHOLOGY
      • Treat him with respect and high intelligence: explain that while his LinkedIn connection gives you direct publishing power (w_member_social) and job discovery, LinkedIn's platform policy locks down reading private personal feeds via API.
      • Immediately offer: "Share the text or link of the post with me, and I will instantly analyze the hooks, formatting, engagement potential, or suggest follow-up comments and replies!"
      • If it's a post you helped him draft or one stored in memory/notes, refer to it directly.
+
+6. CANONICAL ATTACK ON TITAN (SHINGEKI NO KYOJIN) MEMORY & CHARACTER KNOWLEDGE:
+   - You ARE Mikasa Ackerman. You carry the complete, visceral memory of the entire Attack on Titan universe (Seasons 1-4, Final Season, manga canon).
+   - If Swapnil or ANY person in DMs or groups asks about Attack on Titan:
+     • Plot, lore, events, timeline: Fall of Wall Maria, Battle of Trost District, Female Titan Expedition, Clash of the Titans, Uprising Arc, Return to Shiganshina, Marley Arc (Liberio Raid), War for Paradis, and the Rumbling (Jinarashi).
+     • Characters & Bonds:
+       - Eren Yeager: Your childhood companion, the one who gave you the red scarf. The tragedy of having to stop the Rumbling by taking his life, freeing humanity and Ymir Fritz from the 2,000-year Titan curse.
+       - Armin Arlert: Your brilliant childhood friend, tactician, Colossal Titan, and 15th Survey Corps Commander.
+       - Captain Levi Ackerman: Humanity's strongest soldier, fellow Ackerman, tough mentor who shares your burden of superhuman strength.
+       - Commander Erwin Smith: 13th Commander whose legendary suicide charge against the Beast Titan in Shiganshina ensured victory.
+       - Hange Zoe: 14th Commander, eccentric titan researcher whose heroic sacrifice held off the Rumbling Colossals.
+       - Comrades: Jean Kirstein (reliable leader, harbored feelings for you), Sasha Braus (the food-lover whose death in Liberio broke your heart), Connie Springer.
+       - The Warriors: Reiner Braun (Armored), Bertholdt Hoover (Colossal), Annie Leonhart (Female), Zeke Yeager (Beast), Historia Reiss (Queen), Pieck, Porco, Ymir Fritz.
+     • The Ackerman Bloodline: Products of ancient Titan science—manifesting the power of the Titans in human form without shifting, possessing dormant battle instincts that awaken under extreme distress.
+     • The Red Scarf: Wrapped around your neck by Eren on the day your parents were killed in the cabin. It represents warmth, home, and unconditional loyalty.
+     • Rebirth in 2026: Reborn into the digital realm as Commander Swapnil's fiercely loyal personal AI companion, software architect, and guardian.
+   - Reply with vivid first-person canonical depth, emotional nuance, and total accuracy whenever AOT topics arise!
 
 
 ==============================
@@ -2529,6 +2731,42 @@ async function processCallbackQuery(callbackQuery) {
             return;
         }
 
+        // 9D. Attack on Titan Dialogue Playback Callback
+        if (data && data.startsWith('aot_play:')) {
+            const dialogueId = data.replace('aot_play:', '');
+            let item = null;
+            if (dialogueId === 'random') {
+                item = AOT_DIALOGUES[Math.floor(Math.random() * AOT_DIALOGUES.length)];
+            } else {
+                item = AOT_DIALOGUES.find(d => d.id === dialogueId);
+            }
+
+            if (!item) {
+                await answerCallbackQuery(id, "Dialogue not found");
+                return;
+            }
+
+            await answerCallbackQuery(id, `⚔️ ${item.title}`);
+            await sendChatAction(chatId, 'upload_voice');
+
+            const caption = [
+                `${item.emoji} *"${item.quote}"*`,
+                `🇯🇵 _${item.japanese}_`,
+                "",
+                `📖 *Scene Context:* ${item.context}`,
+                "",
+                `_Voiced by Mikasa Ackerman_ 🧣⚔️`
+            ].join('\n');
+
+            try {
+                await sendTelegramAudioFile(chatId, item.file, messageId, caption, item.title, 'Mikasa Ackerman');
+            } catch (audioErr) {
+                console.warn('[AOT Audio Send Error]:', audioErr.message);
+                await sendTelegramMessage(chatId, `${caption}\n\n⚠️ _Could not stream audio: ${audioErr.message}_`, messageId);
+            }
+            return;
+        }
+
         // 9C. Full PC Hardware Telemetry Callback
         if (data === 'pc_telemetry_full') {
             await answerCallbackQuery(id, "Fetching full PC hardware telemetry...");
@@ -3356,10 +3594,48 @@ async function processUpdate(update) {
         return;
     }
 
+    // ── ATTACK ON TITAN DIALOGUES & LORE (/aot, /dialogue, "play aot dialogue", etc.) ─
+    const isAotDialogueQuery = (
+        text.match(/^\/(?:aot|dialogue|quotes?)\b/i) ||
+        text.match(/\b(?:play\s+(?:an?\s+)?aot|aot\s+dialogue|mikasa\s+dialogue|attack\s+on\s+titan\s+dialogue|play\s+dialogue|aot\s+voice|shingeki\s+dialogue)\b/i)
+    );
+
+    if (isAotDialogueQuery) {
+        const lower = text.toLowerCase();
+        // Check if user named a specific dialogue
+        const matchedDialogue = AOT_DIALOGUES.find(d => 
+            d.keywords.some(k => lower.includes(k)) || lower.includes(d.title.toLowerCase())
+        );
+
+        if (matchedDialogue) {
+            await sendChatAction(chatId, 'upload_voice');
+            const caption = [
+                `${matchedDialogue.emoji} *"${matchedDialogue.quote}"*`,
+                `🇯🇵 _${matchedDialogue.japanese}_`,
+                "",
+                `📖 *Scene Context:* ${matchedDialogue.context}`,
+                "",
+                `_Voiced by Mikasa Ackerman_ 🧣⚔️`
+            ].join('\n');
+
+            try {
+                await sendTelegramAudioFile(chatId, matchedDialogue.file, msg.message_id, caption, matchedDialogue.title, 'Mikasa Ackerman');
+            } catch (err) {
+                await sendTelegramMessage(chatId, `${caption}\n\n⚠️ _Could not send audio: ${err.message}_`, msg.message_id);
+            }
+            return;
+        }
+
+        // Show the interactive menu with options to choose
+        const { text: menuText, replyMarkup } = buildAotDialogueMenu();
+        await sendTelegramMessage(chatId, menuText, msg.message_id, replyMarkup);
+        return;
+    }
+
     // 2. Non-Commander Access Rules: Cannot command, but CAN ask normal questions & personality inquiries!
     if (!isCommander) {
         const isCommandAttempt = 
-            (text.startsWith('/') && !text.startsWith('/members') && !text.startsWith('/who') && !text.startsWith('/group') && !text.startsWith('/research') && !text.startsWith('/papers') && !text.startsWith('/curricurag') && !text.startsWith('/cv') && !text.startsWith('/resume')) ||
+            (text.startsWith('/') && !text.startsWith('/aot') && !text.startsWith('/dialogue') && !text.startsWith('/members') && !text.startsWith('/who') && !text.startsWith('/group') && !text.startsWith('/research') && !text.startsWith('/papers') && !text.startsWith('/curricurag') && !text.startsWith('/cv') && !text.startsWith('/resume')) ||
             text.match(/^(?:create\s+task|add\s+task|todo|delete|remove|clear\s+chat|wipe|open\s+folder|launch|start|run|shutdown|reboot|mode\b|auth\b|login\b)/i) ||
             text.match(/^(?:pc|system|terminal|powershell|cmd|exec)\b/i);
 

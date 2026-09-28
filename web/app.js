@@ -951,16 +951,31 @@ async function loadReminders() {
 
         container.innerHTML = list.map(r => {
             const minsLeft = Math.max(1, Math.round((r.dueAt - Date.now()) / 60000));
+            const dueFormatted = new Date(r.dueAt).toLocaleString('en-US', {
+                weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true
+            });
+            const isAlarm = r.isAlarm;
+            const icon = isAlarm ? '🚨' : '⏰';
+            const borderColor = isAlarm ? 'var(--danger, #ef4444)' : 'var(--amber)';
+            const tagColor = isAlarm ? '#ef4444' : 'var(--amber)';
+            const gcalUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(r.text)}&dates=${new Date(r.dueAt).toISOString().replace(/[-:]/g,'').replace(/\\.\\d{3}/,'') + '/' + new Date(r.dueAt + 1800000).toISOString().replace(/[-:]/g,'').replace(/\\.\\d{3}/,'')}&details=Reminder+by+Mikasa+AI`;
             return `
-                <div class="task-item" style="border-left: 3px solid var(--amber);">
+                <div class="task-item" style="border-left: 3px solid ${borderColor};">
                     <div class="task-left">
-                        <span style="font-size: 1rem;">⏰</span>
-                        <span class="task-title">${escapeHtml(r.text)}</span>
+                        <span style="font-size: 1rem;">${icon}</span>
+                        <div>
+                            <span class="task-title">${escapeHtml(r.text)}</span>
+                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;">📅 ${dueFormatted}</div>
+                        </div>
                     </div>
-                    <div class="task-meta">
-                        <span class="project-tag" style="color: var(--amber); border-color: rgba(245, 158, 11, 0.3);">
-                            Due in ~${minsLeft}m
+                    <div class="task-meta" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+                        <span class="project-tag" style="color: ${tagColor}; border-color: rgba(245, 158, 11, 0.3);">
+                            ${isAlarm ? 'Alarm' : 'Reminder'} · in ~${minsLeft}m
                         </span>
+                        <div style="display: flex; gap: 6px;">
+                            <a href="${gcalUrl}" target="_blank" style="font-size: 0.72rem; color: var(--primary); text-decoration: none; opacity: 0.85; white-space: nowrap;" title="Add to Google Calendar">📅 G-Cal</a>
+                            <a href="/api/reminders/${encodeURIComponent(r.id)}/ics" download style="font-size: 0.72rem; color: var(--primary); text-decoration: none; opacity: 0.85; white-space: nowrap;" title="Download .ics for Apple / Outlook Calendar">📎 .ics</a>
+                        </div>
                     </div>
                 </div>
             `;
@@ -969,6 +984,7 @@ async function loadReminders() {
         container.innerHTML = `<div class="error-state">Error loading reminders: ${err.message}</div>`;
     }
 }
+
 
 // --- COPILOT HUB (LINKEDIN, CV, PROMPTS, SOCIALS) ---
 function initCopilotHub() {

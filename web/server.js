@@ -60,12 +60,22 @@ const {
     turnOffMonitors
 } = require('../local_pc_bridge');
 const { runMorningBriefing } = require('../proactive_monitor');
+const {
+    callMikasaAgent,
+    COMMANDER_UNIFIED_CONVERSATION_ID,
+    recordConversationTurn,
+    getRecentConversationHistory,
+    triggerMemoryExtraction: triggerTgMemoryExtraction
+} = require('../telegram_bridge');
 
 const COMMANDER_EMAIL = process.env.COMMANDER_EMAIL || 'miftahurr503@gmail.com';
 const COMMANDER_PASSKEY = process.env.COMMANDER_PASSKEY || 'MikasaCommander360!';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqaHJtY3Ricm9icG5vdW16bWp1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTkxNTc3NywiZXhwIjoyMTA1NDkxNzc3fQ.0_xov-GTLYTFGnm_gXxO2lmS1w_9Kc-pnWc0-T17UJ8';
 
 function getSessionUuid(id = 'web_commander') {
+    if (!id || id === 'commander_session' || id === 'web_commander' || id === 'mobile_session' || id === 'generic_session') {
+        return COMMANDER_UNIFIED_CONVERSATION_ID;
+    }
     const h = crypto.createHash('md5').update('web_' + id).digest('hex');
     return [h.slice(0, 8), h.slice(8, 12), h.slice(12, 16), h.slice(16, 20), h.slice(20, 32)].join('-');
 }
@@ -357,16 +367,57 @@ const server = http.createServer(async (req, res) => {
             return sendJson(res, 200, repos);
         }
 
-        // Reminders API
+        // Reminders & Calendar API
+        if (pathname === '/api/reminders/calendar.ics' && req.method === 'GET') {
+            const active = remindersManager.getActiveReminders();
+            const icsFeed = remindersManager.generateCalendarFeed(active);
+            res.writeHead(200, {
+                'Content-Type': 'text/calendar; charset=utf-8',
+                'Content-Disposition': 'inline; filename="mikasa_reminders.ics"',
+                'Cache-Control': 'no-cache',
+                'Access-Control-Allow-Origin': '*'
+            });
+            return res.end(icsFeed);
+        }
+
+        const icsSingleMatch = pathname.match(/^\/api\/reminders\/([a-zA-Z0-9_\-]+)\/ics$/);
+        if (icsSingleMatch && req.method === 'GET') {
+            const remId = icsSingleMatch[1];
+            const active = remindersManager.getActiveReminders();
+            const rem = active.find(r => String(r.id) === remId);
+            if (!rem) return sendJson(res, 404, { error: 'Reminder not found' });
+            const icsSingle = remindersManager.generateIcs(rem);
+            res.writeHead(200, {
+                'Content-Type': 'text/calendar; charset=utf-8',
+                'Content-Disposition': `attachment; filename="reminder_${remId}.ics"`,
+                'Access-Control-Allow-Origin': '*'
+            });
+            return res.end(icsSingle);
+        }
+
+        const remDeleteMatch = pathname.match(/^\/api\/reminders\/([a-zA-Z0-9_\-]+)$/);
+        if (remDeleteMatch && req.method === 'DELETE') {
+            if (!await requireCommander()) return;
+            const remId = remDeleteMatch[1];
+            const cancelled = remindersManager.cancelReminder(remId);
+            return sendJson(res, 200, { success: cancelled, id: remId });
+        }
+
         if (pathname === '/api/reminders' && req.method === 'GET') {
             const active = remindersManager.getActiveReminders();
             return sendJson(res, 200, active);
         }
+
         if (pathname === '/api/reminders' && req.method === 'POST') {
             if (!await requireCommander()) return;
             const body = await parseBody(req);
-            const created = remindersManager.addReminder(body.text, body.time_str || '15m', 7112137739);
-            return sendJson(res, 201, created);
+            const isAlarm = Boolean(body.isAlarm || body.is_alarm);
+            const created = remindersManager.addReminder(body.text, body.time_str || '15m', 7112137739, { isAlarm });
+            return sendJson(res, 201, {
+                ...created,
+                calendar_url: remindersManager.createGoogleCalendarUrl(created.text, created.dueAt),
+                ics_url: `/api/reminders/${created.id}/ics`
+            });
         }
 
         // Social Media Audit API
@@ -569,48 +620,92 @@ const server = http.createServer(async (req, res) => {
             let replyText = '';
             let actionData = null;
 
-            // Check if message is a direct action intent (e.g. Job Search, Task, Goal, Decision, Browser)
-            try {
-                const actionRes = await handleActionIntent(message);
-                if (actionRes) {
-                    actionData = actionRes;
-                    if (actionRes.action === 'job_radar') {
-                        const r = actionRes.radar;
-                        let jobsList = '';
-                        if (r.live_jobs && r.live_jobs.length > 0) {
-                            jobsList = "\n\n🔥 **Recent Suited Openings Found on LinkedIn:**\n" + 
-                                r.live_jobs.map((j, i) => `${i + 1}. **${j.title}** (${j.posted})\n   🏢 ${j.company} • 📍 ${j.location}\n   🔗 [Apply on LinkedIn](${j.url})`).join('\n\n');
-                        }
-                        replyText = `🎯 **PATHS — Live LinkedIn Opportunity Radar (Sections 19 & 26)**\n🔍 **Query:** _${r.query}_ | 📍 **Location:** _${r.targetLocation}_${jobsList}\n\n━━━━━━━━━━━━━━━━━━━━\n🌐 **Pre-Filtered Live Feeds:**\n` + 
-                            r.searches.map(s => `• [${s.title}](${s.url}) — _${s.filter}_`).join('\n') + 
-                            `\n\n_Tip: Tell me "tailor cv for [title]" to generate tailored resume bullets immediately!_`;
-                    } else if (actionRes.action === 'crypto_radar') {
-                        const r = actionRes.radar;
-                        let projList = '';
-                        if (r.projects && r.projects.length > 0) {
-                            projList = "\n\n💎 **Newly Listed & Trending Crypto Projects:**\n" + 
-                                r.projects.map((p, i) => `${i + 1}. **${p.name}** ${p.symbol ? `(\`$${p.symbol}\`)` : ''} • _${p.category}_\n   🌐 [Website](${p.website || '#'}) • 💼 [LinkedIn Search](${p.linkedin})${p.twitter ? ` • 🐦 [Twitter](${p.twitter})` : ''}\n   ⛓️ _Ecosystem: ${p.chains}_ • ⏱️ _${p.listed_date}_\n   📝 _${p.description}_`).join('\n\n');
-                        }
-                        replyText = `💎 **PATHS — Live Crypto Sourcing & Discovery Radar**\n⚡ **Target:** _${r.query}_\n━━━━━━━━━━━━━━━━━━━━${projList}\n\n━━━━━━━━━━━━━━━━━━━━\n🌐 **Live Web3 Sourcing Directories:**\n` + 
-                            r.curated_directories.map(d => `• [${d.title}](${d.url}) — _${d.desc}_`).join('\n');
-                    } else if (actionRes.action === 'job_matched') {
-                        const a = actionRes.analysis;
-                        replyText = `🎯 **Job Opportunity Matching Matrix**\nTarget: _${actionRes.job_query}_\n\n\`\`\`\n${a.matrix}\n\`\`\`\n\n**Strategy:** ${a.strategy}`;
-                    } else if (actionRes.action === 'task_created') {
-                        replyText = `⚔️ Task locked in: **"${actionRes.task.title}"** under project **${actionRes.project_name}**.`;
-                    } else if (actionRes.action === 'task_completed') {
-                        replyText = `⚔️ Task marked completed: **"${actionRes.task?.title || 'Done'}"**. Well done, Swapnil!`;
-                    } else if (actionRes.feedback) {
-                        replyText = actionRes.feedback;
-                    }
+            // 1. Check if message is a query for active reminders / alarms
+            if (message.match(/^(?:\/reminders|reminders|my\s+reminders|show\s+(?:my\s+)?reminders|what\s+reminders(?:\s+do\s+i\s+have)?)$/i)) {
+                const active = remindersManager.getActiveReminders();
+                if (active.length === 0) {
+                    replyText = "⏰ You have no pending reminders or alarms right now, Swapnil. Everything is clear!";
+                } else {
+                    replyText = `⏰ **Active Reminders & Alarms (${active.length}):**\n\n` + active.map((r, i) => {
+                        const minsLeft = Math.max(1, Math.round((r.dueAt - Date.now()) / 60000));
+                        const formatted = new Date(r.dueAt).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
+                        const icon = r.isAlarm ? '🚨' : '⏰';
+                        return `${i + 1}. ${icon} **"${r.text}"** — ${formatted} (in ~${minsLeft}m) • [Add to Calendar](${remindersManager.createGoogleCalendarUrl(r.text, r.dueAt)})`;
+                    }).join('\n');
                 }
-            } catch (actErr) {
-                console.warn('[Chat Action Intent Error]:', actErr.message);
             }
 
+            // 2. Check if message is a reminder or alarm creation intent
+            if (!replyText) {
+                const reminderExtracted = remindersManager.extractReminderFromMessage(message);
+                if (reminderExtracted) {
+                    const rem = remindersManager.addReminder(reminderExtracted.task, reminderExtracted.timeStr, 7112137739, {
+                        isAlarm: Boolean(reminderExtracted.isAlarm)
+                    });
+                    const diffMs = rem.dueAt - Date.now();
+                    const dueHours = (diffMs / 3600000).toFixed(1).replace(/\.0$/, '');
+                    const dueMinutes = Math.round(diffMs / 60000);
+                    const timeFriendly = dueMinutes >= 60 ? `~${dueHours} hour${dueHours === '1' ? '' : 's'}` : `~${dueMinutes} min${dueMinutes === 1 ? '' : 's'}`;
+                    const dueDateFormatted = new Date(rem.dueAt).toLocaleString('en-US', {
+                        weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true
+                    });
+                    const gcalUrl = remindersManager.createGoogleCalendarUrl(reminderExtracted.task, rem.dueAt);
+                    actionData = {
+                        action: reminderExtracted.isAlarm ? 'alarm_set' : 'reminder_set',
+                        reminder: rem,
+                        calendar_url: gcalUrl,
+                        ics_url: `/api/reminders/${rem.id}/ics`
+                    };
+                    replyText = reminderExtracted.isAlarm
+                        ? `🚨 **Alarm locked in, Commander!**\n\n⏰ **Alarm:** *"${reminderExtracted.task}"*\n⏱️ **Time:** ${dueDateFormatted} (${timeFriendly})\n\n[Sync with Google Calendar](${gcalUrl}) • [Download .ics Event](/api/reminders/${rem.id}/ics)`
+                        : `⏰ **Reminder locked in, Commander!**\n\n📌 **Task:** *"${reminderExtracted.task}"*\n⏱️ **Time:** ${dueDateFormatted} (${timeFriendly})\n\n[Add to Google Calendar](${gcalUrl}) • [Download .ics Event](/api/reminders/${rem.id}/ics)`;
+                }
+            }
+
+            // 3. Check if message is a direct action intent (e.g. Job Search, Task, Goal, Decision, Browser)
             if (!replyText) {
                 try {
-                    const { callMikasaAgent } = require('../telegram_bridge');
+                    const actionRes = await handleActionIntent(message);
+                    if (actionRes) {
+                        actionData = actionRes;
+                        if (actionRes.action === 'job_radar') {
+                            const r = actionRes.radar;
+                            let jobsList = '';
+                            if (r.live_jobs && r.live_jobs.length > 0) {
+                                jobsList = "\n\n🔥 **Recent Suited Openings Found on LinkedIn:**\n" + 
+                                    r.live_jobs.map((j, i) => `${i + 1}. **${j.title}** (${j.posted})\n   🏢 ${j.company} • 📍 ${j.location}\n   🔗 [Apply on LinkedIn](${j.url})`).join('\n\n');
+                            }
+                            replyText = `🎯 **PATHS — Live LinkedIn Opportunity Radar (Sections 19 & 26)**\n🔍 **Query:** _${r.query}_ | 📍 **Location:** _${r.targetLocation}_${jobsList}\n\n━━━━━━━━━━━━━━━━━━━━\n🌐 **Pre-Filtered Live Feeds:**\n` + 
+                                r.searches.map(s => `• [${s.title}](${s.url}) — _${s.filter}_`).join('\n') + 
+                                `\n\n_Tip: Tell me "tailor cv for [title]" to generate tailored resume bullets immediately!_`;
+                        } else if (actionRes.action === 'crypto_radar') {
+                            const r = actionRes.radar;
+                            let projList = '';
+                            if (r.projects && r.projects.length > 0) {
+                                projList = "\n\n💎 **Newly Listed & Trending Crypto Projects:**\n" + 
+                                    r.projects.map((p, i) => `${i + 1}. **${p.name}** ${p.symbol ? `(\`$${p.symbol}\`)` : ''} • _${p.category}_\n   🌐 [Website](${p.website || '#'}) • 💼 [LinkedIn Search](${p.linkedin})${p.twitter ? ` • 🐦 [Twitter](${p.twitter})` : ''}\n   ⛓️ _Ecosystem: ${p.chains}_ • ⏱️ _${p.listed_date}_\n   📝 _${p.description}_`).join('\n\n');
+                            }
+                            replyText = `💎 **PATHS — Live Crypto Sourcing & Discovery Radar**\n⚡ **Target:** _${r.query}_\n━━━━━━━━━━━━━━━━━━━━${projList}\n\n━━━━━━━━━━━━━━━━━━━━\n🌐 **Live Web3 Sourcing Directories:**\n` + 
+                                r.curated_directories.map(d => `• [${d.title}](${d.url}) — _${d.desc}_`).join('\n');
+                        } else if (actionRes.action === 'job_matched') {
+                            const a = actionRes.analysis;
+                            replyText = `🎯 **Job Opportunity Matching Matrix**\nTarget: _${actionRes.job_query}_\n\n\`\`\`\n${a.matrix}\n\`\`\`\n\n**Strategy:** ${a.strategy}`;
+                        } else if (actionRes.action === 'task_created') {
+                            replyText = `⚔️ Task locked in: **"${actionRes.task.title}"** under project **${actionRes.project_name}**.`;
+                        } else if (actionRes.action === 'task_completed') {
+                            replyText = `⚔️ Task marked completed: **"${actionRes.task?.title || 'Done'}"**. Well done, Swapnil!`;
+                        } else if (actionRes.feedback) {
+                            replyText = actionRes.feedback;
+                        }
+                    }
+                } catch (actErr) {
+                    console.warn('[Chat Action Intent Error]:', actErr.message);
+                }
+            }
+
+            // 4. Core Mikasa Agent Brain with unified context
+            if (!replyText) {
+                try {
                     const agentRes = await callMikasaAgent(message, conversationId, {
                         user_id: 7112137739,
                         first_name: 'Swapnil',
@@ -623,8 +718,12 @@ const server = http.createServer(async (req, res) => {
                 }
             }
 
-            // Non-blocking auto memory extraction
+            // Record turn into omnichannel conversation cache and Supabase
+            await recordConversationTurn(conversationId, message, replyText, 'gemini-web').catch(() => {});
+
+            // Auto memory extraction in background
             triggerMemoryExtraction(message, replyText, conversationId);
+            triggerTgMemoryExtraction(message, replyText, conversationId).catch(() => {});
 
             return sendJson(res, 200, {
                 reply: replyText,
@@ -656,16 +755,78 @@ const server = http.createServer(async (req, res) => {
             let phoneActions = [];
             let pcActions = [];
 
-            // 1. Direct Action Intent Resolution (Tasks, Reminders, Goals, Radars)
-            try {
-                const actionRes = await handleActionIntent(message);
-                if (actionRes) {
-                    actionData = actionRes;
-                    if (actionRes.feedback) replyText = actionRes.feedback;
+            // 1. Reminders & Alarms Query Intent
+            if (message.match(/^(?:\/reminders|reminders|my\s+reminders|show\s+(?:my\s+)?reminders|what\s+reminders(?:\s+do\s+i\s+have)?)$/i)) {
+                const active = remindersManager.getActiveReminders();
+                if (active.length === 0) {
+                    replyText = "You have no pending reminders or alarms right now, Swapnil. Everything is clear!";
+                } else {
+                    replyText = `Active Reminders & Alarms (${active.length}):\n` + active.map((r, i) => {
+                        const minsLeft = Math.max(1, Math.round((r.dueAt - Date.now()) / 60000));
+                        const formatted = new Date(r.dueAt).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
+                        return `${i + 1}. ${r.isAlarm ? 'Alarm' : 'Reminder'}: "${r.text}" at ${formatted} (${minsLeft}m left)`;
+                    }).join('\n');
                 }
-            } catch (e) {}
+            }
 
-            // 2. Direct PC Status & Control Intents
+            // 2. Natural Language Reminder & Alarm Creation Intent
+            if (!replyText) {
+                const reminderExtracted = remindersManager.extractReminderFromMessage(message);
+                if (reminderExtracted) {
+                    const rem = remindersManager.addReminder(reminderExtracted.task, reminderExtracted.timeStr, 7112137739, {
+                        isAlarm: Boolean(reminderExtracted.isAlarm)
+                    });
+                    const diffMs = rem.dueAt - Date.now();
+                    const dueHours = (diffMs / 3600000).toFixed(1).replace(/\.0$/, '');
+                    const dueMinutes = Math.round(diffMs / 60000);
+                    const timeFriendly = dueMinutes >= 60 ? `~${dueHours} hour${dueHours === '1' ? '' : 's'}` : `~${dueMinutes} min${dueMinutes === 1 ? '' : 's'}`;
+                    const dueDateFormatted = new Date(rem.dueAt).toLocaleString('en-US', {
+                        weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true
+                    });
+                    const gcalUrl = remindersManager.createGoogleCalendarUrl(reminderExtracted.task, rem.dueAt);
+
+                    if (reminderExtracted.isAlarm) {
+                        phoneActions.push({
+                            type: 'SET_ALARM',
+                            time: rem.dueAt,
+                            label: reminderExtracted.task,
+                            hour: new Date(rem.dueAt).getHours(),
+                            minute: new Date(rem.dueAt).getMinutes()
+                        });
+                        replyText = `Alarm set for ${dueDateFormatted} (${timeFriendly}): "${reminderExtracted.task}". I have synced this with your phone alarm system, Commander.`;
+                    } else {
+                        phoneActions.push({
+                            type: 'SET_CALENDAR_EVENT',
+                            title: reminderExtracted.task,
+                            startTime: rem.dueAt,
+                            endTime: rem.dueAt + 1800000,
+                            gcal_url: gcalUrl,
+                            ics_url: `/api/reminders/${rem.id}/ics`
+                        });
+                        replyText = `Reminder locked in for ${dueDateFormatted} (${timeFriendly}): "${reminderExtracted.task}". I'll chime you directly and it's added to your calendar.`;
+                    }
+
+                    actionData = {
+                        action: reminderExtracted.isAlarm ? 'alarm_set' : 'reminder_set',
+                        reminder: rem,
+                        calendar_url: gcalUrl,
+                        ics_url: `/api/reminders/${rem.id}/ics`
+                    };
+                }
+            }
+
+            // 3. Direct Action Intent Resolution (Tasks, Reminders, Goals, Radars)
+            if (!replyText) {
+                try {
+                    const actionRes = await handleActionIntent(message);
+                    if (actionRes) {
+                        actionData = actionRes;
+                        if (actionRes.feedback) replyText = actionRes.feedback;
+                    }
+                } catch (e) {}
+            }
+
+            // 4. Direct PC Status & Control Intents
             if (!replyText) {
                 if (message.match(/\b(?:pc\s*status|computer\s*status|battery|ram|cpu|pc\s*kemon\s*ache)\b/i)) {
                     try {
@@ -679,7 +840,7 @@ const server = http.createServer(async (req, res) => {
                 }
             }
 
-            // 3. Mobile Hardware Direct Intent Parsing (Torch/Flashlight, Call, Mute)
+            // 5. Mobile Hardware Direct Intent Parsing (Torch/Flashlight, Call, Mute)
             if (message.match(/\b(?:turn\s*on\s*flashlight|torch\s*on|flashlight\s*on|alo\s*jalao)\b/i)) {
                 phoneActions.push({ type: 'TORCH', state: true });
                 replyText = replyText || "Turning on your phone flashlight, Swapnil.";
@@ -688,10 +849,9 @@ const server = http.createServer(async (req, res) => {
                 replyText = replyText || "Flashlight turned off.";
             }
 
-            // 4. Core Mikasa Agent Brain (Gemini + Memory + Persona)
+            // 6. Core Mikasa Agent Brain (Gemini + Memory + Persona)
             if (!replyText) {
                 try {
-                    const { callMikasaAgent } = require('../telegram_bridge');
                     const agentRes = await callMikasaAgent(message, conversationId, {
                         user_id: 7112137739,
                         first_name: 'Swapnil',
@@ -704,8 +864,12 @@ const server = http.createServer(async (req, res) => {
                 }
             }
 
+            // Record turn into omnichannel conversation cache and Supabase
+            await recordConversationTurn(conversationId, message, replyText, 'gemini-mobile').catch(() => {});
+
             // Memory extraction in background
             triggerMemoryExtraction(message, replyText, conversationId);
+            triggerTgMemoryExtraction(message, replyText, conversationId).catch(() => {});
 
             // 5. Audio Synthesis if requested or mobile
             let audioBase64 = null;
@@ -1025,11 +1189,42 @@ const server = http.createServer(async (req, res) => {
                 });
             }
 
+            // Check reminder / alarm intent in voice
+            const reminderExtracted = remindersManager.extractReminderFromMessage(userQuery);
+            if (reminderExtracted) {
+                const rem = remindersManager.addReminder(reminderExtracted.task, reminderExtracted.timeStr, 7112137739, {
+                    isAlarm: Boolean(reminderExtracted.isAlarm)
+                });
+                const diffMs = rem.dueAt - Date.now();
+                const dueHours = (diffMs / 3600000).toFixed(1).replace(/\.0$/, '');
+                const dueMinutes = Math.round(diffMs / 60000);
+                const timeFriendly = dueMinutes >= 60 ? `~${dueHours} hours` : `~${dueMinutes} minutes`;
+                const dueDateFormatted = new Date(rem.dueAt).toLocaleString('en-US', {
+                    weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true
+                });
+                const reply = reminderExtracted.isAlarm
+                    ? `Alarm locked in for ${dueDateFormatted} (${timeFriendly}): "${reminderExtracted.task}". I have synced this with your alarms and reminders system, Commander.`
+                    : `Reminder locked in for ${dueDateFormatted} (${timeFriendly}): "${reminderExtracted.task}". I'll remind you on schedule, Commander.`;
+                await recordConversationTurn(COMMANDER_UNIFIED_CONVERSATION_ID, userQuery, reply, 'reminder-engine').catch(() => {});
+                triggerTgMemoryExtraction(userQuery, reply, COMMANDER_UNIFIED_CONVERSATION_ID).catch(() => {});
+                return sendJson(res, 200, {
+                    transcription: userQuery,
+                    reply: reply,
+                    action: reminderExtracted.isAlarm ? 'alarm_set' : 'reminder_set',
+                    reminder: rem,
+                    alarm: reminderExtracted.isAlarm ? {
+                        time: rem.dueAt,
+                        label: reminderExtracted.task,
+                        hour: new Date(rem.dueAt).getHours(),
+                        minute: new Date(rem.dueAt).getMinutes()
+                    } : null
+                });
+            }
+
             // Otherwise, process through full Mikasa AI agent
-            const { callMikasaAgent } = require('../telegram_bridge');
             let agentRes = null;
             try {
-                agentRes = await callMikasaAgent(userQuery, 'mobile_voice', { isCommander: true });
+                agentRes = await callMikasaAgent(userQuery, COMMANDER_UNIFIED_CONVERSATION_ID, { isCommander: true });
             } catch (agentErr) {
                 console.warn('[Voice API Agent Error]:', agentErr.message);
                 agentRes = { reply: 'Acknowledged, Commander.' };
@@ -1037,6 +1232,9 @@ const server = http.createServer(async (req, res) => {
 
             const rawReply = typeof agentRes === 'string' ? agentRes : (agentRes?.reply || 'Acknowledged, Commander.');
             const toolsUsed = agentRes?.tools_used || null;
+
+            await recordConversationTurn(COMMANDER_UNIFIED_CONVERSATION_ID, userQuery, String(rawReply || ''), 'gemini-voice').catch(() => {});
+            triggerTgMemoryExtraction(userQuery, String(rawReply || ''), COMMANDER_UNIFIED_CONVERSATION_ID).catch(() => {});
 
             return sendJson(res, 200, {
                 transcription: userQuery,

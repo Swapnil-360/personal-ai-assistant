@@ -81,29 +81,211 @@ class RemindersManager {
         return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&dates=${dates}&details=${encodeURIComponent(details)}`;
     }
 
-    // Parse friendly relative and absolute times: e.g. "tomorrow at 4pm", "today at 8pm", "5pm", "10m", "1h", "6hr later", "kal bikal 4ta"
+    generateIcs(rem) {
+        const start = new Date(rem.dueAt);
+        const end = new Date(rem.dueAt + 30 * 60 * 1000);
+        const formatIcsDate = (d) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+        const nowStr = formatIcsDate(new Date());
+
+        const summary = (rem.text || 'Reminder').replace(/\n/g, ' ');
+        const details = (rem.draftContent ? `${rem.draftContent}\n\n` : '') + 'Scheduled by Mikasa AI Assistant 🧣';
+
+        return [
+            'BEGIN:VCALENDAR',
+            'VERSION:2.0',
+            'PRODID:-//Mikasa AI Assistant//Swapnil OS//EN',
+            'CALSCALE:GREGORIAN',
+            'METHOD:PUBLISH',
+            'BEGIN:VEVENT',
+            `UID:${rem.id}@mrswapnil.me`,
+            `DTSTAMP:${nowStr}`,
+            `DTSTART:${formatIcsDate(start)}`,
+            `DTEND:${formatIcsDate(end)}`,
+            `SUMMARY:${summary}`,
+            `DESCRIPTION:${details.replace(/\n/g, '\\n')}`,
+            'STATUS:CONFIRMED',
+            'BEGIN:VALARM',
+            'TRIGGER:-PT15M',
+            'ACTION:DISPLAY',
+            `DESCRIPTION:${summary}`,
+            'END:VALARM',
+            'END:VEVENT',
+            'END:VCALENDAR'
+        ].join('\r\n');
+    }
+
+    generateCalendarFeed(reminders) {
+        const formatIcsDate = (d) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+        const nowStr = formatIcsDate(new Date());
+
+        const lines = [
+            'BEGIN:VCALENDAR',
+            'VERSION:2.0',
+            'PRODID:-//Mikasa AI Assistant//Swapnil OS//EN',
+            'CALSCALE:GREGORIAN',
+            'METHOD:PUBLISH',
+            'X-WR-CALNAME:Mikasa AI Reminders & Alarms'
+        ];
+
+        for (const rem of reminders) {
+            const start = new Date(rem.dueAt);
+            const end = new Date(rem.dueAt + 30 * 60 * 1000);
+            const summary = (rem.text || 'Reminder').replace(/\n/g, ' ');
+            const details = (rem.draftContent ? `${rem.draftContent}\n\n` : '') + 'Scheduled by Mikasa AI Assistant 🧣';
+
+            lines.push(
+                'BEGIN:VEVENT',
+                `UID:${rem.id}@mrswapnil.me`,
+                `DTSTAMP:${nowStr}`,
+                `DTSTART:${formatIcsDate(start)}`,
+                `DTEND:${formatIcsDate(end)}`,
+                `SUMMARY:${summary}`,
+                `DESCRIPTION:${details.replace(/\n/g, '\\n')}`,
+                'STATUS:CONFIRMED',
+                'BEGIN:VALARM',
+                'TRIGGER:-PT15M',
+                'ACTION:DISPLAY',
+                `DESCRIPTION:${summary}`,
+                'END:VALARM',
+                'END:VEVENT'
+            );
+        }
+
+        lines.push('END:VCALENDAR');
+        return lines.join('\r\n');
+    }
+
+    // Parse friendly relative and absolute times: e.g. "tomorrow at 4pm", "Friday at 4pm", "next Monday 10am", "October 5 at 3pm", "set alarm for 7am", "poroshu 10ta"
     parseTime(timeStr) {
         if (!timeStr) return null;
         let text = timeStr.trim().toLowerCase();
         const now = Date.now();
+        const nowDate = new Date(now);
 
-        // Strip leading common prepositions/filler
-        text = text.replace(/^(?:in|after|about|around|for|nearly|at|on)\s+/i, '').trim();
+        const MONTHS = {
+            jan: 0, january: 0, feb: 1, february: 1, mar: 2, march: 2,
+            apr: 3, april: 3, may: 4, jun: 5, june: 5, jul: 6, july: 6,
+            aug: 7, august: 7, sep: 8, sept: 8, september: 8, oct: 9, october: 9,
+            nov: 10, november: 10, dec: 11, december: 11
+        };
+
+        const WEEKDAYS = {
+            sunday: 0, sun: 0, robibar: 0, robi: 0,
+            monday: 1, mon: 1, shombar: 1, shom: 1,
+            tuesday: 2, tue: 2, mongolbar: 2, mongol: 2,
+            wednesday: 3, wed: 3, budhbar: 3, budh: 3,
+            thursday: 4, thu: 4, brihospotibar: 4, brihospoti: 4,
+            friday: 5, fri: 5, shukrobar: 5, shukro: 5,
+            saturday: 6, sat: 6, shonibar: 6, shoni: 6
+        };
+
+        // Strip leading common prepositions/filler and alarm prefixes
+        text = text.replace(/^(?:in|after|about|around|for|nearly|at|on|set\s+(?:an?\s+)?alarm\s+(?:for|at)?|alarm\s+(?:for|at)?)\s+/i, '').trim();
         // Strip trailing common words
         text = text.replace(/\s+(?:later|after|por|theke|dhore|pore|from\s+now|shomoy)$/i, '').trim();
 
-        // 0A. Day + Time compound: "tomorrow at 4pm", "tomorrow 4pm", "today at 8:30pm", "kal 4pm", "kal 4ta"
-        const dayTimeMatch = text.match(/^(tomorrow|kal|agamikal|today|aj|ajke)\s+(?:at\s+|shomoy\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm|ta)?$/i);
+        // Banglish period hint detection
+        let periodHint = null;
+        if (/\b(?:shokal|shokale|morning)\b/i.test(text)) periodHint = 'am';
+        if (/\b(?:bikal|bikale|shondha|shondhay|evening|dupur|dupure|afternoon)\b/i.test(text)) periodHint = 'pm';
+        if (/\b(?:rat|rate|night)\b/i.test(text)) periodHint = 'night';
+
+        // Clean text of period hints for numerical parsing
+        const cleanText = text.replace(/\b(?:shokal|shokale|dupur|dupure|bikal|bikale|shondha|shondhay|rat|rate|morning|evening|afternoon|night)\b/gi, '').trim().replace(/\s+/g, ' ');
+
+        // 0A. Day after tomorrow / "poroshu"
+        const poroshuMatch = cleanText.match(/^(?:the\s+)?(?:day\s+after\s+tomorrow|poroshu|poroshudin)\s*(?:at\s+|shomoy\s+)?(?:(\d{1,2})(?::(\d{2}))?\s*(am|pm|ta|tay)?)?$/i);
+        if (poroshuMatch) {
+            const target = new Date(now);
+            target.setDate(target.getDate() + 2);
+            let hours = poroshuMatch[1] ? parseInt(poroshuMatch[1]) : 9;
+            const minutes = poroshuMatch[2] ? parseInt(poroshuMatch[2]) : 0;
+            let meridiem = (poroshuMatch[3] || periodHint || '').toLowerCase();
+            if (periodHint === 'pm' && hours < 12) hours += 12;
+            if (periodHint === 'am' && hours === 12) hours = 0;
+            if (periodHint === 'night' && hours < 12 && hours >= 6) hours += 12;
+            if (meridiem === 'pm' && hours < 12) hours += 12;
+            if (meridiem === 'am' && hours === 12) hours = 0;
+            if ((meridiem === 'ta' || meridiem === 'tay' || !meridiem) && hours <= 7 && poroshuMatch[1] && !periodHint) hours += 12;
+            target.setHours(hours, minutes, 0, 0);
+            return target.getTime();
+        }
+
+        // 0B. Weekday: e.g. "Monday at 10am", "next Friday", "Friday 4pm", "shukrobar 4ta"
+        const weekdayRegex = '(?:next\\s+)?(sunday|sun|robibar|monday|mon|shombar|tuesday|tue|mongolbar|wednesday|wed|budhbar|thursday|thu|brihospotibar|friday|fri|shukrobar|saturday|sat|shonibar)';
+        const weekdayMatch = cleanText.match(new RegExp(`^${weekdayRegex}\\s*(?:at\\s+|shomoy\\s+)?(?:(\\d{1,2})(?::(\\d{2}))?\\s*(am|pm|ta|tay)?)?$`, 'i'));
+        if (weekdayMatch) {
+            const dayName = weekdayMatch[1].toLowerCase();
+            const targetDay = WEEKDAYS[dayName];
+            if (targetDay !== undefined) {
+                const currentDay = nowDate.getDay();
+                let dayDiff = targetDay - currentDay;
+                if (dayDiff <= 0 || text.startsWith('next ')) {
+                    dayDiff += 7;
+                }
+                const target = new Date(now);
+                target.setDate(target.getDate() + dayDiff);
+                let hours = weekdayMatch[2] ? parseInt(weekdayMatch[2]) : 9;
+                const minutes = weekdayMatch[3] ? parseInt(weekdayMatch[3]) : 0;
+                let meridiem = (weekdayMatch[4] || periodHint || '').toLowerCase();
+                if (periodHint === 'pm' && hours < 12) hours += 12;
+                if (periodHint === 'am' && hours === 12) hours = 0;
+                if (periodHint === 'night' && hours < 12 && hours >= 6) hours += 12;
+                if (meridiem === 'pm' && hours < 12) hours += 12;
+                if (meridiem === 'am' && hours === 12) hours = 0;
+                if ((meridiem === 'ta' || meridiem === 'tay' || !meridiem) && hours <= 7 && weekdayMatch[2] && !periodHint) hours += 12;
+                target.setHours(hours, minutes, 0, 0);
+                return target.getTime();
+            }
+        }
+
+        // 0C. Calendar Date: "October 5 at 3pm", "5th October", "Sep 30 at 9pm"
+        const monthFirstMatch = cleanText.match(/^(january|jan|february|feb|march|mar|april|apr|may|june|jun|july|jul|august|aug|september|sep|sept|october|oct|november|nov|december|dec)\s+(\d{1,2})(?:st|nd|rd|th)?\s*(?:at\s+|shomoy\s+)?(?:(\d{1,2})(?::(\d{2}))?\s*(am|pm|ta|tay)?)?$/i);
+        const dayFirstMatch = cleanText.match(/^(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?(january|jan|february|feb|march|mar|april|apr|may|june|jun|july|jul|august|aug|september|sep|sept|october|oct|november|nov|december|dec)\s*(?:at\s+|shomoy\s+)?(?:(\d{1,2})(?::(\d{2}))?\s*(am|pm|ta|tay)?)?$/i);
+
+        const dateMatch = monthFirstMatch || dayFirstMatch;
+        if (dateMatch) {
+            const monthName = (monthFirstMatch ? dateMatch[1] : dateMatch[2]).toLowerCase();
+            const dayNum = parseInt(monthFirstMatch ? dateMatch[2] : dateMatch[1]);
+            const monthIdx = MONTHS[monthName];
+
+            if (monthIdx !== undefined && dayNum >= 1 && dayNum <= 31) {
+                const target = new Date(now);
+                let year = target.getFullYear();
+                target.setMonth(monthIdx, dayNum);
+
+                let hours = dateMatch[3] ? parseInt(dateMatch[3]) : 9;
+                const minutes = dateMatch[4] ? parseInt(dateMatch[4]) : 0;
+                let meridiem = (dateMatch[5] || periodHint || '').toLowerCase();
+                if (periodHint === 'pm' && hours < 12) hours += 12;
+                if (periodHint === 'am' && hours === 12) hours = 0;
+                if (periodHint === 'night' && hours < 12 && hours >= 6) hours += 12;
+                if (meridiem === 'pm' && hours < 12) hours += 12;
+                if (meridiem === 'am' && hours === 12) hours = 0;
+                if ((meridiem === 'ta' || meridiem === 'tay' || !meridiem) && hours <= 7 && dateMatch[3] && !periodHint) hours += 12;
+
+                target.setHours(hours, minutes, 0, 0);
+                if (target.getTime() < now) {
+                    target.setFullYear(year + 1);
+                }
+                return target.getTime();
+            }
+        }
+
+        // 0D. Day + Time compound: "tomorrow at 4pm", "today at 8:30pm", "kal 4pm", "kal 4ta"
+        const dayTimeMatch = cleanText.match(/^(tomorrow|kal|agamikal|today|aj|ajke)\s+(?:at\s+|shomoy\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm|ta|tay)?$/i);
         if (dayTimeMatch) {
             const dayWord = dayTimeMatch[1].toLowerCase();
             let hours = parseInt(dayTimeMatch[2]);
             const minutes = dayTimeMatch[3] ? parseInt(dayTimeMatch[3]) : 0;
-            const meridiem = (dayTimeMatch[4] || '').toLowerCase();
+            let meridiem = (dayTimeMatch[4] || periodHint || '').toLowerCase();
 
+            if (periodHint === 'pm' && hours < 12) hours += 12;
+            if (periodHint === 'am' && hours === 12) hours = 0;
+            if (periodHint === 'night' && hours < 12 && hours >= 6) hours += 12;
             if (meridiem === 'pm' && hours < 12) hours += 12;
             if (meridiem === 'am' && hours === 12) hours = 0;
-            // If "ta" or no meridiem, if hour <= 7 assume PM (e.g. 4ta -> 4pm, 5ta -> 5pm)
-            if ((meridiem === 'ta' || !meridiem) && hours <= 7) hours += 12;
+            if ((meridiem === 'ta' || meridiem === 'tay' || !meridiem) && hours <= 7 && !periodHint) hours += 12;
 
             const target = new Date(now);
             if (dayWord === 'tomorrow' || dayWord === 'kal' || dayWord === 'agamikal') {
@@ -113,8 +295,8 @@ class RemindersManager {
             return target.getTime();
         }
 
-        // 0B. Compound format: "1 hour 30 mins", "2h 15m", "1 hr and 20 mins"
-        const compoundMatch = text.match(/^(\d+(?:\.\d+)?)\s*(?:h|hr|hrs|hours?|ghonta)\s*(?:and\s*)?(\d+)\s*(?:m|min|mins|minutes?|minit)$/i);
+        // 0E. Compound format: "1 hour 30 mins", "2h 15m", "1 hr and 20 mins"
+        const compoundMatch = cleanText.match(/^(\d+(?:\.\d+)?)\s*(?:h|hr|hrs|hours?|ghonta)\s*(?:and\s*)?(\d+)\s*(?:m|min|mins|minutes?|minit)$/i);
         if (compoundMatch) {
             const hrs = parseFloat(compoundMatch[1]);
             const mins = parseInt(compoundMatch[2]);
@@ -122,30 +304,30 @@ class RemindersManager {
         }
 
         // 1. Seconds: "30s", "30 sec", "45 seconds"
-        const secMatch = text.match(/^(\d+)\s*(?:s|sec|secs|seconds?)$/i);
+        const secMatch = cleanText.match(/^(\d+)\s*(?:s|sec|secs|seconds?)$/i);
         if (secMatch) return now + parseInt(secMatch[1]) * 1000;
 
         // 2. Minutes: "10m", "10 min", "15 minutes", "in 10 minutes", "10 minute"
-        const minMatch = text.match(/^(\d+)\s*(?:m|min|mins|minutes?|minit|minute)$/i);
+        const minMatch = cleanText.match(/^(\d+)\s*(?:m|min|mins|minutes?|minit|minute)$/i);
         if (minMatch) return now + parseInt(minMatch[1]) * 60 * 1000;
 
         // 3. Hours: "2h", "2 hours", "6hr", "6 hrs", "1.5h", "6 ghonta", "6 ghontar"
-        const hrMatch = text.match(/^(\d+(?:\.\d+)?)\s*(?:h|hr|hrs|hours?|ghonta|ghontar?)$/i);
+        const hrMatch = cleanText.match(/^(\d+(?:\.\d+)?)\s*(?:h|hr|hrs|hours?|ghonta|ghontar?)$/i);
         if (hrMatch) return now + Math.round(parseFloat(hrMatch[1]) * 3600 * 1000);
 
         // 4. Days: "1 day", "2 days", "3 din"
-        const dayMatch = text.match(/^(\d+(?:\.\d+)?)\s*(?:d|day|days|din)$/i);
+        const dayMatch = cleanText.match(/^(\d+(?:\.\d+)?)\s*(?:d|day|days|din)$/i);
         if (dayMatch) return now + Math.round(parseFloat(dayMatch[1]) * 86400 * 1000);
 
         // 5. Named relative times: "tomorrow", "kal", "agamikal", "tonight", "aj rate"
-        if (text === 'tomorrow' || text === 'kal' || text === 'agamikal' || text === 'tomorrow morning') {
+        if (cleanText === 'tomorrow' || cleanText === 'kal' || cleanText === 'agamikal' || cleanText === 'tomorrow morning') {
             const target = new Date(now);
             target.setDate(target.getDate() + 1);
             target.setHours(9, 0, 0, 0); // 9:00 AM next day
             return target.getTime() > now ? target.getTime() : now + 24 * 3600 * 1000;
         }
 
-        if (text === 'tonight' || text === 'aj rate' || text === 'rate') {
+        if (cleanText === 'tonight' || cleanText === 'aj rate' || cleanText === 'rate') {
             const target = new Date(now);
             target.setHours(21, 0, 0, 0); // 9:00 PM tonight
             if (target.getTime() <= now) {
@@ -154,14 +336,18 @@ class RemindersManager {
             return target.getTime() > now ? target.getTime() : now + 4 * 3600 * 1000;
         }
 
-        // 6. Specific clock time: e.g. "5pm", "5:30pm", "10:00 am"
-        const clockMatch = text.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)$/i);
+        // 6. Specific clock time: e.g. "5pm", "5:30pm", "10:00 am", "18:00"
+        const clockMatch = cleanText.match(/^(\d{1,2})(?::(\d{2}))?\s*(am|pm)?$/i);
         if (clockMatch) {
             let hours = parseInt(clockMatch[1]);
             const minutes = clockMatch[2] ? parseInt(clockMatch[2]) : 0;
-            const meridiem = clockMatch[3].toLowerCase();
+            let meridiem = (clockMatch[3] || periodHint || '').toLowerCase();
+            if (periodHint === 'pm' && hours < 12) hours += 12;
+            if (periodHint === 'am' && hours === 12) hours = 0;
+            if (periodHint === 'night' && hours < 12 && hours >= 6) hours += 12;
             if (meridiem === 'pm' && hours < 12) hours += 12;
             if (meridiem === 'am' && hours === 12) hours = 0;
+            if (!meridiem && !periodHint && hours <= 7) hours += 12;
 
             const target = new Date(now);
             target.setHours(hours, minutes, 0, 0);
@@ -172,7 +358,7 @@ class RemindersManager {
         }
 
         // 7. If plain number without unit: e.g. "6" -> assume hours if <= 12, else minutes
-        const numMatch = text.match(/^(\d+)$/);
+        const numMatch = cleanText.match(/^(\d+)$/);
         if (numMatch) {
             const n = parseInt(numMatch[1]);
             if (n <= 12) return now + n * 3600 * 1000;
@@ -186,18 +372,39 @@ class RemindersManager {
         if (!rawText) return null;
         const text = rawText.trim();
 
-        const timeSpecRegex = '(?:tomorrow(?:\\s+at)?\\s+\\d{1,2}(?::\\d{2})?\\s*(?:am|pm)?|today(?:\\s+at)?\\s+\\d{1,2}(?::\\d{2})?\\s*(?:am|pm)?|kal(?:\\s+(?:at|shomoy))?\\s+\\d{1,2}(?::\\d{2})?\\s*(?:am|pm|ta|tay)?(?:\\s+shomoy)?|\\d{1,2}(?::\\d{2})?\\s*(?:am|pm|ta|tay)|\\d+(?:\\.\\d+)?\\s*(?:m|min|mins|minutes?|h|hr|hrs|hours?|ghonta|d|days?|s|sec|seconds?)(?:\\s+(?:later|after|por|from\\s+now))?|tomorrow|tonight|kal|agamikal)';
+        const weekdays = 'next\\s+[a-z]+|sunday|sun|robibar|monday|mon|shombar|tuesday|tue|mongolbar|wednesday|wed|budhbar|thursday|thu|brihospotibar|friday|fri|shukrobar|saturday|sat|shonibar';
+        const months = 'january|jan|february|feb|march|mar|april|apr|may|june|jun|july|jul|august|aug|september|sep|sept|october|oct|november|nov|december|dec';
+        const periods = 'shokal|shokale|dupur|dupure|bikal|bikale|shondha|shondhay|rat|rate|morning|evening|afternoon|night';
+        const dayAfter = 'the\\s+day\\s+after\\s+tomorrow|day\\s+after\\s+tomorrow|poroshu|poroshudin';
+
+        const timeSpecRegex = `(?:` +
+            `(?:${months})\\s+\\d{1,2}(?:st|nd|rd|th)?(?:\\s+(?:at\\s+|shomoy\\s+)?(?:(?:${periods})\\s*)?\\d{1,2}(?::\\d{2})?\\s*(?:am|pm|ta|tay)?)?|` +
+            `\\d{1,2}(?:st|nd|rd|th)?\\s+(?:of\\s+)?(?:${months})(?:\\s+(?:at\\s+|shomoy\\s+)?(?:(?:${periods})\\s*)?\\d{1,2}(?::\\d{2})?\\s*(?:am|pm|ta|tay)?)?|` +
+            `(?:${weekdays})(?:\\s+(?:at\\s+|shomoy\\s+)?(?:(?:${periods})\\s*)?\\d{1,2}(?::\\d{2})?\\s*(?:am|pm|ta|tay)?)?|` +
+            `(?:${dayAfter})(?:\\s+(?:at\\s+|shomoy\\s+)?(?:(?:${periods})\\s*)?\\d{1,2}(?::\\d{2})?\\s*(?:am|pm|ta|tay)?)?|` +
+            `(?:tomorrow|kal|agamikal|today|aj|ajke)(?:\\s+(?:at\\s+|shomoy\\s+)?(?:(?:${periods})\\s*)?\\d{1,2}(?::\\d{2})?\\s*(?:am|pm|ta|tay)?)?|` +
+            `\\d+(?:\\.\\d+)?\\s*(?:m|min|mins|minutes?|h|hr|hrs|hours?|ghonta|d|day|days?|din|s|sec|seconds?)(?:\\s+(?:later|after|por|from\\s+now))?|` +
+            `(?:(?:${periods})\\s*)?\\d{1,2}(?::\\d{2})?\\s*(?:am|pm|ta|tay)|` +
+            `tomorrow|tonight|kal|agamikal|poroshu` +
+        `)`;
+
+        // Pattern 0: Alarms (e.g. "set alarm for 7:30am", "alarm for tomorrow at 8am")
+        let m = text.match(new RegExp(`^(?:please\\s+)?(?:set\\s+(?:an?\\s+)?)?alarm\\s+(?:for\\s+|at\\s+)?(${timeSpecRegex})(?:\\s+(?:for|to|about)\\s+(.+))?$`, 'i'));
+        if (m) return { timeStr: m[1].trim(), task: m[2] ? m[2].trim() : 'Alarm', isAlarm: true };
+
+        m = text.match(new RegExp(`^\\/alarm\\s+(?:for\\s+|at\\s+)?(${timeSpecRegex})(?:\\s+(.+))?$`, 'i'));
+        if (m) return { timeStr: m[1].trim(), task: m[2] ? m[2].trim() : 'Alarm', isAlarm: true };
 
         // Pattern 1: Slash command: /remind [time] [task]
-        let m = text.match(new RegExp(`^\\/remind\\s+(?:in\\s+|at\\s+|on\\s+)?(${timeSpecRegex})\\s*(?:to\\s+|about\\s+|:\\s*|\\s+)?(.+)$`, 'i'));
+        m = text.match(new RegExp(`^\\/remind\\s+(?:in\\s+|at\\s+|on\\s+)?(${timeSpecRegex})\\s*(?:to\\s+|about\\s+|:\\s*|\\s+)?(.+)$`, 'i'));
         if (m) return { timeStr: m[1].trim(), task: m[2].trim() };
 
-        // Pattern 2: "remind me [time] to [task]" e.g. "remind me tomorrow at 4pm to meet with supervisor"
+        // Pattern 2: "remind me [time] to [task]" e.g. "remind me on Friday at 4pm to meet supervisor"
         m = text.match(new RegExp(`^(?:please\\s+)?(?:remind\\s+me|remind)\\s+(?:in\\s+|at\\s+|on\\s+)?(${timeSpecRegex})\\s*(?:to\\s+|about\\s+|:\\s*|\\s+)(.+)$`, 'i'));
         if (m) return { timeStr: m[1].trim(), task: m[2].trim() };
 
-        // Pattern 3: "remind me to [task] [time]" e.g. "remind me to check server in 30m" OR "remind me to meet supervisor tomorrow at 4pm"
-        m = text.match(new RegExp(`^(?:please\\s+)?(?:remind\\s+me|remind)(?:\\s+to|\\s+about)?\\s+(.+?)\\s+(?:at|on|in|around)?\\s*(${timeSpecRegex})\\s*$`, 'i'));
+        // Pattern 3: "remind me to [task] [time]" e.g. "remind me to check server in 30m" OR "remind me to meet supervisor on Friday at 4pm"
+        m = text.match(new RegExp(`^(?:please\\s+)?(?:remind\\s+me|remind)(?:\\s+to|\\s+about)?\\s+(.+?)\\s+(?:at|on|in|around)\\s+(${timeSpecRegex})\\s*$`, 'i'));
         if (m) return { timeStr: m[2].trim(), task: m[1].trim() };
 
         // Pattern 4: Task then Time then 'remind me': 'call prince 2 hours later remind me'

@@ -352,6 +352,9 @@ async function loadGroupInfoFromDb() {
     }
 }
 
+// Omnichannel Unified Conversation ID for Commander across all devices & accounts (Telegram Account 1, Account 2, Web Command Center, Mobile App)
+const COMMANDER_UNIFIED_CONVERSATION_ID = '00000000-swap-4000-8000-000000000360';
+
 // Generate deterministic UUID from Telegram Chat ID for permanent session continuity
 function getChatUuid(chatId) {
     const h = crypto.createHash('md5').update('telegram_' + chatId).digest('hex');
@@ -391,10 +394,11 @@ const ensuredConversations = new Set();
 async function ensureConversationExists(conversationId, title = 'Telegram Chat') {
     if (!conversationId || ensuredConversations.has(conversationId)) return;
     try {
+        const isUnified = conversationId === COMMANDER_UNIFIED_CONVERSATION_ID;
         await supabaseRequest('/conversations', 'POST', {
             id: conversationId,
-            title: (title || 'Telegram Chat').slice(0, 50),
-            channel: 'telegram',
+            title: isUnified ? 'Commander Unified Session (Omnichannel)' : (title || 'Telegram Chat').slice(0, 50),
+            channel: isUnified ? 'omnichannel' : 'telegram',
             status: 'active',
             last_message_at: new Date().toISOString()
         }, { 'Prefer': 'resolution=merge-duplicates' });
@@ -3797,7 +3801,7 @@ async function processUpdate(update) {
 
     console.log(`[Telegram ${isGroup ? 'Group' : 'DM'}] From ${userName} (@${telegramUsername || 'no_username'}, ID:${userId}, Commander: ${isCommander}): "${text}"${quotedContext ? ` (Replying to ${quotedContext.sender})` : ''}`);
 
-    const conversationId = getChatUuid(chatId);
+    const conversationId = (!isGroup && isCommander) ? COMMANDER_UNIFIED_CONVERSATION_ID : getChatUuid(chatId);
 
     // ── PC STATUS & ONLINE INQUIRY (Accessible by Commander & Group Members) ──
     if (isPcOnlineInquiry(text, quotedContext)) {
@@ -4901,7 +4905,8 @@ async function processUpdate(update) {
 
         const rem = remindersManager.addReminder(task, timeStr, chatId, {
             draftContent: attachedDraft || null,
-            platform: attachedPlatform || 'linkedin'
+            platform: attachedPlatform || 'linkedin',
+            isAlarm: Boolean(extractedReminder.isAlarm)
         });
 
         const diffMs = rem.dueAt - Date.now();
@@ -4920,26 +4925,28 @@ async function processUpdate(update) {
         });
 
         const reply = [
-            `⏰ *Reminder locked in, Commander!* 🧣`,
+            extractedReminder.isAlarm ? `🚨 *Alarm locked in, Commander!* 🧣` : `⏰ *Reminder locked in, Commander!* 🧣`,
             ``,
-            `📌 *Task:* *"${task}"*`,
+            extractedReminder.isAlarm ? `🚨 *Alarm:* *"${task}"*` : `📌 *Task:* *"${task}"*`,
             `⏱️ *Time:* ${dueDateFormatted} (${timeFriendly})`,
             ``,
             attachedDraft
                 ? `_I have linked your saved draft to this reminder. When the time arrives, I'll alert you with the complete post and 1-tap share link!_ 🛡️`
-                : `_I will chime your phone on Telegram the second it's due! Tap below to also sync it directly with your phone's Google/Apple Calendar:_ 🛡️`
+                : (extractedReminder.isAlarm
+                    ? `_I will sound your alarm right on time! You can also tap below to sync it directly with your phone's native calendar & alarm system:_ 🛡️`
+                    : `_I will chime your phone on Telegram the second it's due! Tap below to also sync it directly with your phone's Google/Apple Calendar:_ 🛡️`)
         ].join('\n');
 
         const replyMarkup = {
             inline_keyboard: [
                 [
-                    { text: "📅 Add to Phone Calendar", url: gCalUrl }
+                    { text: extractedReminder.isAlarm ? "🚨 Sync with Phone Alarm / Cal" : "📅 Add to Phone Calendar", url: gCalUrl }
                 ]
             ]
         };
 
         await sendTelegramMessage(chatId, reply, msg.message_id, replyMarkup);
-        await recordConversationTurn(conversationId, text, reply, 'reminder-engine');
+        await recordConversationTurn(conversationId, text, reply, extractedReminder.isAlarm ? 'alarm-engine' : 'reminder-engine');
         return;
     }
 
@@ -5922,5 +5929,6 @@ module.exports = {
     deliverCvDocument,
     recordConversationTurn,
     getRecentConversationHistory,
-    transcribeAudioWithGemini
+    transcribeAudioWithGemini,
+    COMMANDER_UNIFIED_CONVERSATION_ID
 };

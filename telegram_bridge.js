@@ -808,7 +808,10 @@ function transcribeAudioWithGemini(audioBuffer, mimeType = 'audio/ogg') {
     const apiKey = getEnv('GEMINI_API_KEY');
     if (!apiKey) return Promise.reject(new Error('GEMINI_API_KEY not configured'));
 
-    const cleanMime = (mimeType || 'audio/ogg').split(';')[0].trim();
+    let cleanMime = (mimeType || 'audio/ogg').split(';')[0].trim();
+    if (cleanMime === 'audio/m4a' || cleanMime === 'audio/x-m4a') {
+        cleanMime = 'audio/mp4';
+    }
     const payload = JSON.stringify({
         contents: [
             {

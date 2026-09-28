@@ -39,7 +39,7 @@ import {
   getRecordingPermissionsAsync,
   createAudioPlayer
 } from 'expo-audio';
-import * as FileSystem from 'expo-file-system/legacy';
+import { File as ExpoFile } from 'expo-file-system';
 
 const { width, height } = Dimensions.get('window');
 
@@ -812,10 +812,36 @@ export default function App() {
     }
 
     let base64Audio = '';
+    // Method 1: Expo SDK 57 File class base64
     try {
-      base64Audio = await FileSystem.readAsStringAsync(audioUri, { encoding: FileSystem.EncodingType.Base64 });
+      const fileObj = new ExpoFile(audioUri);
+      if (typeof (fileObj as any).base64 === 'function') {
+        base64Audio = await (fileObj as any).base64();
+      } else if (typeof (fileObj as any).base64Sync === 'function') {
+        base64Audio = (fileObj as any).base64Sync();
+      }
     } catch (fsErr: any) {
-      console.warn('[Base64 Read Error]:', fsErr?.message || fsErr);
+      console.warn('[ExpoFile Base64 Error]:', fsErr?.message || fsErr);
+    }
+
+    // Method 2: Fetch Blob + FileReader fallback (failsafe for local file URIs)
+    if (!base64Audio) {
+      try {
+        const resp = await fetch(audioUri);
+        const blob = await resp.blob();
+        base64Audio = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const resultStr = (reader.result as string) || '';
+            const b64 = resultStr.includes(',') ? resultStr.split(',')[1] : resultStr;
+            resolve(b64);
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+      } catch (blobErr: any) {
+        console.warn('[Blob Base64 Error]:', blobErr?.message || blobErr);
+      }
     }
 
     if (!base64Audio) {
@@ -830,7 +856,7 @@ export default function App() {
         method: 'POST',
         body: JSON.stringify({
           audio_base64: base64Audio,
-          mime_type: Platform.OS === 'ios' ? 'audio/m4a' : 'audio/mp4',
+          mime_type: 'audio/mp4',
           conversation_id: 'commander_session'
         })
       });
@@ -1242,26 +1268,39 @@ export default function App() {
         )}
 
         {/* ========================================================
-            FLOW 1: SPLASH — Portrait + Animated Loading Bar
+            FLOW 1: SPLASH / LAUNCH SCREEN (Exact Match to Mockup Screen 1)
+            Centered Mikasa portrait top, M logo, brand title & centered loading bar
             ======================================================== */}
         {appFlow === 'splash' && (
           <View style={styles.splashScreen}>
-            {/* Brand top-left */}
-            <View style={styles.splashTopBar}>
-              <Text style={styles.splashBrandTitle}>M I K A S A</Text>
-            </View>
-
-            {/* Centered portrait image */}
-            <View style={styles.splashImgContainer}>
+            {/* Centered Mikasa portrait occupying upper screen */}
+            <View style={styles.splashImgWrapper}>
               <Image
                 source={require('./assets/mikasa-portrait.png')}
-                style={styles.splashPortraitImg}
+                style={styles.splashPortraitCentered}
                 resizeMode="contain"
               />
             </View>
 
-            {/* Loading bar at bottom */}
-            <View style={styles.splashLoadingContainer}>
+            {/* Bottom branding + centered loading bar */}
+            <View style={styles.splashBottomContent}>
+              {/* Stylized Geometric M Mark */}
+              <View style={styles.splashMLogo}>
+                <Svg width={28} height={28} viewBox="0 0 32 32" fill="none">
+                  <Path
+                    d="M 6 25 L 6 7 L 16 19 L 26 7 L 26 25"
+                    stroke="#e11d48"
+                    strokeWidth="3.2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </Svg>
+              </View>
+
+              <Text style={styles.splashBrandTitle}>M I K A S A</Text>
+              <Text style={styles.splashBrandSub}>Your Personal AI Assistant</Text>
+
+              {/* Centered Animated Progress Bar */}
               <View style={styles.splashLoadBarTrack}>
                 <Animated.View
                   style={[
@@ -1270,116 +1309,191 @@ export default function App() {
                   ]}
                 />
               </View>
-              <Text style={styles.splashLoadingLabel}>Initializing Neural Core...</Text>
             </View>
           </View>
         )}
 
         {/* ========================================================
-            FLOW 2: ONBOARDING — Matches reference screenshot exactly
+            FLOW 2: ONBOARDING — Exact Match to Mockup Screens 2, 3, 4, 5
             ======================================================== */}
         {appFlow === 'onboarding' && (
           <View style={styles.onboardScreen}>
 
+            {/* ---- SCREEN 2: Onboarding (1/5) - Your personal AI assistant ---- */}
             {onboardingStep === 1 && (
-              // Step 1: black bg, text top, portrait centered below, gear+Tools to right
-              <View style={styles.ob1Wrapper}>
-                {/* Brand top-left */}
-                <View style={styles.ob1TopBar}>
-                  <Text style={styles.ob1Brand}>M I K A S A</Text>
+              <View style={styles.ob1Screen}>
+                <View style={styles.obTopBar}>
+                  <Text style={styles.obBrand}>M I K A S A</Text>
                 </View>
 
-                {/* Hero text block */}
-                <View style={styles.ob1HeroBlock}>
-                  <Text style={styles.ob1HeroLine1}>
-                    Your personal <Text style={styles.ob1HeroRed}>AI</Text>
-                  </Text>
-                  <Text style={[styles.ob1HeroLine1, styles.ob1HeroRed]}>assistant.</Text>
-                  <Text style={styles.ob1HeroSub}>
-                    More than a chatbot. Mikasa lives in your phone, ready to help, anytime.
-                  </Text>
-                </View>
+                <View style={styles.ob1Body}>
+                  {/* Left Column Text */}
+                  <View style={styles.ob1TextCol}>
+                    <Text style={styles.ob1HeroLine}>
+                      Your personal{'\n'}<Text style={styles.obRed}>AI assistant.</Text>
+                    </Text>
+                    <Text style={styles.ob1Sub}>
+                      More than a chatbot.{'\n'}Mikasa lives in your phone,{'\n'}ready to help, anytime.
+                    </Text>
+                  </View>
 
-                {/* Portrait + side buttons */}
-                <View style={styles.ob1ImageRow}>
+                  {/* Right Lower Mikasa Portrait */}
                   <Image
                     source={require('./assets/mikasa-portrait.png')}
                     style={styles.ob1Portrait}
                     resizeMode="contain"
                   />
-                  <View style={styles.ob1SideButtons}>
-                    <TouchableOpacity style={styles.ob1GearBtn} onPress={() => setAppFlow('main')}>
-                      <Text style={styles.ob1GearIcon}>⚙</Text>
-                    </TouchableOpacity>
-                    <View style={styles.ob1ToolsPill}>
-                      <Text style={styles.ob1ToolsText}>Tools</Text>
-                    </View>
-                  </View>
                 </View>
               </View>
             )}
 
+            {/* ---- SCREEN 3: Onboarding (2/5) - Talk naturally ---- */}
             {onboardingStep === 2 && (
-              <View style={styles.onboardSlideBody}>
-                <Text style={styles.onboardTitle}>
-                  Speak <Text style={{ color: '#e11d48' }}>naturally.</Text>
-                </Text>
-                <Text style={styles.onboardSubtitle}>
-                  Hands-free voice recognition with live undulating crimson waveforms.
-                </Text>
-                <View style={styles.onboardMicShowcaseBox}>
-                  <View style={styles.floatingMicBtn}>
-                    <MicrophoneIcon color="#ffffff" size={32} />
+              <View style={styles.obSlide}>
+                <View style={styles.obTopBar}>
+                  <Text style={styles.obBrand}>M I K A S A</Text>
+                </View>
+                <View style={styles.obSlideContent}>
+                  <Text style={styles.obHero}>
+                    Talk <Text style={styles.obRed}>naturally.</Text>
+                  </Text>
+                  <Text style={styles.obSub}>Say what you need.{'\n'}Mikasa handles the rest.</Text>
+
+                  {/* Symmetrical Glowing Audio Waveform */}
+                  <View style={styles.obWaveRow}>
+                    {[4, 8, 14, 22, 36, 52, 62, 52, 36, 22, 14, 8, 4].map((h, i) => (
+                      <View
+                        key={i}
+                        style={[
+                          styles.obWaveBar,
+                          { height: h, opacity: 0.75 + (i % 3) * 0.12 }
+                        ]}
+                      />
+                    ))}
                   </View>
-                  <Text style={styles.onboardMicSub}>Tap mic once to speak • Tap again to send</Text>
+
+                  {/* Voice command bubbles matching mockup */}
+                  <View style={styles.obBubblesCol}>
+                    {[
+                      '"Hey Mikasa, call Mom"',
+                      '"Set a reminder for 8 PM"',
+                      '"Open Telegram"'
+                    ].map((txt, i) => (
+                      <View key={i} style={styles.obCmdBubble}>
+                        <Text style={styles.obCmdBubbleText}>{txt}</Text>
+                      </View>
+                    ))}
+                  </View>
                 </View>
               </View>
             )}
 
+            {/* ---- SCREEN 4: Onboarding (3/5) - Connected to your digital world ---- */}
             {onboardingStep === 3 && (
-              <View style={styles.onboardSlideBody}>
-                <Text style={styles.onboardTitle}>
-                  5 Command <Text style={{ color: '#e11d48' }}>Workspaces.</Text>
-                </Text>
-                <Text style={styles.onboardSubtitle}>Home, Chat, Actions, Memory, and Profile.</Text>
-                <View style={styles.onboardGrid}>
-                  {[{ icon: '🏠', label: 'Home' }, { icon: '💬', label: 'Chat' }, { icon: '⚙️', label: 'Actions' }, { icon: '🧠', label: 'Memory' }].map(t => (
-                    <View key={t.label} style={styles.onboardSquircleTile}>
-                      <Text style={{ fontSize: 20 }}>{t.icon}</Text>
-                      <Text style={styles.onboardSquircleLabel}>{t.label}</Text>
-                    </View>
-                  ))}
+              <View style={styles.obSlide}>
+                <View style={styles.obTopBar}>
+                  <Text style={styles.obBrand}>M I K A S A</Text>
                 </View>
-              </View>
-            )}
+                <View style={styles.obSlideContent}>
+                  <Text style={styles.obHero}>
+                    Connected to your{'\n'}<Text style={styles.obRed}>digital world.</Text>
+                  </Text>
+                  <Text style={styles.obSub}>
+                    Your apps, calendar, messages,{'\n'}files and more. All in one place.
+                  </Text>
 
-            {onboardingStep === 4 && (
-              <View style={styles.onboardSlideBody}>
-                <Text style={styles.onboardTitle}>
-                  Meet your <Text style={{ color: '#e11d48' }}>assistant.</Text>
-                </Text>
-                <Text style={styles.onboardSubtitle}>Smart. Loyal. Always by your side.</Text>
-                <View style={styles.onboardAvatarCenterBox}>
-                  <View style={styles.onboardAvatarGlowRing}>
-                    <Image source={require('./assets/mikasa.jpeg')} style={styles.onboardAvatarCoreImg} />
+                  {/* 3x2 Squircle Cards Grid matching mockup */}
+                  <View style={styles.obAppGrid}>
+                    {[
+                      { icon: '📞', label: 'Phone' },
+                      { icon: '⁝⁝⁝', label: 'Apps' },
+                      { icon: '📅', label: 'Calendar' },
+                      { icon: '💬', label: 'Messages' },
+                      { icon: '✈️', label: 'Telegram' },
+                      { icon: '🧠', label: 'Memory' }
+                    ].map(app => (
+                      <View key={app.label} style={styles.obAppCard}>
+                        <Text style={styles.obAppCardIcon}>{app.icon}</Text>
+                        <Text style={styles.obAppCardLabel}>{app.label}</Text>
+                      </View>
+                    ))}
                   </View>
-                  <Text style={styles.onboardAvatarCoreName}>Mikasa</Text>
-                  <Text style={styles.onboardAvatarCoreStatus}>● Online</Text>
                 </View>
               </View>
             )}
 
-            {/* Bottom bar: Skip · dots · Next */}
+            {/* ---- SCREEN 5: Onboarding (4/5) - Meet your assistant ---- */}
+            {onboardingStep === 4 && (
+              <View style={styles.obSlide}>
+                <View style={styles.obTopBar}>
+                  <Text style={styles.obBrand}>M I K A S A</Text>
+                </View>
+                <View style={styles.obSlideContent}>
+                  <Text style={styles.obHero}>
+                    Meet your{'\n'}<Text style={styles.obRed}>assistant.</Text>
+                  </Text>
+                  <Text style={styles.obSub}>Smart. Loyal. Always with you.</Text>
+
+                  {/* Circular Avatar with Glowing Neon Crimson Ring */}
+                  <View style={styles.obAvatarWrapper}>
+                    <View style={styles.obAvatarRingOuter} />
+                    <View style={styles.obAvatarRingInner} />
+                    <Image source={require('./assets/mikasa.jpeg')} style={styles.obAvatarImg} />
+                  </View>
+                  <Text style={styles.obAvatarName}>Mikasa</Text>
+                  <View style={styles.obOnlineRow}>
+                    <View style={styles.obOnlineDot} />
+                    <Text style={styles.obOnlineText}>Online</Text>
+                  </View>
+                </View>
+              </View>
+            )}
+
+            {/* ---- SCREEN 6: Onboarding (5/5) - Ready to begin ---- */}
+            {onboardingStep === 5 && (
+              <View style={styles.obSlide}>
+                <View style={styles.obTopBar}>
+                  <Text style={styles.obBrand}>M I K A S A</Text>
+                </View>
+                <View style={styles.obSlideContent}>
+                  <Text style={styles.obHero}>
+                    Ready to{'\n'}<Text style={styles.obRed}>begin?</Text>
+                  </Text>
+                  <Text style={styles.obSub}>
+                    Your voice HUD, memory vault, and autonomous workstation are live.
+                  </Text>
+
+                  {/* Pulsing Voice Stage Preview */}
+                  <View style={styles.obReadyWrapper}>
+                    <View style={styles.obReadyPulseOuter} />
+                    <View style={styles.obReadyPulseInner}>
+                      <Text style={{ fontSize: 36 }}>🎙️</Text>
+                    </View>
+                    <Text style={styles.obReadyNote}>Say "Hey Mikasa" or tap the mic anytime</Text>
+                  </View>
+                </View>
+              </View>
+            )}
+
+            {/* Bottom Navigation Bar with 5 Indicator Dots */}
             <View style={styles.onboardBottomBar}>
-              <TouchableOpacity onPress={() => setAppFlow('main')}>
-                <Text style={styles.onboardSkipBtn}>Skip</Text>
+              <TouchableOpacity onPress={() => onboardingStep > 1 ? setOnboardingStep(s => s - 1) : setAppFlow('main')}>
+                <Text style={styles.onboardSkipBtn}>{onboardingStep > 1 ? 'Back' : 'Skip'}</Text>
               </TouchableOpacity>
+
               <View style={styles.onboardDotsRow}>
-                {[1, 2, 3, 4].map(step => (
-                  <View key={step} style={[styles.onboardDot, onboardingStep === step && styles.onboardDotActive]} />
+                {[1, 2, 3, 4, 5].map(step => (
+                  <View
+                    key={step}
+                    style={[
+                      styles.onboardDot,
+                      onboardingStep === step && styles.onboardDotActive
+                    ]}
+                  />
                 ))}
               </View>
-              {onboardingStep < 4 ? (
+
+              {onboardingStep < 5 ? (
                 <TouchableOpacity style={styles.onboardNextBtn} onPress={() => setOnboardingStep(s => s + 1)}>
                   <Text style={styles.onboardNextBtnText}>Next →</Text>
                 </TouchableOpacity>
@@ -2584,44 +2698,60 @@ const styles = StyleSheet.create({
     backgroundColor: '#07080c'
   },
 
-  // SPLASH SCREEN — Portrait on black + loading bar
+  // ── SPLASH SCREEN (Mockup Screen 1) ──────────────────────────────────────
   splashScreen: {
     flex: 1,
     backgroundColor: '#07080c',
     alignItems: 'center',
-    justifyContent: 'space-between'
+    justifyContent: 'space-between',
+    paddingTop: height * 0.05,
+    paddingBottom: Platform.OS === 'ios' ? 44 : 36
   },
-  splashTopBar: {
-    width: '100%',
-    paddingTop: 52,
-    paddingHorizontal: 22
-  },
-  splashBrandTitle: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: '#ffffff',
-    letterSpacing: 5
-  },
-  splashImgContainer: {
+  splashImgWrapper: {
     flex: 1,
+    width: '100%',
     alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%'
+    justifyContent: 'center'
   },
-  splashPortraitImg: {
-    width: width * 0.72,
-    height: height * 0.55,
+  splashPortraitCentered: {
+    width: width * 0.88,
+    height: height * 0.52
   },
-  splashLoadingContainer: {
+  splashBottomContent: {
+    alignItems: 'center',
     width: '100%',
     paddingHorizontal: 24,
-    paddingBottom: 44,
-    gap: 10
+    gap: 8
+  },
+  splashMLogo: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: 'rgba(225,29,72,0.12)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(225,29,72,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4
+  },
+  splashBrandTitle: {
+    fontSize: 24,
+    fontWeight: '900',
+    color: '#ffffff',
+    letterSpacing: 6,
+    textAlign: 'center'
+  },
+  splashBrandSub: {
+    fontSize: 13,
+    color: '#94a3b8',
+    fontWeight: '500',
+    textAlign: 'center',
+    marginBottom: 12
   },
   splashLoadBarTrack: {
-    width: '100%',
-    height: 3,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    width: 170,
+    height: 3.5,
+    backgroundColor: 'rgba(255,255,255,0.12)',
     borderRadius: 2,
     overflow: 'hidden'
   },
@@ -2630,99 +2760,238 @@ const styles = StyleSheet.create({
     backgroundColor: '#e11d48',
     borderRadius: 2
   },
-  splashLoadingLabel: {
-    fontSize: 12,
-    color: '#64748b',
-    fontWeight: '600'
-  },
 
-  // ONBOARDING STEP 1 — Exact match to reference
-  ob1Wrapper: {
-    flex: 1,
-    backgroundColor: '#07080c',
-    justifyContent: 'space-between'
-  },
-  ob1TopBar: {
-    paddingTop: 52,
-    paddingHorizontal: 22,
-    marginBottom: 8
-  },
-  ob1Brand: {
-    fontSize: 16,
-    fontWeight: '900',
-    color: '#ffffff',
-    letterSpacing: 5
-  },
-  ob1HeroBlock: {
-    paddingHorizontal: 22
-  },
-  ob1HeroLine1: {
-    fontSize: 34,
-    fontWeight: '900',
-    color: '#ffffff',
-    lineHeight: 40
-  },
-  ob1HeroRed: {
-    color: '#e11d48'
-  },
-  ob1HeroSub: {
-    fontSize: 13,
-    color: '#94a3b8',
-    marginTop: 10,
-    lineHeight: 19
-  },
-  ob1ImageRow: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-    paddingBottom: 0
-  },
-  ob1Portrait: {
-    width: width * 0.72,
-    height: height * 0.45,
-  },
-  ob1SideButtons: {
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    paddingBottom: 24,
-    gap: 10,
-    marginLeft: 4
-  },
-  ob1GearBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(30,34,48,0.92)',
-    borderWidth: 1,
-    borderColor: '#2e3245',
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  ob1GearIcon: {
-    fontSize: 18,
-    color: '#94a3b8'
-  },
-  ob1ToolsPill: {
-    backgroundColor: 'rgba(30,34,48,0.92)',
-    borderWidth: 1,
-    borderColor: '#2e3245',
-    borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 9
-  },
-  ob1ToolsText: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: '700'
-  },
-
-  // ONBOARDING (shared)
+  // ── ONBOARDING SHARED ───────────────────────────────────────────────────────
   onboardScreen: {
     flex: 1,
     backgroundColor: '#07080c',
     justifyContent: 'space-between'
   },
+  obTopBar: {
+    paddingTop: 52,
+    paddingHorizontal: 24,
+    marginBottom: 16
+  },
+  obBrand: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#ffffff',
+    letterSpacing: 4
+  },
+
+  // ── ONBOARDING STEP 1: text-left / portrait-right ──────────────────────────
+  ob1Screen: {
+    flex: 1,
+    backgroundColor: '#07080c'
+  },
+  ob1Body: {
+    flex: 1,
+    flexDirection: 'row',
+    overflow: 'hidden',
+    position: 'relative'
+  },
+  ob1TextCol: {
+    width: width * 0.54,
+    paddingLeft: 24,
+    paddingRight: 6,
+    paddingTop: 12,
+    zIndex: 2
+  },
+  ob1HeroLine: {
+    fontSize: 32,
+    fontWeight: '900',
+    color: '#ffffff',
+    lineHeight: 38,
+    marginBottom: 14
+  },
+  ob1Sub: {
+    fontSize: 13,
+    color: '#94a3b8',
+    lineHeight: 20
+  },
+  ob1Portrait: {
+    position: 'absolute',
+    right: -width * 0.08,
+    bottom: 0,
+    width: width * 0.68,
+    height: height * 0.58
+  },
+
+  // ── ONBOARDING STEPS 2-5 shared slide layout ───────────────────────────────
+  obSlide: {
+    flex: 1,
+    backgroundColor: '#07080c'
+  },
+  obSlideContent: {
+    flex: 1,
+    paddingHorizontal: 24,
+    paddingTop: 6
+  },
+  obHero: {
+    fontSize: 32,
+    fontWeight: '900',
+    color: '#ffffff',
+    lineHeight: 38,
+    marginBottom: 10
+  },
+  obSub: {
+    fontSize: 14,
+    color: '#94a3b8',
+    lineHeight: 21,
+    marginBottom: 24
+  },
+  obRed: {
+    color: '#e11d48'
+  },
+
+  // Step 2: Waveform + Command bubbles
+  obWaveRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    marginVertical: 18
+  },
+  obWaveBar: {
+    width: 4.5,
+    borderRadius: 3,
+    backgroundColor: '#e11d48'
+  },
+  obBubblesCol: {
+    gap: 12,
+    marginTop: 8
+  },
+  obCmdBubble: {
+    backgroundColor: '#11141e',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#1e2436',
+    paddingVertical: 14,
+    paddingHorizontal: 18
+  },
+  obCmdBubbleText: {
+    color: '#cbd5e1',
+    fontSize: 14,
+    fontWeight: '600'
+  },
+
+  // Step 3: App icon squircle grid
+  obAppGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    justifyContent: 'center',
+    marginTop: 10
+  },
+  obAppCard: {
+    width: (width - 48 - 24) / 3,
+    height: 88,
+    backgroundColor: '#11141e',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#1e2436',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6
+  },
+  obAppCardIcon: {
+    fontSize: 26
+  },
+  obAppCardLabel: {
+    fontSize: 12,
+    color: '#94a3b8',
+    fontWeight: '600'
+  },
+
+  // Step 4: Glowing avatar
+  obAvatarWrapper: {
+    width: 140,
+    height: 140,
+    alignSelf: 'center',
+    marginTop: 20,
+    marginBottom: 16,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  obAvatarRingOuter: {
+    position: 'absolute',
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    borderWidth: 2,
+    borderColor: 'rgba(225,29,72,0.25)'
+  },
+  obAvatarRingInner: {
+    position: 'absolute',
+    width: 118,
+    height: 118,
+    borderRadius: 59,
+    borderWidth: 2.5,
+    borderColor: '#e11d48'
+  },
+  obAvatarImg: {
+    width: 98,
+    height: 98,
+    borderRadius: 49
+  },
+  obAvatarName: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#ffffff',
+    textAlign: 'center',
+    marginBottom: 6
+  },
+  obOnlineRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6
+  },
+  obOnlineDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#10b981'
+  },
+  obOnlineText: {
+    fontSize: 13,
+    color: '#10b981',
+    fontWeight: '700'
+  },
+
+  // Step 5: Ready to begin
+  obReadyWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 28
+  },
+  obReadyPulseOuter: {
+    position: 'absolute',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(225,29,72,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(225,29,72,0.3)'
+  },
+  obReadyPulseInner: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#151926',
+    borderWidth: 2,
+    borderColor: '#e11d48',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  obReadyNote: {
+    fontSize: 13,
+    color: '#94a3b8',
+    marginTop: 24,
+    textAlign: 'center'
+  },
+
+
   onboardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2854,41 +3123,45 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingBottom: 20
+    paddingHorizontal: 24,
+    paddingBottom: Platform.OS === 'ios' ? 24 : 32
   },
   onboardSkipBtn: {
     fontSize: 14,
     color: '#94a3b8',
     fontWeight: '600',
-    padding: 8
+    paddingVertical: 8,
+    paddingHorizontal: 4
   },
   onboardDotsRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 6
   },
   onboardDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
     backgroundColor: '#222634'
   },
   onboardDotActive: {
-    width: 20,
+    width: 22,
+    height: 6,
+    borderRadius: 3,
     backgroundColor: '#e11d48'
   },
   onboardNextBtn: {
     backgroundColor: '#e11d48',
-    paddingHorizontal: 18,
+    paddingHorizontal: 22,
     paddingVertical: 10,
-    borderRadius: 12
+    borderRadius: 20
   },
   onboardNextBtnText: {
     color: '#ffffff',
     fontSize: 13,
-    fontWeight: '800'
+    fontWeight: '700'
   },
 
-  // HOME SCREEN (SCROLLABLE COCKPIT)
   homeScrollScreen: {
     flex: 1,
     backgroundColor: '#07080c'

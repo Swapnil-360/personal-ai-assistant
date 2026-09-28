@@ -1093,7 +1093,9 @@ const server = http.createServer(async (req, res) => {
                 try {
                     const audioBuffer = Buffer.from(body.audio_base64, 'base64');
                     const { transcribeAudioWithGemini } = require('../telegram_bridge');
-                    userQuery = await transcribeAudioWithGemini(audioBuffer, body.mime_type || 'audio/m4a');
+                    let mime = body.mime_type || 'audio/mp4';
+                    if (mime === 'audio/m4a' || mime === 'audio/x-m4a') mime = 'audio/mp4';
+                    userQuery = await transcribeAudioWithGemini(audioBuffer, mime);
                 } catch (audioErr) {
                     console.warn('[Voice Process Audio Transcription Error]:', audioErr.message);
                 }

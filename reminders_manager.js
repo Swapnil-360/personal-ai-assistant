@@ -215,7 +215,7 @@ class RemindersManager {
         return null;
     }
 
-    addReminder(text, timeStr, chatId) {
+    addReminder(text, timeStr, chatId, metadata = {}) {
         let dueAt = this.parseTime(timeStr);
         if (!dueAt || isNaN(dueAt)) {
             console.warn(`[Reminders] Could not parse "${timeStr}", falling back to 1 hour`);
@@ -229,7 +229,8 @@ class RemindersManager {
             dueAt: dueAt,
             createdAt: Date.now(),
             chatId: chatId,
-            completed: false
+            completed: false,
+            ...(typeof metadata === 'object' && metadata !== null ? metadata : {})
         };
 
         this.reminders.push(rem);

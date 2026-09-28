@@ -1520,6 +1520,29 @@ async function handleActionIntent(message, context = { isCommander: true }) {
         };
     }
 
+    // 0B. Recall remembered post draft (e.g. "tell me which post I told you to remember and remind me ?")
+    const isRecallPostQuery = (
+        text.match(/\b(?:which|what|kono|kon)\s+(?:post|draft)\b.*\b(?:remember|mone|remind|bolsilam|told\s+you)\b/i) ||
+        text.match(/\b(?:tell\s+me|boloto|bolo)\b.*\b(?:which|what)\s+post\b/i) ||
+        text.match(/\b(?:remember\s+kora\s+post|post\s+ta\s+ki)\b/i)
+    );
+    if (isRecallPostQuery) {
+        try {
+            const mems = await supabaseRequest('/memories?order=created_at.desc&limit=10', 'GET').catch(() => []);
+            let foundPost = null;
+            if (Array.isArray(mems)) {
+                foundPost = mems.find(m => m.content && (m.content.toLowerCase().includes('post') || m.content.toLowerCase().includes('linkedin') || m.content.toLowerCase().includes('tony stark') || m.content.toLowerCase().includes('jarvis')));
+            }
+            if (foundPost) {
+                return {
+                    action: 'post_recalled',
+                    success: true,
+                    feedback: `🧣 **Here is the post you asked me to remember, Commander:**\n\n${foundPost.content}\n\n_Let me know if you would like to publish it now or schedule a reminder!_`
+                };
+            }
+        } catch (e) {}
+    }
+
     // PC Status / Online Intent
     const isPcStatus = (
         /^\/(?:pc|system|pcstatus)\b/i.test(text) ||
@@ -1687,38 +1710,48 @@ async function handleActionIntent(message, context = { isCommander: true }) {
     }
 
     // 0B. Direct Memorization / "Mone Rakhba" / Remember This / Info & Project Updates (Permanent Vault & Portfolio Sync)
-    function extractMemoryStatement(input) {
+    function extractMemoryStatement(input, context = null) {
         if (!input) return null;
         const clean = input.trim();
 
+        // Pattern 0: User replying to a message and asking to remember it (e.g. "this one, remember it and remind me later to post it")
+        const isQuotedRemember = clean.match(/^(?:(?:this\s+one|this\s+post|this|eta|eita),?\s*)?(?:please\s+)?(?:remember\s+(?:this|that|it)?|save\s+(?:this|that|it)?|mone\s+rekho|memorize\s+(?:this|that|it)?)(?:\s+(?:and|ar)?\s*(?:remind\s+me|mone\s+koriye\s+dio).*)?$/i);
+        if (isQuotedRemember && context && context.replyTo && context.replyTo.text) {
+            return `Saved Message / Post: "${context.replyTo.text.trim()}"`;
+        }
+
         // Pattern 1: Slash commands
-        let m = clean.match(/^(?:\/remember|\/memorize|\/updateinfo|\/newproject|\/futureplan|\/addinfo)\s+(.+)$/i);
+        let m = clean.match(/^(?:\/remember|\/memorize|\/updateinfo|\/newproject|\/futureplan|\/addinfo)\s+(.+)$/is);
         if (m) return m[1].trim();
 
+        // Pattern 1B: Explicit post submission: "post is- ...", "post: ..."
+        m = clean.match(/^(?:post\s*(?:is|ta\s*holo)?[:\-\s]+|save\s+(?:this\s+)?post[:\-\s]+)(.+)$/is);
+        if (m) return `LinkedIn / Social Post Draft: "${m[1].trim()}"`;
+
         // Pattern 2: English update info / add info / new info prefixes
-        m = clean.match(/^(?:please\s+)?(?:update\s+(?:my\s+)?(?:info|information|profile|status|bio|details)|add\s+(?:to\s+)?(?:my\s+)?(?:info|information|bio|memory)|save\s+(?:my\s+)?(?:info|update)|new\s+info)\s*[:,\-]?\s+(.+)$/i);
+        m = clean.match(/^(?:please\s+)?(?:update\s+(?:my\s+)?(?:info|information|profile|status|bio|details)|add\s+(?:to\s+)?(?:my\s+)?(?:info|information|bio|memory)|save\s+(?:my\s+)?(?:info|update)|new\s+info)\s*[:,\-]?\s+(.+)$/is);
         if (m) return m[1].trim();
 
         // Pattern 3: New project / started project prefixes
         m = clean.match(/^(?:new\s+project|upcoming\s+project|future\s+project)\s*[:,\-]?\s+(.+)$/i);
         if (m) return m[1].trim();
 
-        m = clean.match(/^(?:i\s+(?:have\s+)?(?:started|started\s+building|am\s+building|am\s+working\s+on|launched|created|built|developed)\s+(?:a\s+)?(?:new\s+)?(?:project|app|tool|website|saas|paper|system|bot))\s*[:,\-]?\s+(.+)$/i);
+        m = clean.match(/^(?:i\s+(?:have\s+)?(?:started|started\s+building|am\s+building|am\s+working\s+on|launched|created|built|developed)\s+(?:a\s+)?(?:new\s+)?(?:project|app|tool|website|saas|paper|system|bot))\s*[:,\-]?\s+(.+)$/is);
         if (m) return m[1].trim();
 
         // Pattern 4: Future plans / in future prefixes
-        m = clean.match(/^(?:future\s+plan(?:s)?|upcoming\s+plan(?:s)?|in\s+(?:the\s+)?future\s*(?:i\s+(?:will|plan\s+to|might|can\s+be\s+doing|am\s+going\s+to)|we\s+will)?)\s*[:,\-]?\s+(.+)$/i);
+        m = clean.match(/^(?:future\s+plan(?:s)?|upcoming\s+plan(?:s)?|in\s+(?:the\s+)?future\s*(?:i\s+(?:will|plan\s+to|might|can\s+be\s+doing|am\s+going\s+to)|we\s+will)?)\s*[:,\-]?\s+(.+)$/is);
         if (m) return m[1].trim();
 
         m = clean.match(/^(?:i\s+(?:can\s+be\s+doing|will\s+be\s+doing|am\s+planning\s+to\s+do|plan\s+to\s+build|plan\s+to\s+do|might\s+build)\s+(?:in\s+(?:the\s+)?future))\s*[:,\-]?\s+(.+)$/i);
         if (m) return m[1].trim();
 
-        // Pattern 5: English remember prefixes
-        m = clean.match(/^(?:please\s+)?(?:remember\s+(?:this|that)?|memorize\s+(?:this|that)?|keep\s+in\s+mind|note\s+(?:this\s+down|down)?)\s*[:,\-]?\s+(.+)$/i);
+        // Pattern 5: English remember prefixes (supporting multi-line posts)
+        m = clean.match(/^(?:please\s+)?(?:remember\s+(?:this|that|the\s+following)?|memorize\s+(?:this|that)?|keep\s+in\s+mind|note\s+(?:this\s+down|down)?)\s*(?:post|message|info|fact)?\s*[:,\-]?\s+(.+)$/is);
         if (m) return m[1].trim();
 
         // Pattern 6: Banglish prefixes
-        m = clean.match(/^(?:amar\s+)?(?:info|information|profile)\s+update\s+koro\s*[:,\-]?\s+(.+)$/i);
+        m = clean.match(/^(?:amar\s+)?(?:info|information|profile)\s+update\s+koro\s*[:,\-]?\s+(.+)$/is);
         if (m) return m[1].trim();
 
         m = clean.match(/^(?:amar\s+)?(?:notun|new)\s+project\s*[:,\-]?\s+(.+)$/i);
@@ -1730,17 +1763,17 @@ async function handleActionIntent(message, context = { isCommander: true }) {
         m = clean.match(/^(?:amar\s+)?(?:future\s+plan|future-e|bhabishote)\s*[:,\-]?\s+(.+)$/i);
         if (m) return m[1].trim();
 
-        m = clean.match(/^(?:eta|eita|ei\s+ta)\s+(?:mone|more)\s+(?:rakhba|rekho|raikho|rakhish)\s*[:,\-]?\s+(.+)$/i);
+        m = clean.match(/^(?:eta|eita|ei\s+ta)\s+(?:mone|more)\s+(?:rakhba|rekho|raikho|rakhish)\s*[:,\-]?\s+(.+)$/is);
         if (m) return m[1].trim();
 
-        m = clean.match(/^(?:mone|more)\s+(?:rakhba|rekho|raikho|rakhish)\s*[:,\-]?\s+(.+)$/i);
+        m = clean.match(/^(?:mone|more)\s+(?:rakhba|rekho|raikho|rakhish)\s*[:,\-]?\s+(.+)$/is);
         if (m) return m[1].trim();
 
         // Pattern 7: Postfixes
-        m = clean.match(/^(.+?)\s*[,.-]?\s*(?:eta|eita)?\s*(?:mone|more)\s+(?:rakhba|rekho|raikho|rakhish)\s*$/i);
+        m = clean.match(/^(.+?)\s*[,.-]?\s*(?:eta|eita)?\s*(?:mone|more)\s+(?:rakhba|rekho|raikho|rakhish)\s*$/is);
         if (m) return m[1].trim();
 
-        m = clean.match(/^(.+?)\s*[,.-]?\s*(?:please\s+)?remember\s+(?:this|that)\s*$/i);
+        m = clean.match(/^(.+?)\s*[,.-]?\s*(?:please\s+)?remember\s+(?:this|that)\s*$/is);
         if (m) return m[1].trim();
 
         m = clean.match(/^(.+?)\s*[,.-]?\s*(?:eta\s+)?amar\s+(?:notun|new)\s+project\s*$/i);
@@ -1752,7 +1785,7 @@ async function handleActionIntent(message, context = { isCommander: true }) {
         return null;
     }
 
-    const memoryStatement = extractMemoryStatement(text);
+    const memoryStatement = extractMemoryStatement(text, context);
     if (memoryStatement && memoryStatement.length >= 3) {
         if (context && context.isCommander === false) {
             return {

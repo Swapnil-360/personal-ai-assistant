@@ -1021,7 +1021,7 @@ function isPcOnlineInquiry(rawText, quotedContext = null) {
     if (/^\/(?:pc|system|pcstatus|telemetry)\b/i.test(t)) return true;
 
     // 2. Focused standalone questions about PC online state
-    if (/^(?:is\s+(?:my\s+)?pc\s+(?:online|active|running|on|alive|up|connected)|pc\s+(?:ki\s+)?(?:online|active|running|on|choltese|ache\s*naki)|check\s+(?:my\s+)?pc\s+status|pc\s+status|pc\s+kemon\s+ache)\??$/i.test(t)) {
+    if (/^(?:is\s+(?:my\s+)?pc\s+(?:online|active|running|on|alive|up|connected)|pc\s+(?:ki\s+)?(?:online|active|running|on|choltese|ache\s*naki)|check\s+(?:my\s+)?pc(?:\s+status)?|check\s+pc|pc\s+check|pc\s+status|pc\s+kemon\s+ache)\??$/i.test(t)) {
         return true;
     }
 
@@ -1044,8 +1044,7 @@ function isPcOnlineInquiry(rawText, quotedContext = null) {
     return false;
 }
 
-async function handlePcStatusQuery(chatId, text, msg, isCommander, quotedContext = null) {
-    await sendChatAction(chatId, 'typing');
+async function getPcStatusReplyText(text = '', isCommander = true, quotedContext = null) {
     const isExplicitFullCommand = (
         text === '/pc' ||
         text === '/system' ||
@@ -1088,13 +1087,11 @@ async function handlePcStatusQuery(chatId, text, msg, isCommander, quotedContext
             "",
             "_Local PC Bridge is fully operational. 🧣_"
         ];
-        await sendTelegramMessage(chatId, lines.join('\n'), msg.message_id);
-        return;
+        return lines.join('\n');
     }
 
     // 2. Concise, crisp natural answer (1-2 lines, NO wall of text, NO rambling!)
     const isBanglish = /\b(?:ki|ache|choltese|kemon|naki|amr|tomar|bollam|dekho|kina|boloto)\b/i.test(text);
-    let reply = '';
 
     if (isOnline) {
         const cpuStr = info && info.cpu ? `• CPU: \`${info.cpu.loadPct}%\`` : '';
@@ -1103,26 +1100,30 @@ async function handlePcStatusQuery(chatId, text, msg, isCommander, quotedContext
         const metrics = (cpuStr || ramStr) ? `\n${cpuStr}${ramStr}${hudStr}` : '';
 
         if (isCommander) {
-            reply = isBanglish
+            return isBanglish
                 ? `🟢 **Haa Commander, tomar PC (Swapnil-PC) online ache!** 🧣${metrics}`
                 : `🟢 **Yes Commander, your PC (Swapnil-PC) is online and active!** 🧣${metrics}`;
         } else {
-            reply = isBanglish
+            return isBanglish
                 ? `🟢 **Swapnil-er PC (Swapnil-PC) ekhon online ache!** 🧣`
                 : `🟢 **Swapnil's PC (Swapnil-PC) is online right now!** 🧣`;
         }
     } else {
         if (isCommander) {
-            reply = isBanglish
+            return isBanglish
                 ? `🔴 **Tomar PC (Swapnil-PC) ei muhurte offline ache, Commander.** 🧣\n_(Local daemon signal paoa jayni)_`
                 : `🔴 **Your PC (Swapnil-PC) is currently offline, Commander.** 🧣\n_(No local daemon heartbeat detected)_`;
         } else {
-            reply = isBanglish
+            return isBanglish
                 ? `🔴 **Swapnil-er PC ekhon offline ache.** 🧣`
                 : `🔴 **Swapnil's PC is currently offline.** 🧣`;
         }
     }
+}
 
+async function handlePcStatusQuery(chatId, text, msg, isCommander, quotedContext = null) {
+    await sendChatAction(chatId, 'typing');
+    const reply = await getPcStatusReplyText(text, isCommander, quotedContext);
     await sendTelegramMessage(chatId, reply, msg.message_id);
 }
 
@@ -2638,6 +2639,119 @@ function detectSensitivePrivacyInquiry(text) {
     return null;
 }
 
+// Extract user-submitted post draft (e.g. "post is- ...", "here is the post: ...", or quoted post)
+function extractPostDraft(rawText) {
+    if (!rawText) return null;
+    const trimmed = rawText.trim();
+
+    // Check for explicit prefixes: "post is-", "post is:", "post:", "here is the post:", "draft:", etc.
+    const prefixMatch = trimmed.match(/^(?:post\s*(?:is|ta\s*holo)?[:\-\s]+|here\s+is\s+(?:the|my)\s+post[:\-\s]+|save\s+(?:this\s+)?post[:\-\s]+|draft[:\-\s]+|this\s+is\s+(?:the|my)\s+post[:\-\s]+)([\s\S]+)$/i);
+    
+    let content = null;
+    if (prefixMatch) {
+        content = prefixMatch[1].trim();
+    } else if (trimmed.length > 80 && (trimmed.startsWith('"') || trimmed.startsWith('“')) && (trimmed.endsWith('"') || trimmed.endsWith('”')) && (trimmed.includes('#') || trimmed.includes('\n\n'))) {
+        content = trimmed;
+    }
+
+    if (!content || content.length < 25) return null;
+
+    // Strip leading and trailing quotes if the entire content is wrapped
+    if ((content.startsWith('"') && content.endsWith('"')) || (content.startsWith('“') && content.endsWith('”'))) {
+        content = content.slice(1, -1).trim();
+    }
+
+    // Determine platform
+    let platform = 'linkedin';
+    const low = content.toLowerCase();
+    if (content.length <= 280 && (content.includes('@') || low.includes('tweet') || content.includes('#x'))) {
+        platform = 'twitter';
+    } else if (low.includes('facebook') || low.includes('#facebook')) {
+        platform = 'facebook';
+    }
+
+    // Determine title / hook (first non-empty line or first sentence)
+    const firstLine = content.split('\n').find(l => l.trim().length > 0) || 'Personal AI Assistant Post';
+    let title = firstLine.trim();
+    if (title.length > 70) {
+        const sentenceEnd = title.indexOf('.');
+        if (sentenceEnd > 15 && sentenceEnd < 70) {
+            title = title.substring(0, sentenceEnd);
+        } else {
+            title = title.substring(0, 67) + '...';
+        }
+    }
+
+    const wordCount = content.split(/\s+/).filter(Boolean).length;
+    const charCount = content.length;
+
+    return { content, title, platform, wordCount, charCount };
+}
+
+async function handleUserPostDraftSubmission(chatId, text, msg, isCommander, postDraft, conversationId) {
+    await sendChatAction(chatId, 'typing');
+    const draftId = 'post_' + Date.now();
+    const draftObj = {
+        id: draftId,
+        title: postDraft.title,
+        content: postDraft.content,
+        platform: postDraft.platform,
+        wordCount: postDraft.wordCount,
+        charCount: postDraft.charCount,
+        createdAt: Date.now()
+    };
+    activePostDrafts.set(draftId, draftObj);
+    activePostDrafts.set('latest_user_post', draftObj);
+
+    // Persist to memory in Supabase
+    try {
+        await storeMemoryWithConflictResolution({
+            content: `Swapnil's ${postDraft.platform.toUpperCase()} Post Draft: "${postDraft.title}"\n\nFull text: ${postDraft.content}`,
+            memory_type: 'CAREER',
+            importance: 8,
+            confidence: 1.0,
+            source_type: 'user_draft_submission',
+            user_message: text
+        });
+    } catch (e) {}
+
+    const platformUpper = postDraft.platform.toUpperCase();
+    const encoded = encodeURIComponent(postDraft.content);
+    const shareUrl = postDraft.platform === 'twitter'
+        ? `https://twitter.com/intent/tweet?text=${encoded}`
+        : `https://www.linkedin.com/feed/?shareActive=true&text=${encoded}`;
+
+    const replyLines = [
+        `📝 *Post Draft Locked into Memory, Commander!* 🧣`,
+        `━━━━━━━━━━━━━━━━━━━━━━━━━`,
+        `💼 *Platform:* ${platformUpper}`,
+        `📌 *Headline / Hook:* _"${postDraft.title}"_`,
+        `📊 *Length:* ~${postDraft.wordCount} words · ${postDraft.charCount} characters`,
+        ``,
+        `I've saved the entire post text into my active memory vault.`,
+        ``,
+        `💡 *Next Actions:*`,
+        `• Say *"remind me tomorrow to post it"* to lock in a scheduled reminder.`,
+        `• Or tap an instant action button below:`
+    ];
+
+    const replyMarkup = {
+        inline_keyboard: [
+            [
+                { text: "⏰ Remind Tomorrow (9 AM)", callback_data: `remind_draft_tomorrow_${draftId}` },
+                { text: "⏱️ Remind in 2h", callback_data: `remind_draft_2h_${draftId}` }
+            ],
+            [
+                { text: `🚀 Open & Share on ${platformUpper}`, url: shareUrl }
+            ]
+        ]
+    };
+
+    const sentMsg = replyLines.join('\n');
+    await sendTelegramMessage(chatId, sentMsg, msg.message_id, replyMarkup);
+    await recordConversationTurn(conversationId, text, sentMsg, 'post-draft-engine');
+}
+
 // Process Callback Query (Inline Button Click)
 async function processCallbackQuery(callbackQuery) {
     const id = callbackQuery.id;
@@ -2697,6 +2811,36 @@ async function processCallbackQuery(callbackQuery) {
             } else {
                 await editTelegramMessage(chatId, messageId, `⚠️ This request has expired or was already processed.`);
             }
+            return;
+        }
+
+        // 0B. Handle Draft Scheduling Callbacks
+        if (data.startsWith('remind_draft_tomorrow_') || data.startsWith('remind_draft_2h_')) {
+            const isTomorrow = data.startsWith('remind_draft_tomorrow_');
+            const draftId = data.replace(isTomorrow ? 'remind_draft_tomorrow_' : 'remind_draft_2h_', '');
+            const draft = activePostDrafts.get(draftId) || activePostDrafts.get('latest_user_post');
+
+            await answerCallbackQuery(id, isTomorrow ? "Scheduling for tomorrow 9 AM..." : "Scheduling for 2 hours...");
+
+            const timeStr = isTomorrow ? "tomorrow" : "2h";
+            const platformName = draft ? (draft.platform || 'LinkedIn').toUpperCase() : 'LINKEDIN';
+            const taskTitle = draft
+                ? `Post on ${platformName}: "${draft.title}"`
+                : "Publish scheduled social post";
+
+            const rem = remindersManager.addReminder(taskTitle, timeStr, chatId, {
+                draftContent: draft ? draft.content : null,
+                platform: draft ? draft.platform : 'linkedin'
+            });
+
+            const diffMs = rem.dueAt - Date.now();
+            const dueHours = (diffMs / 3600000).toFixed(1).replace(/\.0$/, '');
+            const dueDateFormatted = new Date(rem.dueAt).toLocaleString('en-US', {
+                weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true
+            });
+
+            const confirmMsg = `⏰ *Post Reminder Locked In, Commander!*\n\n📌 *Task:* *${taskTitle}*\n⏱️ *Time:* ${dueDateFormatted} (~${dueHours}h from now)\n\n_I will ping you on Telegram with the full draft and a 1-tap share link the moment it's due!_ 🧣`;
+            await sendTelegramMessage(chatId, confirmMsg);
             return;
         }
 
@@ -3843,11 +3987,99 @@ async function processUpdate(update) {
         return;
     }
 
-    // ── RESEARCH PORTFOLIO & PAPERS (/research, /papers, /curricurag) ─
-    const isResearchQuery = (
-        text.match(/^\/(?:research|papers?|curricurag)\b/i) ||
-        text.match(/\b(?:research\s+papers?|curricurag|smart\s+classroom\s+paper|eeg\s+paper|my\s+research|research\s+portfolio|amar\s+research)\b/i)
+    // ── USER-SUBMITTED POST DRAFTS & CONTENT TO REMEMBER / SCHEDULE ──
+    const userPostDraft = extractPostDraft(text);
+    if (userPostDraft) {
+        await handleUserPostDraftSubmission(chatId, text, msg, isCommander, userPostDraft, conversationId);
+        return;
+    }
+
+    // ── RECALL REMEMBERED POST (e.g. "tell me which post I told you to remember and remind me ?") ──
+    const isPostRecallQuery = Boolean(
+        text.match(/\b(?:which|what|kono|kon)\s+(?:post|draft)\b.*\b(?:remember|mone|remind|bolsilam|told\s+you)\b/i) ||
+        text.match(/\b(?:tell\s+me|boloto|bolo)\b.*\b(?:which|what)\s+post\b/i) ||
+        text.match(/\b(?:remember\s+kora\s+post|post\s+ta\s+ki)\b/i) ||
+        text.match(/\bwhich\s+post\s+I\s+told\s+you\s+to\s+remember\b/i)
     );
+    if (isPostRecallQuery) {
+        await sendChatAction(chatId, 'typing');
+        let recalledDraft = activePostDrafts.get('latest_user_post');
+        if (!recalledDraft) {
+            // Check active reminders for draft content
+            const activeRems = remindersManager.getActiveReminders();
+            const withDraft = activeRems.find(r => r.draftContent);
+            if (withDraft) {
+                recalledDraft = {
+                    title: withDraft.text,
+                    content: withDraft.draftContent,
+                    platform: withDraft.platform || 'linkedin'
+                };
+            }
+        }
+        if (!recalledDraft) {
+            // Try fetching from Supabase memory
+            try {
+                const mems = await supabaseRequest('/memories?order=created_at.desc&limit=10', 'GET').catch(() => []);
+                if (Array.isArray(mems)) {
+                    const found = mems.find(m => m.content && (m.content.toLowerCase().includes('post draft') || m.content.toLowerCase().includes('tony stark') || m.content.toLowerCase().includes('jarvis') || m.content.toLowerCase().includes('linkedin')));
+                    if (found) {
+                        recalledDraft = {
+                            title: 'Personal AI Assistant (Mikasa)',
+                            content: found.content.replace(/^.*?Full text:\s*/is, ''),
+                            platform: 'linkedin'
+                        };
+                    }
+                }
+            } catch (e) {}
+        }
+
+        if (recalledDraft) {
+            const platformUpper = (recalledDraft.platform || 'LinkedIn').toUpperCase();
+            const encoded = encodeURIComponent(recalledDraft.content);
+            const shareUrl = recalledDraft.platform === 'twitter'
+                ? `https://twitter.com/intent/tweet?text=${encoded}`
+                : `https://www.linkedin.com/feed/?shareActive=true&text=${encoded}`;
+
+            const replyLines = [
+                `🧣 *Here is the exact post you asked me to remember, Commander:*`,
+                `━━━━━━━━━━━━━━━━━━━━━━━━━`,
+                `💼 *Platform:* ${platformUpper}`,
+                `📌 *Title:* *${recalledDraft.title}*`,
+                ``,
+                `\`\`\`\n${recalledDraft.content}\n\`\`\``,
+                ``,
+                `_Whenever you want me to remind you or share it, let me know or tap below:_`
+            ];
+            const replyMarkup = {
+                inline_keyboard: [
+                    [
+                        { text: "⏰ Remind Tomorrow (9 AM)", callback_data: `remind_draft_tomorrow_${recalledDraft.id || 'latest'}` },
+                        { text: `🚀 Share on ${platformUpper}`, url: shareUrl }
+                    ]
+                ]
+            };
+            const sentMsg = replyLines.join('\n');
+            await sendTelegramMessage(chatId, sentMsg, msg.message_id, replyMarkup);
+            await recordConversationTurn(conversationId, text, sentMsg, 'post-draft-recall');
+            return;
+        }
+    }
+
+    // Guard against post drafts, long paragraphs, or conversational messages mentioning research
+    const isPostOrDraft = Boolean(
+        userPostDraft ||
+        text.match(/^(?:post\s*(?:is|ta\s*holo)?[:\-\s]|here\s+is\s+(?:the|my)\s+post|draft[:\-\s]|note[:\-\s]|caption[:\-\s])/i) ||
+        text.length > 120 ||
+        text.includes('\n')
+    );
+
+    // ── RESEARCH PORTFOLIO & PAPERS (/research, /papers, /curricurag) ─
+    const isExplicitResearchCmd = Boolean(text.match(/^\/(?:research|papers?|curricurag)\b/i));
+    const isDedicatedResearchInquiry = !isPostOrDraft && Boolean(
+        text.match(/^(?:(?:what\s+(?:is|are)|show(?:\s+me)?|tell\s+me\s+about|list|view|open|details\s+on)?\s*(?:your|my|swapnil'?s?|amar)?\s*(?:research\s+papers?|research\s+portfolio|curricurag|smart\s+classroom\s+paper|eeg\s+paper)\??)$/i) ||
+        text.match(/^(?:amar\s+)?research\s*(?:papers?|portfolio)\s*(?:ki|dekhao|specs|gulo)?\??$/i)
+    );
+    const isResearchQuery = isExplicitResearchCmd || isDedicatedResearchInquiry;
 
     if (isResearchQuery) {
         await sendChatAction(chatId, 'typing');
@@ -4633,8 +4865,44 @@ async function processUpdate(update) {
     // Supports prefix, postfix, Banglish, hours, minutes, days: e.g. "remind me to do X 6hr later", "amake 6 ghonta por mone koriye dio"
     const extractedReminder = remindersManager.extractReminderFromMessage(text);
     if (extractedReminder) {
-        const { timeStr, task } = extractedReminder;
-        const rem = remindersManager.addReminder(task, timeStr, chatId);
+        let { timeStr, task } = extractedReminder;
+        let attachedDraft = null;
+        let attachedPlatform = 'linkedin';
+
+        // Check if task refers to an active post draft or quoted message: e.g. "post it", "post this", "share it", "it", "this"
+        const isGenericPostTask = Boolean(task.match(/^(?:post\s*(?:it|this|that)?|share\s*(?:it|this|that)?|post|it|this|that|do\s*it|eta\s*post\s*koro)$/i));
+
+        if (isGenericPostTask) {
+            if (quotedContext && quotedContext.text) {
+                attachedDraft = quotedContext.text;
+                task = `Post: "${quotedContext.text.slice(0, 50).trim()}..."`;
+            } else if (activePostDrafts.has('latest_user_post')) {
+                const ld = activePostDrafts.get('latest_user_post');
+                attachedDraft = ld.content;
+                attachedPlatform = ld.platform || 'linkedin';
+                task = `Post on ${attachedPlatform === 'twitter' ? 'X / Twitter' : 'LinkedIn'}: "${ld.title}"`;
+            } else {
+                // Check recent history for a post draft
+                const recentHistory = conversationHistoryCache.get(conversationId) || [];
+                for (let i = recentHistory.length - 1; i >= 0; i--) {
+                    const h = recentHistory[i];
+                    if (h.role === 'user' && (h.content.toLowerCase().startsWith('post is') || h.content.length > 80)) {
+                        const parsed = extractPostDraft(h.content);
+                        if (parsed) {
+                            attachedDraft = parsed.content;
+                            attachedPlatform = parsed.platform;
+                            task = `Post on ${attachedPlatform.toUpperCase()}: "${parsed.title}"`;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        const rem = remindersManager.addReminder(task, timeStr, chatId, {
+            draftContent: attachedDraft || null,
+            platform: attachedPlatform || 'linkedin'
+        });
 
         const diffMs = rem.dueAt - Date.now();
         const dueHours = (diffMs / 3600000).toFixed(1).replace(/\.0$/, '');
@@ -4652,12 +4920,14 @@ async function processUpdate(update) {
         });
 
         const reply = [
-            `⏰ *Reminder locked in, Swapnil!*`,
+            `⏰ *Reminder locked in, Commander!* 🧣`,
             ``,
             `📌 *Task:* *"${task}"*`,
             `⏱️ *Time:* ${dueDateFormatted} (${timeFriendly})`,
             ``,
-            `_I will chime your phone on Telegram the second it's due! Tap below to also sync it directly with your phone's Google/Apple Calendar:_ 🛡️`
+            attachedDraft
+                ? `_I have linked your saved draft to this reminder. When the time arrives, I'll alert you with the complete post and 1-tap share link!_ 🛡️`
+                : `_I will chime your phone on Telegram the second it's due! Tap below to also sync it directly with your phone's Google/Apple Calendar:_ 🛡️`
         ].join('\n');
 
         const replyMarkup = {
@@ -4669,6 +4939,7 @@ async function processUpdate(update) {
         };
 
         await sendTelegramMessage(chatId, reply, msg.message_id, replyMarkup);
+        await recordConversationTurn(conversationId, text, reply, 'reminder-engine');
         return;
     }
 
@@ -4682,6 +4953,9 @@ async function processUpdate(update) {
             active.forEach((r, i) => {
                 const minsLeft = Math.max(1, Math.round((r.dueAt - Date.now()) / 60000));
                 remList += `${i + 1}. *"${r.text}"* (in ~${minsLeft} mins)\n`;
+                if (r.draftContent) {
+                    remList += `   📝 _Draft attached (${(r.platform || 'social').toUpperCase()})_\n`;
+                }
             });
             await sendTelegramMessage(chatId, remList, msg.message_id);
         }
@@ -5491,8 +5765,35 @@ async function startPolling() {
     // Initialize proactive reminders engine
     remindersManager.init((rem) => {
         console.log(`[Reminder Fired]: "${rem.text}" for Chat ${rem.chatId}`);
-        const alertText = `⏰ *Reminder from Mikasa, Swapnil!*\n\n*"${rem.text}"*\n\n_I promised I'd keep you on track. Ready to execute on this now?_`;
-        sendTelegramMessage(rem.chatId, alertText);
+        if (rem.draftContent) {
+            const platformName = (rem.platform || 'LinkedIn').toUpperCase();
+            const encoded = encodeURIComponent(rem.draftContent);
+            const shareUrl = rem.platform === 'twitter' || rem.platform === 'x'
+                ? `https://twitter.com/intent/tweet?text=${encoded}`
+                : `https://www.linkedin.com/feed/?shareActive=true&text=${encoded}`;
+
+            const alert = [
+                `⏰ *Scheduled Post Alert from Mikasa, Swapnil!* 🧣`,
+                `━━━━━━━━━━━━━━━━━━━━━━━━━`,
+                `💼 *Platform:* ${platformName}`,
+                `📌 *Task:* *"${rem.text}"*`,
+                ``,
+                `📝 *Your Saved Draft:*`,
+                `\`\`\`\n${rem.draftContent}\n\`\`\``,
+                ``,
+                `_Ready to share? Tap below to open directly on ${platformName} with this text pre-filled:_`
+            ].join('\n');
+
+            const markup = {
+                inline_keyboard: [
+                    [{ text: `🚀 1-Tap Share on ${platformName}`, url: shareUrl }]
+                ]
+            };
+            sendTelegramMessage(rem.chatId, alert, null, markup);
+        } else {
+            const alertText = `⏰ *Reminder from Mikasa, Swapnil!*\n\n*"${rem.text}"*\n\n_I promised I'd keep you on track. Ready to execute on this now?_`;
+            sendTelegramMessage(rem.chatId, alertText);
+        }
     });
 
     // Initialize Proactive Surveillance Engine (Battery watcher, 8:30 AM Sitrep, Late Night Watch)

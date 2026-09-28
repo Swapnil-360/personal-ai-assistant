@@ -2043,7 +2043,7 @@ function setGeminiCooldown(seconds, reason = 'Quota exceeded') {
 }
 
 // Call Google Gemini API (with pre-flight quota checks & multi-turn memory)
-function callGeminiApi(systemPrompt, userMessage, apiKey, conversationHistory = []) {
+function callGeminiApi(systemPrompt, userMessage, apiKey, conversationHistory = [], userContext = {}) {
     return new Promise((resolve, reject) => {
         pruneGeminiWindow();
         const now = Date.now();
@@ -2094,13 +2094,35 @@ function callGeminiApi(systemPrompt, userMessage, apiKey, conversationHistory = 
             }
         }
 
+        // Multimodal user query & attachments
+        const userParts = [];
+        if (userContext && userContext.attachment && userContext.attachment.base64) {
+            const mime = userContext.attachment.mime_type || (userContext.attachment.type === 'image' ? 'image/jpeg' : 'application/pdf');
+            if (mime.startsWith('image/') || mime === 'application/pdf') {
+                userParts.push({
+                    inline_data: {
+                        mime_type: mime,
+                        data: userContext.attachment.base64
+                    }
+                });
+            }
+        }
+
+        let finalPrompt = userMessage;
+        if (userContext && userContext.attachment && userContext.attachment.text_content) {
+            finalPrompt = `[ATTACHED FILE: ${userContext.attachment.name || 'document'}]\n${userContext.attachment.text_content}\n[END OF ATTACHED FILE]\n\n${userMessage}`;
+        } else if (userContext && userContext.attachment && !userContext.attachment.base64 && userContext.attachment.name) {
+            finalPrompt = `[ATTACHED FILE: ${userContext.attachment.name}]\n\n${userMessage}`;
+        }
+        userParts.push({ text: finalPrompt });
+
         // Append current user message
         if (contents.length > 0 && contents[contents.length - 1].role === 'user') {
-            contents[contents.length - 1].parts[0].text += '\n' + userMessage;
+            contents[contents.length - 1].parts.push(...userParts);
         } else {
             contents.push({
                 role: "user",
-                parts: [{ text: userMessage }]
+                parts: userParts
             });
         }
 
@@ -2175,7 +2197,7 @@ function callGeminiApi(systemPrompt, userMessage, apiKey, conversationHistory = 
 }
 
 // Call OpenRouter API with multi-turn conversation memory
-function callOpenRouterApi(systemPrompt, userMessage, apiKey, conversationHistory = []) {
+function callOpenRouterApi(systemPrompt, userMessage, apiKey, conversationHistory = [], userContext = {}) {
     return new Promise((resolve, reject) => {
         const messages = [{ role: "system", content: systemPrompt }];
         if (Array.isArray(conversationHistory) && conversationHistory.length > 0) {
@@ -2187,7 +2209,28 @@ function callOpenRouterApi(systemPrompt, userMessage, apiKey, conversationHistor
                 }
             }
         }
-        messages.push({ role: "user", content: userMessage });
+
+        let userPrompt = userMessage;
+        if (userContext && userContext.attachment && userContext.attachment.text_content) {
+            userPrompt = `[ATTACHED FILE: ${userContext.attachment.name || 'document'}]\n${userContext.attachment.text_content}\n[END OF ATTACHED FILE]\n\n${userMessage}`;
+        }
+
+        if (userContext && userContext.attachment && userContext.attachment.base64 && (userContext.attachment.type === 'image' || userContext.attachment.mime_type?.startsWith('image/'))) {
+            messages.push({
+                role: "user",
+                content: [
+                    { type: "text", text: userPrompt },
+                    {
+                        type: "image_url",
+                        image_url: {
+                            url: `data:${userContext.attachment.mime_type || 'image/jpeg'};base64,${userContext.attachment.base64}`
+                        }
+                    }
+                ]
+            });
+        } else {
+            messages.push({ role: "user", content: userPrompt });
+        }
 
         const payload = JSON.stringify({
             model: "openai/gpt-4o-mini",
@@ -2439,7 +2482,7 @@ async function callMikasaAgent(message, conversationId, userContext) {
             } catch (toolErr) {
                 console.warn('[Gemini Tool-Calling Error, falling back to standard Gemini API]:', toolErr.message);
                 try {
-                    const reply = await callGeminiApi(systemPrompt, effectiveMessage, geminiKey, conversationHistory);
+                    const reply = await callGeminiApi(systemPrompt, effectiveMessage, geminiKey, conversationHistory, userContext);
                     if (reply) {
                         const usedModel = getEnv('GEMINI_MODEL') || 'gemini-3.5-flash-lite';
                         return { reply, engine: usedModel };
@@ -2455,7 +2498,7 @@ async function callMikasaAgent(message, conversationId, userContext) {
     if (openrouterKey) {
         try {
             console.log(`[Mikasa Agent] Calling OpenRouter Cloud directly (Fallback Engine: gpt-4o-mini, ${conversationHistory.length} history turns)...`);
-            const reply = await callOpenRouterApi(systemPrompt, effectiveMessage, openrouterKey, conversationHistory);
+            const reply = await callOpenRouterApi(systemPrompt, effectiveMessage, openrouterKey, conversationHistory, userContext);
             if (reply) {
                 lastUsedEngine = 'openrouter';
                 // Silent fallover — no message appended to user reply

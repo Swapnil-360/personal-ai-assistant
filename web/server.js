@@ -614,7 +614,11 @@ const server = http.createServer(async (req, res) => {
         if (pathname === '/api/chat' && req.method === 'POST') {
             if (!await requireCommander()) return;
             const body = await parseBody(req);
-            const message = body.message;
+            const attachment = body.attachment || null;
+            let message = (body.message || body.text || '').trim();
+            if (!message && attachment) {
+                message = attachment.type === 'image' ? 'Please analyze this attached image, Mikasa.' : `Please review this attached file (${attachment.name || 'document'}), Mikasa.`;
+            }
             const conversationId = getSessionUuid(body.conversation_id || 'commander_session');
 
             let replyText = '';
@@ -709,7 +713,8 @@ const server = http.createServer(async (req, res) => {
                     const agentRes = await callMikasaAgent(message, conversationId, {
                         user_id: 7112137739,
                         first_name: 'Swapnil',
-                        role: 'Commander'
+                        role: 'Commander',
+                        attachment
                     });
                     replyText = agentRes.reply || agentRes.text || 'I am right here with you, Swapnil.';
                 } catch (agentErr) {
@@ -1086,7 +1091,12 @@ const server = http.createServer(async (req, res) => {
         if (pathname === '/api/voice/process' && req.method === 'POST') {
             if (!await requireCommander()) return;
             const body = await parseBody(req);
+            const attachment = body.attachment || null;
             let userQuery = (body.text || body.message || '').trim();
+
+            if (!userQuery && attachment) {
+                userQuery = attachment.type === 'image' ? 'Please analyze this attached image, Mikasa.' : `Please review this attached file (${attachment.name || 'document'}), Mikasa.`;
+            }
 
             // If audio_base64 is sent, transcribe with Gemini!
             if (!userQuery && body.audio_base64) {
@@ -1226,7 +1236,7 @@ const server = http.createServer(async (req, res) => {
             // Otherwise, process through full Mikasa AI agent
             let agentRes = null;
             try {
-                agentRes = await callMikasaAgent(userQuery, COMMANDER_UNIFIED_CONVERSATION_ID, { isCommander: true });
+                agentRes = await callMikasaAgent(userQuery, COMMANDER_UNIFIED_CONVERSATION_ID, { isCommander: true, attachment });
             } catch (agentErr) {
                 console.warn('[Voice API Agent Error]:', agentErr.message);
                 agentRes = { reply: 'Acknowledged, Commander.' };

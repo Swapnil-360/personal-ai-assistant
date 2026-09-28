@@ -28,6 +28,8 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import Svg, { Path, Rect, Circle, Line } from 'react-native-svg';
 import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
 import * as Haptics from 'expo-haptics';
 import * as Speech from 'expo-speech';
 import { CameraView, Camera } from 'expo-camera';
@@ -103,6 +105,21 @@ interface ChatMessage {
   timestamp: string;
   toolUsed?: string;
   imageAttachment?: string;
+  fileAttachment?: {
+    name: string;
+    size?: number;
+    mimeType?: string;
+  };
+}
+
+interface PendingAttachment {
+  type: 'image' | 'file';
+  name: string;
+  uri: string;
+  mimeType: string;
+  base64?: string;
+  textContent?: string;
+  size?: number;
 }
 
 interface ActionLogItem {
@@ -269,6 +286,7 @@ export default function App() {
   const [chatInput, setChatInput] = useState('');
   const [chatSearch, setChatSearch] = useState('');
   const [isChatSearchOpen, setIsChatSearchOpen] = useState(false);
+  const [pendingAttachment, setPendingAttachment] = useState<PendingAttachment | null>(null);
   const chatScrollRef = useRef<ScrollView>(null);
 
   // Tool Execution Card Overlay
@@ -1000,12 +1018,147 @@ export default function App() {
     }
   };
 
-  // 8. Core Command Execution (Used by Voice & Chat - talks like Telegram)
-  const executeCommand = async (rawQuery: string, source: 'voice' | 'chat' = 'chat') => {
-    const query = stripEmojis(rawQuery.trim());
-    if (!query) return;
+  // Image & Document Pickers for Multimodal AI Chat
+  const handlePickImage = async () => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch (e) {}
 
-    if (source === 'chat') setChatInput('');
+    Alert.alert(
+      'Attach Image',
+      'Choose image source for Mikasa to analyze:',
+      [
+        {
+          text: 'Take Photo',
+          onPress: async () => {
+            const { status } = await ImagePicker.requestCameraPermissionsAsync();
+            if (status !== 'granted') {
+              Alert.alert('Permission Denied', 'Camera permission is required to capture photos.');
+              return;
+            }
+            const result = await ImagePicker.launchCameraAsync({
+              mediaTypes: ['images'],
+              base64: true,
+              quality: 0.7
+            });
+            if (!result.canceled && result.assets && result.assets.length > 0) {
+              const asset = result.assets[0];
+              setPendingAttachment({
+                type: 'image',
+                name: asset.fileName || `photo_${Date.now()}.jpg`,
+                uri: asset.uri,
+                mimeType: asset.mimeType || 'image/jpeg',
+                base64: asset.base64 || undefined
+              });
+            }
+          }
+        },
+        {
+          text: 'Choose from Gallery',
+          onPress: async () => {
+            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (status !== 'granted') {
+              Alert.alert('Permission Denied', 'Media library permission is required to select photos.');
+              return;
+            }
+            const result = await ImagePicker.launchImageLibraryAsync({
+              mediaTypes: ['images'],
+              base64: true,
+              quality: 0.7
+            });
+            if (!result.canceled && result.assets && result.assets.length > 0) {
+              const asset = result.assets[0];
+              setPendingAttachment({
+                type: 'image',
+                name: asset.fileName || `image_${Date.now()}.jpg`,
+                uri: asset.uri,
+                mimeType: asset.mimeType || 'image/jpeg',
+                base64: asset.base64 || undefined
+              });
+            }
+          }
+        },
+        { text: 'Cancel', style: 'cancel' }
+      ]
+    );
+  };
+
+  const handlePickDocument = async () => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch (e) {}
+
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: '*/*',
+        copyToCacheDirectory: true
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        let base64: string | undefined;
+        let textContent: string | undefined;
+
+        try {
+          const fileObj = new ExpoFile(asset.uri);
+          base64 = await fileObj.base64();
+        } catch (e) {
+          try {
+            const resp = await fetch(asset.uri);
+            const blob = await resp.blob();
+            base64 = await new Promise((res, rej) => {
+              const reader = new FileReader();
+              reader.onloadend = () => {
+                const b64 = (reader.result as string).split(',')[1];
+                res(b64);
+              };
+              reader.onerror = rej;
+              reader.readAsDataURL(blob);
+            });
+          } catch (e2) {}
+        }
+
+        const isText = (asset.mimeType && (asset.mimeType.startsWith('text/') || asset.mimeType.includes('json') || asset.mimeType.includes('javascript') || asset.mimeType.includes('xml'))) ||
+                       /\.(txt|md|js|ts|tsx|jsx|json|py|html|css|csv|log|sh|bat)$/i.test(asset.name);
+
+        if (isText && base64) {
+          try {
+            textContent = atob(base64);
+          } catch (e) {}
+        }
+
+        setPendingAttachment({
+          type: 'file',
+          name: asset.name,
+          uri: asset.uri,
+          mimeType: asset.mimeType || 'application/octet-stream',
+          size: asset.size,
+          base64,
+          textContent
+        });
+      }
+    } catch (err: any) {
+      console.warn('[Document Picker Error]:', err?.message || err);
+      Alert.alert('File Selection Failed', 'Could not access the selected file.');
+    }
+  };
+
+  // 8. Core Command Execution (Used by Voice & Chat - talks like Telegram)
+  const executeCommand = async (rawQuery: string, source: 'voice' | 'chat' = 'chat', attachmentToSend?: PendingAttachment | null) => {
+    const currentAttachment = attachmentToSend !== undefined ? attachmentToSend : pendingAttachment;
+    let query = stripEmojis(rawQuery.trim());
+    if (!query && !currentAttachment) return;
+
+    if (!query && currentAttachment) {
+      query = currentAttachment.type === 'image'
+        ? 'Please analyze this attached image and explain what you see, Mikasa.'
+        : `Please review and explain this document (${currentAttachment.name}), Mikasa.`;
+    }
+
+    if (source === 'chat') {
+      setChatInput('');
+      setPendingAttachment(null);
+    }
 
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -1016,7 +1169,13 @@ export default function App() {
       id: Date.now().toString(),
       sender: 'user',
       text: query,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      imageAttachment: currentAttachment?.type === 'image' ? currentAttachment.uri : undefined,
+      fileAttachment: currentAttachment?.type === 'file' ? {
+        name: currentAttachment.name,
+        size: currentAttachment.size,
+        mimeType: currentAttachment.mimeType
+      } : undefined
     };
     setChatMessages(prev => [...prev, userMsg]);
     setTimeout(() => chatScrollRef.current?.scrollToEnd({ animated: true }), 100);
@@ -1032,7 +1191,7 @@ export default function App() {
 
     setAssistantState('THINKING');
     setStatusText('Thinking...');
-    setSubStatusText('Reasoning with Gemini...');
+    setSubStatusText(currentAttachment ? 'Analyzing attachment with Gemini...' : 'Reasoning with Gemini...');
 
     // Device command execution card
     if (query.toLowerCase().includes('call') || query.toLowerCase().includes('rahim') || query.toLowerCase().includes('lock')) {
@@ -1052,7 +1211,14 @@ export default function App() {
         body: JSON.stringify({
           text: query,
           message: query,
-          conversation_id: 'commander_session'
+          conversation_id: 'commander_session',
+          attachment: currentAttachment ? {
+            type: currentAttachment.type,
+            name: currentAttachment.name,
+            mime_type: currentAttachment.mimeType,
+            base64: currentAttachment.base64,
+            text_content: currentAttachment.textContent
+          } : undefined
         })
       });
 
@@ -1755,14 +1921,6 @@ export default function App() {
                   </View>
                 )}
 
-                {/* Active Memory Context Banner */}
-                <View style={styles.tgMemoryBanner}>
-                  <MaterialCommunityIcons name="brain" size={14} color="#e11d48" style={{ marginRight: 6 }} />
-                  <Text style={styles.tgMemoryBannerText}>
-                    123+ Long-Term Memories Active (CurricuRAG, Stark-OS, BUBT CSE 51st)
-                  </Text>
-                </View>
-
                 {/* Scrollable Message List */}
                 <ScrollView
                   ref={chatScrollRef}
@@ -1793,6 +1951,31 @@ export default function App() {
                             <Text style={styles.chatToolBadgeText}>Tool: {msg.toolUsed}</Text>
                           </View>
                         )}
+
+                        {/* Image Attachment Preview inside Chat Bubble */}
+                        {msg.imageAttachment && (
+                          <Image
+                            source={{ uri: msg.imageAttachment }}
+                            style={styles.chatBubbleImg}
+                            resizeMode="cover"
+                          />
+                        )}
+
+                        {/* File Attachment Preview inside Chat Bubble */}
+                        {msg.fileAttachment && (
+                          <View style={styles.chatBubbleFileRow}>
+                            <View style={styles.chatBubbleFileIcon}>
+                              <Feather name="file-text" size={15} color="#38bdf8" />
+                            </View>
+                            <View style={{ flex: 1, marginLeft: 8 }}>
+                              <Text style={styles.chatBubbleFileName} numberOfLines={1}>{msg.fileAttachment.name}</Text>
+                              {msg.fileAttachment.size ? (
+                                <Text style={styles.chatBubbleFileSize}>{(msg.fileAttachment.size / 1024).toFixed(1)} KB</Text>
+                              ) : null}
+                            </View>
+                          </View>
+                        )}
+
                         <Text style={styles.chatMessageText}>{msg.text}</Text>
                         <View style={styles.chatMetaRow}>
                           <Text style={styles.chatTimeText}>{msg.timestamp}</Text>
@@ -1805,26 +1988,43 @@ export default function App() {
                   ))}
                 </ScrollView>
 
+                {/* Pending Attachment Bar (Before Sending) */}
+                {pendingAttachment && (
+                  <View style={styles.pendingAttachmentBar}>
+                    {pendingAttachment.type === 'image' ? (
+                      <Image source={{ uri: pendingAttachment.uri }} style={styles.pendingAttachThumb} />
+                    ) : (
+                      <View style={styles.pendingAttachFileIcon}>
+                        <Feather name="file-text" size={16} color="#38bdf8" />
+                      </View>
+                    )}
+                    <View style={{ flex: 1, marginLeft: 10 }}>
+                      <Text style={styles.pendingAttachName} numberOfLines={1}>{pendingAttachment.name}</Text>
+                      <Text style={styles.pendingAttachMeta}>
+                        {pendingAttachment.type === 'image' ? 'Image ready for analysis' : pendingAttachment.size ? `${(pendingAttachment.size / 1024).toFixed(1)} KB ready` : 'Document ready'}
+                      </Text>
+                    </View>
+                    <TouchableOpacity onPress={() => setPendingAttachment(null)} style={styles.pendingAttachRemoveBtn} activeOpacity={0.7}>
+                      <Feather name="x" size={15} color="#94a3b8" />
+                    </TouchableOpacity>
+                  </View>
+                )}
+
                 {/* Multi-Attachment & Input Dock */}
                 <View style={styles.tgInputDock}>
-                  {/* Image / Vision Analysis Button */}
+                  {/* Image / Vision Analysis Picker Button */}
                   <TouchableOpacity
                     style={styles.tgAttachBtn}
-                    onPress={() => {
-                      executeCommand('Analyze current camera view and describe surroundings', 'chat');
-                      speakAsMikasa('Commander, analyzing visual feed.');
-                    }}
+                    onPress={handlePickImage}
                     activeOpacity={0.7}
                   >
                     <Feather name="camera" size={18} color="#cbd5e1" />
                   </TouchableOpacity>
 
-                  {/* File Attachment Button */}
+                  {/* File Document Attachment Picker Button */}
                   <TouchableOpacity
                     style={styles.tgAttachBtn}
-                    onPress={() => {
-                      executeCommand('Review research papers and project files', 'chat');
-                    }}
+                    onPress={handlePickDocument}
                     activeOpacity={0.7}
                   >
                     <Feather name="paperclip" size={18} color="#cbd5e1" />
@@ -1832,14 +2032,14 @@ export default function App() {
 
                   <TextInput
                     style={styles.chatInputField}
-                    placeholder="Message Mikasa..."
+                    placeholder={pendingAttachment ? "Add a message or tap send..." : "Message Mikasa..."}
                     placeholderTextColor="#64748b"
                     value={chatInput}
                     onChangeText={setChatInput}
                     onSubmitEditing={() => executeCommand(chatInput, 'chat')}
                   />
 
-                  {chatInput.trim().length > 0 ? (
+                  {chatInput.trim().length > 0 || pendingAttachment ? (
                     <TouchableOpacity
                       style={styles.chatSendBtn}
                       onPress={() => executeCommand(chatInput, 'chat')}
@@ -3743,6 +3943,84 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#ffffff',
     fontWeight: 'bold'
+  },
+  chatBubbleImg: {
+    width: '100%',
+    height: 180,
+    borderRadius: 12,
+    marginBottom: 8
+  },
+  chatBubbleFileRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    padding: 8,
+    borderRadius: 8,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.2)'
+  },
+  chatBubbleFileIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    backgroundColor: 'rgba(56, 189, 248, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  chatBubbleFileName: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#ffffff'
+  },
+  chatBubbleFileSize: {
+    fontSize: 10,
+    color: '#94a3b8',
+    marginTop: 2
+  },
+  pendingAttachmentBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#12151d',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#1e2433',
+    marginHorizontal: 10,
+    marginBottom: 4,
+    borderRadius: 10
+  },
+  pendingAttachThumb: {
+    width: 36,
+    height: 36,
+    borderRadius: 6
+  },
+  pendingAttachFileIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 6,
+    backgroundColor: 'rgba(56, 189, 248, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  pendingAttachName: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#ffffff'
+  },
+  pendingAttachMeta: {
+    fontSize: 10,
+    color: '#38bdf8',
+    marginTop: 2
+  },
+  pendingAttachRemoveBtn: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 8
   },
   tgInputDock: {
     flexDirection: 'row',

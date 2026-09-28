@@ -354,13 +354,37 @@ async function callGeminiWithTools(systemPrompt, userMessage, apiKey, conversati
         }
     }
 
-    // Append current user query
+    // Append current user query with multimodal attachment support
+    const userParts = [];
+
+    // Multimodal image or PDF attachment
+    if (userContext && userContext.attachment && userContext.attachment.base64) {
+        const mime = userContext.attachment.mime_type || (userContext.attachment.type === 'image' ? 'image/jpeg' : 'application/pdf');
+        if (mime.startsWith('image/') || mime === 'application/pdf') {
+            userParts.push({
+                inline_data: {
+                    mime_type: mime,
+                    data: userContext.attachment.base64
+                }
+            });
+        }
+    }
+
+    let finalPrompt = userMessage;
+    if (userContext && userContext.attachment && userContext.attachment.text_content) {
+        finalPrompt = `[ATTACHED FILE: ${userContext.attachment.name || 'document'}]\n${userContext.attachment.text_content}\n[END OF ATTACHED FILE]\n\n${userMessage}`;
+    } else if (userContext && userContext.attachment && !userContext.attachment.base64 && userContext.attachment.name) {
+        finalPrompt = `[ATTACHED FILE: ${userContext.attachment.name}]\n\n${userMessage}`;
+    }
+
+    userParts.push({ text: finalPrompt });
+
     if (contents.length > 0 && contents[contents.length - 1].role === 'user') {
-        contents[contents.length - 1].parts[0].text += '\n' + userMessage;
+        contents[contents.length - 1].parts.push(...userParts);
     } else {
         contents.push({
             role: 'user',
-            parts: [{ text: userMessage }]
+            parts: userParts
         });
     }
 

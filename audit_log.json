@@ -1,5 +1,55 @@
 [
   {
+    "timestamp": "2026-09-28T20:00:21.688Z",
+    "user_request": "",
+    "agent_decision": "",
+    "tool_used": "",
+    "action_performed": "",
+    "data_affected": null,
+    "result": "Success",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-28T18:20:01.186Z",
+    "user_request": "Kalke shokal 10 tay alarm set kore dao",
+    "agent_decision": "Learned new [fact] memory; superseded 0 outdated memories",
+    "tool_used": "Supabase /memories",
+    "action_performed": "store_memory",
+    "data_affected": "f31fa0f4-3e0b-4844-9ab8-ac740d20896b",
+    "result": "Swapnil requested an alarm set for tomorrow at 10 AM.",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-28T17:07:55.812Z",
+    "user_request": "25 January amr birthday mone rekho",
+    "agent_decision": "Learned new [fact] memory; superseded 0 outdated memories",
+    "tool_used": "Supabase /memories",
+    "action_performed": "store_memory",
+    "data_affected": "23909762-5a72-4f37-b787-a183dea9378a",
+    "result": "Swapnil's birthday is on 25 January.",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-28T17:07:51.686Z",
+    "user_request": "25 January amr birthday mone rekho",
+    "agent_decision": "Learned new [fact] memory; superseded 0 outdated memories",
+    "tool_used": "Supabase /memories",
+    "action_performed": "store_memory",
+    "data_affected": "c7990256-2d3a-41bf-bdcf-c22cace5e81d",
+    "result": "25 January amr birthday",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-28T16:56:55.386Z",
+    "user_request": "post is-\n\"A few days ago I started exploring the idea of building a personal AI assistant inspired by the way Tony Stark relies on JARVIS. I wanted something beyond a standard browser tab chatbot, so I built my own personal AI operating layer: Mikasa. \n\nShe operates as a dedicated technical companio",
+    "agent_decision": "Learned new [experience] memory; superseded 0 outdated memories",
+    "tool_used": "Supabase /memories",
+    "action_performed": "store_memory",
+    "data_affected": "5e3b1585-875e-4c76-a36c-0bfbe2bd6f15",
+    "result": "Swapnil's LINKEDIN Post Draft: \"\"A few days ago I started exploring the idea of building a personal...\"\n\nFull text: \"A few days ago I started exploring the idea of building a personal AI assistant inspired by the way Tony Stark relies on JARVIS. I wanted something beyond a standard browser tab chatb",
+    "verification_status": "verified"
+  },
+  {
     "timestamp": "2026-09-27T20:12:28.493Z",
     "user_request": "",
     "agent_decision": "",

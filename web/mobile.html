@@ -3,35 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Mikasa — Personal AI Operating System</title>
-    <meta name="description" content="Mikasa Ackerman Autonomous AI Executive Mobile Companion for Swapnil">
+    <title>Mikasa — Personal AI Assistant for Android</title>
+    <meta name="description" content="Mikasa Autonomous AI Executive Copilot for Commander Swapnil">
     <link rel="icon" type="image/jpeg" href="/Mikasa-logo.jpeg">
     <link rel="apple-touch-icon" href="/Mikasa-logo.jpeg">
     <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#070b14">
+    <meta name="theme-color" content="#07080c">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Mikasa OS">
+    <meta name="apple-mobile-web-app-title" content="Mikasa">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-base: #060911;
-            --bg-surface: rgba(15, 23, 42, 0.75);
-            --bg-surface-elevated: rgba(30, 41, 59, 0.7);
-            --border-subtle: rgba(255, 255, 255, 0.08);
-            --border-glow: rgba(56, 189, 248, 0.3);
-            --accent-cyan: #38bdf8;
-            --accent-red: #ef4444;
+            --bg-base: #07080c;
+            --bg-surface: rgba(16, 18, 26, 0.75);
+            --bg-card: rgba(16, 18, 26, 0.9);
+            --border-subtle: rgba(255, 255, 255, 0.06);
+            --border-crimson: rgba(225, 29, 72, 0.5);
+            --accent-crimson: #e11d48;
+            --accent-crimson-light: #fda4af;
             --accent-emerald: #10b981;
-            --accent-amber: #f59e0b;
-            --text-primary: #f8fafc;
+            --accent-cyan: #38bdf8;
+            --text-primary: #ffffff;
             --text-secondary: #94a3b8;
             --text-muted: #64748b;
-            --nav-height: 64px;
-            --header-height: 60px;
             --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
             --font-mono: 'JetBrains Mono', monospace;
             --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -56,34 +54,6 @@
             position: fixed;
         }
 
-        /* Ambient Glow Background */
-        body::before {
-            content: '';
-            position: fixed;
-            top: -20%;
-            left: 20%;
-            width: 300px;
-            height: 300px;
-            background: radial-gradient(circle, rgba(56, 189, 248, 0.12) 0%, transparent 70%);
-            border-radius: 50%;
-            pointer-events: none;
-            z-index: 0;
-        }
-
-        body::after {
-            content: '';
-            position: fixed;
-            bottom: 10%;
-            right: -10%;
-            width: 320px;
-            height: 320px;
-            background: radial-gradient(circle, rgba(239, 68, 68, 0.09) 0%, transparent 70%);
-            border-radius: 50%;
-            pointer-events: none;
-            z-index: 0;
-        }
-
-        /* App Layout Shell */
         .app-shell {
             display: flex;
             flex-direction: column;
@@ -91,146 +61,74 @@
             height: 100%;
             height: 100dvh;
             position: relative;
-            z-index: 1;
+            background: var(--bg-base);
         }
 
-        /* Top Header */
-        .mobile-header {
-            height: calc(var(--header-height) + var(--safe-top));
-            padding: var(--safe-top) 16px 0 16px;
+        /* TOP HEADER (Screens 7, 8, 9) */
+        .hud-top-header {
+            height: calc(56px + var(--safe-top));
+            padding: var(--safe-top) 20px 0 20px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            background: rgba(6, 9, 17, 0.85);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border-bottom: 1px solid var(--border-subtle);
+            background: var(--bg-base);
             flex-shrink: 0;
             z-index: 20;
         }
 
-        .header-brand {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .avatar-wrap {
-            position: relative;
-            width: 38px;
-            height: 38px;
-            border-radius: 50%;
-            border: 2px solid rgba(56, 189, 248, 0.4);
-            padding: 1px;
-            background: #0f172a;
-        }
-
-        .avatar-img {
-            width: 100%;
-            height: 100%;
-            border-radius: 50%;
-            object-fit: cover;
-        }
-
-        .avatar-pulse {
-            position: absolute;
-            bottom: -1px;
-            right: -1px;
-            width: 10px;
-            height: 10px;
-            background: var(--accent-emerald);
-            border: 2px solid #060911;
-            border-radius: 50%;
-            animation: pulse-ring 2s infinite ease-out;
-        }
-
-        @keyframes pulse-ring {
-            0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
-            70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
-        }
-
-        .brand-meta {
+        .hud-brand-left {
             display: flex;
             flex-direction: column;
+            gap: 2px;
         }
 
-        .brand-title-row {
+        .hud-brand-name {
+            color: #ffffff;
+            font-size: 0.85rem;
+            font-weight: 800;
+            letter-spacing: 3px;
+        }
+
+        .hud-status-dot-row {
             display: flex;
             align-items: center;
             gap: 6px;
         }
 
-        .brand-title {
-            font-size: 1.05rem;
-            font-weight: 800;
-            letter-spacing: 0.5px;
-            background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--accent-emerald);
         }
 
-        .brand-badge {
-            font-size: 0.65rem;
-            font-weight: 700;
-            padding: 1px 6px;
-            border-radius: 999px;
-            background: rgba(56, 189, 248, 0.15);
-            color: var(--accent-cyan);
-            border: 1px solid rgba(56, 189, 248, 0.3);
-            text-transform: uppercase;
-        }
-
-        .brand-subtitle {
-            font-size: 0.72rem;
+        .status-dot-text {
             color: var(--text-muted);
+            font-size: 0.72rem;
             font-weight: 500;
         }
 
-        .header-actions {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .pill-status {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 0.72rem;
-            font-weight: 600;
-            padding: 5px 10px;
-            border-radius: 999px;
-            background: rgba(16, 185, 129, 0.12);
-            color: #34d399;
-            border: 1px solid rgba(16, 185, 129, 0.3);
-        }
-
-        .btn-icon-head {
+        .hud-avatar-border {
             width: 34px;
             height: 34px;
-            border-radius: 10px;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid var(--border-subtle);
-            color: var(--text-secondary);
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            border-radius: 50%;
+            border: 1.5px solid rgba(225, 29, 72, 0.6);
+            overflow: hidden;
             cursor: pointer;
-            font-size: 0.95rem;
-            transition: all 0.2s;
         }
 
-        .btn-icon-head:active {
-            transform: scale(0.92);
-            background: rgba(255, 255, 255, 0.1);
+        .hud-avatar-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
 
-        /* Main Viewport Content */
+        /* VIEWPORT CONTAINER */
         .viewport-container {
             flex: 1;
             position: relative;
             overflow: hidden;
+            background: var(--bg-base);
         }
 
         .tab-view {
@@ -243,8 +141,8 @@
             flex-direction: column;
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
-            padding-bottom: 12px;
             background: var(--bg-base);
+            padding-bottom: 72px;
         }
 
         .tab-view.active {
@@ -252,197 +150,208 @@
         }
 
         /* ========================================================
-           TAB 1: CHAT HUD VIEW
+           SCREEN 7 / 8 / 9: MAIN ASSISTANT VIEW (ORB CENTERPIECE)
            ======================================================== */
-        .chat-view {
-            flex-direction: column;
-            height: 100%;
-            padding-bottom: 0;
-            background: var(--bg-base);
-        }
-
-        .messages-scroll {
+        .assistant-stage {
             flex: 1;
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
-            padding: 16px 14px;
             display: flex;
             flex-direction: column;
-            gap: 14px;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            padding: 0 20px;
         }
 
-        .message-row {
+        .orb-stage-wrapper {
+            position: relative;
+            width: 220px;
+            height: 220px;
             display: flex;
-            gap: 10px;
-            max-width: 88%;
-            animation: fadeInMsg 0.25s ease-out;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 24px;
         }
 
-        @keyframes fadeInMsg {
-            from { opacity: 0; transform: translateY(6px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .message-row.user {
-            align-self: flex-end;
-            flex-direction: row-reverse;
-        }
-
-        .message-row.assistant {
-            align-self: flex-start;
-        }
-
-        .msg-avatar {
-            width: 28px;
-            height: 28px;
+        .orb-concentric-outer {
+            position: absolute;
+            width: 210px;
+            height: 210px;
             border-radius: 50%;
-            flex-shrink: 0;
-            border: 1px solid rgba(56, 189, 248, 0.4);
-            margin-top: 2px;
+            border: 1px solid rgba(225, 29, 72, 0.25);
+            animation: breathe-outer 4s infinite ease-in-out;
         }
 
-        .bubble {
-            padding: 11px 15px;
-            border-radius: 18px;
-            font-size: 0.92rem;
-            line-height: 1.45;
-            word-break: break-word;
+        .orb-concentric-inner {
+            position: absolute;
+            width: 165px;
+            height: 165px;
+            border-radius: 50%;
+            border: 1.5px solid rgba(225, 29, 72, 0.4);
+            animation: breathe-inner 3s infinite ease-in-out;
+        }
+
+        @keyframes breathe-outer {
+            0%, 100% { transform: scale(1); opacity: 0.3; }
+            50% { transform: scale(1.1); opacity: 0.7; }
+        }
+
+        @keyframes breathe-inner {
+            0%, 100% { transform: scale(1); opacity: 0.4; }
+            50% { transform: scale(1.06); opacity: 0.8; }
+        }
+
+        .crimson-energy-orb {
+            width: 126px;
+            height: 126px;
+            border-radius: 50%;
+            background: rgba(225, 29, 72, 0.15);
+            border: 2px solid var(--accent-crimson);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 32px rgba(225, 29, 72, 0.6);
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            overflow: hidden;
             position: relative;
         }
 
-        .message-row.user .bubble {
-            background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+        .crimson-energy-orb.listening {
+            background: rgba(225, 29, 72, 0.35);
+            border-color: #ffffff;
+            box-shadow: 0 0 44px rgba(225, 29, 72, 0.9);
+            transform: scale(1.1);
+        }
+
+        .video-orb-player {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
+            pointer-events: none;
+        }
+            width: 3px;
+            background: #ffffff;
+            border-radius: 2px;
+            animation: wave-bounce 0.6s infinite ease-in-out alternate;
+        }
+
+        @keyframes wave-bounce {
+            from { height: 12px; }
+            to { height: 48px; }
+        }
+
+        .orb-title-text {
             color: #ffffff;
-            border-bottom-right-radius: 4px;
-            box-shadow: 0 4px 14px rgba(2, 132, 199, 0.25);
+            font-size: 1.35rem;
+            font-weight: 700;
+            letter-spacing: -0.2px;
         }
 
-        .message-row.assistant .bubble {
-            background: var(--bg-surface);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            border: 1px solid var(--border-subtle);
-            color: var(--text-primary);
-            border-bottom-left-radius: 4px;
-        }
-
-        .bubble-tool-tag {
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            font-size: 0.68rem;
-            font-family: var(--font-mono);
-            padding: 2px 7px;
-            background: rgba(56, 189, 248, 0.12);
-            color: var(--accent-cyan);
-            border-radius: 6px;
-            margin-bottom: 6px;
-            border: 1px solid rgba(56, 189, 248, 0.25);
-        }
-
-        .bubble-voice-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-            margin-top: 8px;
-            font-size: 0.72rem;
-            padding: 4px 10px;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid var(--border-subtle);
-            border-radius: 999px;
-            color: var(--text-secondary);
-            cursor: pointer;
-        }
-
-        .bubble-voice-btn:active {
-            background: rgba(56, 189, 248, 0.15);
-            color: var(--accent-cyan);
-        }
-
-        /* Quick Suggestion Chips */
-        .suggestions-bar {
-            padding: 6px 14px 8px 14px;
+        .orb-ready-row {
             display: flex;
-            gap: 8px;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-            scrollbar-width: none;
-            flex-shrink: 0;
+            align-items: center;
+            gap: 6px;
+            margin-top: 4px;
         }
 
-        .suggestions-bar::-webkit-scrollbar {
-            display: none;
-        }
-
-        .sug-chip {
-            padding: 6px 12px;
-            border-radius: 999px;
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid var(--border-subtle);
+        .orb-ready-text {
+            color: var(--text-muted);
             font-size: 0.75rem;
             font-weight: 500;
+        }
+
+        .orb-subtitle-prompt {
             color: var(--text-secondary);
-            white-space: nowrap;
-            cursor: pointer;
-            transition: all 0.2s;
+            font-size: 0.85rem;
+            margin-top: 10px;
+            text-align: center;
+            max-width: 270px;
+            line-height: 1.4;
         }
 
-        .sug-chip:active {
-            background: rgba(56, 189, 248, 0.15);
-            border-color: rgba(56, 189, 248, 0.35);
+        /* AGENT OUTPUT DISPLAY CARD */
+        .agent-output-card {
+            width: calc(100% - 40px);
+            max-width: 360px;
+            background: rgba(16, 18, 26, 0.85);
+            border: 1px solid rgba(225, 29, 72, 0.3);
+            border-radius: 16px;
+            padding: 14px;
+            margin: 14px 0;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+            text-align: left;
+        }
+
+        .output-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .output-badge-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .output-beacon-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--accent-crimson);
+        }
+
+        .output-card-title {
+            color: var(--accent-crimson);
+            font-size: 0.65rem;
+            font-weight: 800;
+            letter-spacing: 0.8px;
+        }
+
+        .output-tool-badge {
             color: var(--accent-cyan);
-            transform: scale(0.96);
+            font-size: 0.68rem;
+            font-weight: 700;
         }
 
-        /* Input Dock Bar */
-        .chat-input-bar {
-            padding: 8px 12px;
-            background: rgba(6, 9, 17, 0.95);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border-top: 1px solid var(--border-subtle);
+        .output-card-body-text {
+            color: #f8fafc;
+            font-size: 0.85rem;
+            line-height: 1.45;
+        }
+
+        /* PROFESSIONAL DIRECT TEXT INPUT PILL */
+        .direct-input-dock {
+            width: calc(100% - 40px);
+            max-width: 360px;
             display: flex;
             align-items: center;
-            gap: 8px;
-            flex-shrink: 0;
+            background: rgba(16, 18, 26, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 26px;
+            padding: 4px 6px;
+            margin: 16px 0 10px 0;
         }
 
-        .input-wrap {
+        .direct-text-input-field {
             flex: 1;
-            position: relative;
-            background: rgba(15, 23, 42, 0.8);
-            border: 1px solid var(--border-subtle);
-            border-radius: 24px;
-            display: flex;
-            align-items: center;
-            padding: 2px 8px 2px 14px;
-            transition: border-color 0.2s;
-        }
-
-        .input-wrap:focus-within {
-            border-color: var(--accent-cyan);
-            box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.15);
-        }
-
-        .chat-input {
-            width: 100%;
+            height: 42px;
             background: transparent;
             border: none;
-            outline: none;
-            color: var(--text-primary);
-            font-size: 0.92rem;
+            padding: 0 14px;
+            color: #ffffff;
+            font-size: 0.85rem;
             font-family: inherit;
-            padding: 8px 0;
+            outline: none;
         }
 
-        .chat-input::placeholder {
-            color: var(--text-muted);
-        }
-
-        .btn-action-round {
+        .direct-send-btn {
             width: 38px;
             height: 38px;
             border-radius: 50%;
+            background: var(--accent-crimson);
             border: none;
             display: flex;
             align-items: center;
@@ -452,1033 +361,1679 @@
             transition: all 0.2s;
         }
 
-        .btn-mic {
-            background: rgba(255, 255, 255, 0.06);
-            color: var(--text-secondary);
-            border: 1px solid var(--border-subtle);
-        }
-
-        .btn-mic.listening {
-            background: rgba(239, 68, 68, 0.2);
-            color: var(--accent-red);
-            border-color: var(--accent-red);
-            animation: pulse-mic 1s infinite alternate;
-        }
-
-        @keyframes pulse-mic {
-            from { transform: scale(1); }
-            to { transform: scale(1.1); }
-        }
-
-        .btn-send {
-            background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
-            color: #ffffff;
-            box-shadow: 0 2px 10px rgba(2, 132, 199, 0.3);
-        }
-
-        .btn-send:active {
+        .direct-send-btn:active {
             transform: scale(0.92);
         }
 
-        /* ========================================================
-           TAB 2: PC COCKPIT VIEW
-           ======================================================== */
-        .section-header {
-            padding: 16px 16px 8px 16px;
+        /* PROMINENT STANDALONE FLOATING MIC BUTTON */
+        .floating-mic-wrapper {
+            display: flex;
+            justify-content: center;
+            margin: 14px 0 10px 0;
         }
 
-        .section-title {
-            font-size: 1.15rem;
-            font-weight: 800;
-            letter-spacing: -0.2px;
+        .floating-mic-btn {
+            width: 66px;
+            height: 66px;
+            border-radius: 50%;
+            background: #0c0d12;
+            border: 2px solid rgba(225, 29, 72, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 18px rgba(225, 29, 72, 0.45);
+            transition: all 0.25s;
         }
 
-        .section-subtitle {
-            font-size: 0.78rem;
-            color: var(--text-secondary);
+        .floating-mic-btn.listening {
+            background: var(--accent-crimson);
+            border-color: #ffffff;
+            box-shadow: 0 6px 26px rgba(225, 29, 72, 0.85);
+            transform: scale(1.08);
+        }
+
+        .about-me-audio-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(225, 29, 72, 0.15);
+            border: 1px solid rgba(225, 29, 72, 0.4);
+            border-radius: 20px;
+            padding: 6px 14px;
+            color: #fda4af;
+            font-size: 0.76rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 14px;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        .about-me-audio-pill:hover {
+            background: rgba(225, 29, 72, 0.25);
+            transform: scale(1.03);
+        }
+
+        /* DEDICATED CHAT TAB STYLES */
+        .chat-tab-container {
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 64px);
+            max-width: 480px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .chat-top-header {
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .chat-top-title {
+            color: #ffffff;
+            font-size: 1.05rem;
+            font-weight: 700;
+        }
+
+        .chat-top-sub {
+            color: var(--text-muted);
+            font-size: 0.72rem;
             margin-top: 2px;
         }
 
-        .cockpit-grid {
-            padding: 12px 16px;
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-        }
-
-        .card-full {
-            grid-column: 1 / -1;
-        }
-
-        .hud-card {
-            background: var(--bg-surface);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
+        .chat-clear-btn {
+            background: rgba(255, 255, 255, 0.04);
             border: 1px solid var(--border-subtle);
-            border-radius: 16px;
-            padding: 14px;
-            position: relative;
-            overflow: hidden;
+            border-radius: 12px;
+            padding: 6px 12px;
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            cursor: pointer;
+        }
+
+        .chat-messages-stream {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
+            gap: 12px;
         }
 
-        .hud-card-header {
+        .chat-msg-row {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 8px;
+            gap: 8px;
+            width: 100%;
         }
 
-        .card-label {
-            font-size: 0.75rem;
-            font-weight: 700;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+        .chat-msg-row.user {
+            justify-content: flex-end;
         }
 
-        .card-value {
-            font-size: 1.4rem;
-            font-weight: 800;
-            font-family: var(--font-mono);
-            color: var(--text-primary);
+        .chat-msg-row.mikasa {
+            justify-content: flex-start;
         }
 
-        .card-subtext {
-            font-size: 0.72rem;
-            color: var(--text-secondary);
+        .chat-avatar-thumb {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
             margin-top: 4px;
         }
 
-        /* Remote Action Controls */
-        .controls-title {
-            padding: 12px 16px 4px 16px;
-            font-size: 0.8rem;
-            font-weight: 700;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+        .chat-msg-bubble {
+            max-width: 80%;
+            padding: 10px 14px;
+            border-radius: 16px;
+            font-size: 0.85rem;
+            line-height: 1.45;
         }
 
-        .actions-list {
-            padding: 0 16px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
+        .chat-msg-row.user .chat-msg-bubble {
+            background: rgba(225, 29, 72, 0.2);
+            border: 1px solid rgba(225, 29, 72, 0.4);
+            color: #f8fafc;
+            border-bottom-right-radius: 4px;
         }
 
-        .btn-action-tile {
+        .chat-msg-row.mikasa .chat-msg-bubble {
+            background: rgba(16, 18, 26, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            color: #f8fafc;
+            border-bottom-left-radius: 4px;
+        }
+
+        .chat-bottom-dock {
+            padding: 6px 12px;
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            padding: 14px 16px;
+            gap: 8px;
+            background: rgba(16, 18, 26, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 26px;
+            margin: 8px 16px 14px 16px;
+        }
+
+        .chat-input-field {
+            flex: 1;
+            height: 38px;
+            background: transparent;
+            border: none;
+            color: #ffffff;
+            font-size: 0.85rem;
+            font-family: inherit;
+            outline: none;
+            padding-left: 6px;
+        }
+
+        .chat-send-btn {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: var(--accent-crimson);
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        /* Screen 9: Live Transparent Tool Execution Card */
+        .executing-card-overlay {
+            position: absolute;
+            bottom: 20px;
+            width: calc(100% - 40px);
+            max-width: 340px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: 18px;
+            padding: 16px;
+            display: none;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            animation: slideUp 0.3s ease-out;
+        }
+
+        .executing-card-overlay.active {
+            display: block;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .exec-header-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        .exec-steps-box {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 14px;
+        }
+
+        .exec-step-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+        }
+
+        .exec-step-item.done {
+            color: #e2e8f0;
+        }
+
+        .exec-cancel-btn {
+            background: rgba(255, 255, 255, 0.04);
+            border: none;
+            border-radius: 12px;
+            padding: 8px;
+            width: 100%;
+            color: var(--text-secondary);
+            font-size: 0.78rem;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        /* Floating Mic Button */
+        .floating-mic-container {
+            position: absolute;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+        }
+
+        .floating-mic-btn {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: #0c0d12;
+            border: 2px solid rgba(225, 29, 72, 0.5);
+            color: #ffffff;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 16px rgba(225, 29, 72, 0.35);
+            transition: all 0.2s;
+        }
+
+        .floating-mic-btn.listening {
+            background: var(--accent-crimson);
+            border-color: #ffffff;
+            transform: scale(1.1);
+        }
+
+        /* ========================================================
+           SCREEN 10: APPS & TOOLS SCREEN
+           ======================================================== */
+        .tools-screen {
+            padding: 20px;
+        }
+
+        .tools-main-title {
+            color: #ffffff;
+            font-size: 1.45rem;
+            font-weight: 800;
+        }
+
+        .tools-main-sub {
+            color: var(--text-muted);
+            font-size: 0.82rem;
+            margin-top: 2px;
+            margin-bottom: 16px;
+        }
+
+        .tool-category-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+
+        .tool-category-row::-webkit-scrollbar {
+            display: none;
+        }
+
+        .tool-cat-pill {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid transparent;
+            border-radius: 16px;
+            padding: 6px 14px;
+            color: var(--text-secondary);
+            font-size: 0.78rem;
+            font-weight: 600;
+            white-space: nowrap;
+            cursor: pointer;
+        }
+
+        .tool-cat-pill.active {
+            background: var(--accent-crimson);
+            color: #ffffff;
+        }
+
+        .tool-section {
+            margin-bottom: 24px;
+        }
+
+        .tool-section-title {
+            color: var(--text-muted);
+            font-size: 0.7rem;
+            font-weight: 800;
+            letter-spacing: 0.8px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+
+        .tool-row-tile {
+            display: flex;
+            align-items: center;
+            gap: 14px;
             background: var(--bg-surface);
             border: 1px solid var(--border-subtle);
-            border-radius: 14px;
-            color: var(--text-primary);
-            font-family: inherit;
+            border-radius: 16px;
+            padding: 14px;
+            margin-bottom: 8px;
             cursor: pointer;
             transition: all 0.15s;
         }
 
-        .btn-action-tile:active {
-            transform: scale(0.98);
-            background: rgba(30, 41, 59, 0.9);
-            border-color: rgba(56, 189, 248, 0.4);
+        .tool-row-tile:active {
+            background: rgba(225, 29, 72, 0.15);
+            border-color: rgba(225, 29, 72, 0.4);
         }
 
-        .tile-left {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .tile-icon {
-            width: 36px;
-            height: 36px;
-            border-radius: 10px;
+        .tool-tile-icon-box {
+            width: 44px;
+            height: 44px;
+            border-radius: 14px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.1rem;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid var(--border-subtle);
+            font-size: 1.15rem;
+            color: #fff;
+            flex-shrink: 0;
         }
 
-        .tile-text {
-            text-align: left;
+        .tool-tile-meta {
+            flex: 1;
         }
 
-        .tile-title {
-            font-size: 0.9rem;
+        .tool-tile-name {
+            color: #ffffff;
+            font-size: 0.92rem;
             font-weight: 700;
         }
 
-        .tile-desc {
+        .tool-tile-desc {
+            color: var(--text-muted);
             font-size: 0.72rem;
-            color: var(--text-muted);
-        }
-
-        .tile-arrow {
-            color: var(--text-muted);
-            font-size: 1rem;
+            margin-top: 2px;
         }
 
         /* ========================================================
-           TAB 3: MEMORY VAULT
+           MEMORY SCREEN
            ======================================================== */
-        .search-bar-wrap {
-            padding: 8px 16px;
+        .memory-screen {
+            padding: 20px;
         }
 
-        .search-input {
+        .clean-search-input {
             width: 100%;
-            padding: 10px 14px;
-            background: var(--bg-surface);
+            height: 40px;
+            background: var(--bg-card);
             border: 1px solid var(--border-subtle);
             border-radius: 12px;
-            color: var(--text-primary);
-            font-size: 0.88rem;
-            font-family: inherit;
+            padding: 0 14px;
+            color: #ffffff;
+            font-size: 0.85rem;
             outline: none;
+            font-family: inherit;
+            margin-bottom: 10px;
         }
 
-        .search-input:focus {
-            border-color: var(--accent-cyan);
-        }
-
-        .filter-pills-row {
-            padding: 4px 16px 10px 16px;
+        .clean-cat-pills-row {
             display: flex;
             gap: 6px;
             overflow-x: auto;
             scrollbar-width: none;
+            margin-bottom: 12px;
         }
 
-        .filter-pills-row::-webkit-scrollbar {
+        .clean-cat-pills-row::-webkit-scrollbar {
             display: none;
         }
 
-        .pill-filter {
+        .clean-cat-pill {
             padding: 5px 12px;
-            border-radius: 999px;
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid var(--border-subtle);
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid transparent;
             font-size: 0.72rem;
             font-weight: 600;
-            color: var(--text-secondary);
+            color: var(--text-muted);
             white-space: nowrap;
             cursor: pointer;
         }
 
-        .pill-filter.active {
-            background: rgba(56, 189, 248, 0.15);
-            border-color: var(--accent-cyan);
-            color: var(--accent-cyan);
+        .clean-cat-pill.active {
+            background: rgba(225, 29, 72, 0.2);
+            border-color: var(--accent-crimson);
+            color: var(--accent-crimson-light);
         }
 
-        .memories-list {
-            padding: 0 16px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .memory-card {
-            background: var(--bg-surface);
-            border: 1px solid var(--border-subtle);
-            border-radius: 14px;
-            padding: 12px 14px;
-        }
-
-        .memory-card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 6px;
-        }
-
-        .mem-tag {
-            font-size: 0.65rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            padding: 2px 7px;
-            border-radius: 6px;
-            background: rgba(255, 255, 255, 0.05);
-            color: var(--text-muted);
-        }
-
-        .mem-tag.preference { background: rgba(168, 85, 247, 0.15); color: #c084fc; }
-        .mem-tag.fact { background: rgba(56, 189, 248, 0.15); color: #38bdf8; }
-        .mem-tag.workflow { background: rgba(16, 185, 129, 0.15); color: #34d399; }
-        .mem-tag.decision { background: rgba(239, 68, 68, 0.15); color: #f87171; }
-
-        .mem-content {
-            font-size: 0.85rem;
-            line-height: 1.4;
-            color: #e2e8f0;
-        }
-
-        /* ========================================================
-           TAB 4: TASKS VIEW
-           ======================================================== */
-        .tasks-list {
-            padding: 8px 16px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .task-card {
-            background: var(--bg-surface);
-            border: 1px solid var(--border-subtle);
-            border-radius: 14px;
-            padding: 12px 14px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-        }
-
-        .task-info {
-            flex: 1;
-        }
-
-        .task-title {
-            font-size: 0.88rem;
-            font-weight: 600;
-            color: var(--text-primary);
-        }
-
-        .task-meta {
-            font-size: 0.7rem;
-            color: var(--text-muted);
-            margin-top: 3px;
-        }
-
-        .btn-check-task {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            border: 1px solid rgba(56, 189, 248, 0.3);
-            background: rgba(56, 189, 248, 0.08);
-            color: var(--accent-cyan);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            flex-shrink: 0;
-            font-size: 0.9rem;
-        }
-
-        .btn-check-task:active {
-            background: var(--accent-emerald);
-            color: #fff;
-            border-color: var(--accent-emerald);
-        }
-
-        /* ========================================================
-           TAB 5: INFRASTRUCTURE MONITORS
-           ======================================================== */
-        .monitors-list {
-            padding: 8px 16px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .monitor-card {
+        .clean-memory-card {
             background: var(--bg-surface);
             border: 1px solid var(--border-subtle);
             border-radius: 14px;
             padding: 14px;
+            margin-bottom: 10px;
         }
 
-        .mon-top {
+        .memory-card-top {
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            margin-bottom: 4px;
+            margin-bottom: 6px;
         }
 
-        .mon-name {
-            font-size: 0.9rem;
-            font-weight: 700;
+        .memory-type-badge {
+            color: var(--accent-crimson);
+            font-size: 0.65rem;
+            font-weight: 800;
+            text-transform: uppercase;
         }
 
-        .mon-badge {
-            font-size: 0.68rem;
-            font-weight: 700;
-            padding: 2px 7px;
-            border-radius: 999px;
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-        }
-
-        .mon-badge.up { background: rgba(16, 185, 129, 0.15); color: #34d399; }
-        .mon-badge.down { background: rgba(239, 68, 68, 0.15); color: #f87171; }
-
-        .mon-url {
-            font-size: 0.72rem;
+        .memory-timestamp {
             color: var(--text-muted);
-            font-family: var(--font-mono);
-            word-break: break-all;
+            font-size: 0.68rem;
         }
 
-        .mon-foot {
-            margin-top: 10px;
-            padding-top: 8px;
-            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        .memory-card-text {
+            color: #e2e8f0;
+            font-size: 0.82rem;
+            line-height: 1.4;
+        }
+
+        /* ========================================================
+           SETTINGS SCREEN
+           ======================================================== */
+        .settings-screen {
+            padding: 20px;
+        }
+
+        .settings-group-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        .settings-group-header {
+            color: var(--text-muted);
+            font-size: 0.65rem;
+            font-weight: 800;
+            letter-spacing: 0.8px;
+            margin-bottom: 12px;
+        }
+
+        .settings-row {
             display: flex;
             justify-content: space-between;
-            font-size: 0.72rem;
-            color: var(--text-secondary);
-            font-family: var(--font-mono);
-        }
-
-        /* Bottom Mobile Navigation Dock */
-        .bottom-nav {
-            height: calc(var(--nav-height) + var(--safe-bottom));
-            padding-bottom: var(--safe-bottom);
-            background: rgba(6, 9, 17, 0.92);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border-top: 1px solid var(--border-subtle);
-            display: flex;
             align-items: center;
-            justify-content: space-around;
-            flex-shrink: 0;
-            z-index: 30;
+            padding: 6px 0;
+            font-size: 0.85rem;
         }
 
-        .nav-item {
+        .settings-label {
+            color: #cbd5e1;
+        }
+
+        .settings-val {
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .onboard-replay-btn {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border-subtle);
+            border-radius: 14px;
+            padding: 12px;
+            width: 100%;
+            color: #cbd5e1;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+            margin-top: 8px;
+        }
+
+        /* ========================================================
+           ONBOARDING SCREENS (1 to 5)
+           ======================================================== */
+        .onboarding-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg-base);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 24px 24px calc(20px + var(--safe-bottom)) 24px;
+        }
+
+        .onboarding-top-bar {
+            text-align: center;
+            padding-top: var(--safe-top);
+        }
+
+        .onboarding-logo-text {
+            color: #cbd5e1;
+            font-size: 0.82rem;
+            letter-spacing: 4px;
+            font-weight: 800;
+        }
+
+        .onboarding-body {
+            flex: 1;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 3px;
-            color: var(--text-muted);
-            background: transparent;
-            border: none;
+            padding: 0 12px;
+            text-align: center;
+        }
+
+        .onboarding-portrait {
+            width: 220px;
+            height: 280px;
+            object-fit: contain;
+            margin-bottom: 20px;
+        }
+
+        .onboarding-title {
+            color: #ffffff;
+            font-size: 1.65rem;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+        }
+
+        .onboarding-sub {
+            color: var(--text-secondary);
+            font-size: 0.88rem;
+            margin-top: 10px;
+            line-height: 1.45;
+            max-width: 290px;
+        }
+
+        .waveform-graphic {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 32px 0;
+            height: 100px;
+        }
+
+        .wave-bar {
+            width: 4px;
+            background: var(--accent-crimson);
+            border-radius: 2px;
+        }
+
+        .onboard-command-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            width: 100%;
+            align-items: center;
+        }
+
+        .onboard-cmd-pill {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border-subtle);
+            border-radius: 24px;
+            padding: 10px 20px;
+            color: #e2e8f0;
+            font-size: 0.82rem;
+            font-weight: 500;
+        }
+
+        .onboard-grid {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 16px;
+            margin-top: 30px;
+        }
+
+        .onboard-grid-tile {
+            width: 78px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .onboard-tile-icon {
+            width: 58px;
+            height: 58px;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border-subtle);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+        }
+
+        .onboard-tile-label {
+            color: var(--text-secondary);
+            font-size: 0.7rem;
+            margin-top: 6px;
+            font-weight: 500;
+        }
+
+        .onboard-avatar-ring {
+            width: 140px;
+            height: 140px;
+            border-radius: 50%;
+            border: 2px solid var(--accent-crimson);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 24px 0;
+            box-shadow: 0 0 32px rgba(225, 29, 72, 0.5);
+        }
+
+        .onboard-avatar-circle {
+            width: 124px;
+            height: 124px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .onboard-mic-orb {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            background: rgba(225, 29, 72, 0.2);
+            border: 2px solid var(--accent-crimson);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 28px 0;
+            font-size: 1.8rem;
+            color: #fff;
             cursor: pointer;
-            padding: 6px 12px;
-            border-radius: 12px;
-            transition: all 0.2s;
+            box-shadow: 0 0 32px rgba(225, 29, 72, 0.6);
+        }
+
+        .onboarding-bottom-nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-top: 12px;
+        }
+
+        .onboarding-nav-btn-text {
+            color: var(--text-secondary);
+            font-size: 0.88rem;
+            font-weight: 600;
+            cursor: pointer;
+            background: none;
+            border: none;
             font-family: inherit;
         }
 
-        .nav-item:active {
-            transform: scale(0.92);
+        .dots-row {
+            display: flex;
+            gap: 6px;
         }
 
-        .nav-item.active {
-            color: var(--accent-cyan);
+        .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.2);
         }
 
-        .nav-icon {
-            font-size: 1.25rem;
-            position: relative;
+        .dot.active {
+            background: var(--accent-crimson);
+            width: 18px;
         }
 
-        .nav-label {
-            font-size: 0.68rem;
-            font-weight: 600;
-        }
-
-        .nav-item.active .nav-icon::after {
-            content: '';
-            position: absolute;
-            bottom: -5px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 4px;
-            height: 4px;
-            background: var(--accent-cyan);
-            border-radius: 50%;
-            box-shadow: 0 0 6px var(--accent-cyan);
-        }
-
-        /* Toast Notifications */
-        .toast-box {
-            position: fixed;
-            top: 70px;
-            left: 50%;
-            transform: translateX(-50%) translateY(-20px);
-            background: rgba(15, 23, 42, 0.95);
-            backdrop-filter: blur(12px);
-            border: 1px solid var(--border-glow);
-            padding: 10px 18px;
-            border-radius: 999px;
-            color: var(--text-primary);
+        .onboarding-red-btn {
+            background: var(--accent-crimson);
+            border: none;
+            border-radius: 20px;
+            padding: 8px 20px;
+            color: #ffffff;
             font-size: 0.82rem;
-            font-weight: 600;
-            z-index: 999;
-            opacity: 0;
-            pointer-events: none;
-            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+            font-weight: 700;
+            cursor: pointer;
+            font-family: inherit;
         }
 
-        .toast-box.show {
+        /* BOTTOM NAVIGATION BAR (Screens 7, 8, 9, 10) */
+        .bottom-nav-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: calc(64px + var(--safe-bottom));
+            padding-bottom: var(--safe-bottom);
+            background: rgba(7, 8, 12, 0.96);
+            border-top: 1px solid var(--border-subtle);
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            z-index: 30;
+        }
+
+        .bottom-nav-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-family: inherit;
+            width: 60px;
+        }
+
+        .bottom-nav-icon {
+            font-size: 1.15rem;
+            opacity: 0.4;
+        }
+
+        .bottom-nav-label {
+            font-size: 0.65rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .bottom-nav-btn.active .bottom-nav-icon {
             opacity: 1;
-            transform: translateX(-50%) translateY(0);
+        }
+
+        .bottom-nav-btn.active .bottom-nav-label {
+            color: var(--accent-crimson);
+            font-weight: 700;
+        }
+
+        /* INPUT PROMPT MODAL */
+        .input-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: flex-end;
+            z-index: 200;
+        }
+
+        .input-modal-overlay.active {
+            display: flex;
+        }
+
+        .input-modal-sheet {
+            width: 100%;
+            background: #0f1118;
+            border-top-left-radius: 24px;
+            border-top-right-radius: 24px;
+            padding: 20px 20px calc(20px + var(--safe-bottom)) 20px;
+            border-top: 1px solid rgba(225, 29, 72, 0.4);
+            animation: slideUp 0.25s ease-out;
+        }
+
+        .input-modal-title {
+            color: #ffffff;
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+
+        .input-modal-field {
+            width: 100%;
+            height: 46px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 14px;
+            padding: 0 16px;
+            color: #ffffff;
+            font-size: 0.9rem;
+            font-family: inherit;
+            outline: none;
+            margin-bottom: 12px;
+        }
+
+        .input-modal-presets {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+
+        .preset-chip {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border-subtle);
+            border-radius: 16px;
+            padding: 6px 12px;
+            color: var(--text-secondary);
+            font-size: 0.72rem;
+            white-space: nowrap;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        .input-modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        .modal-cancel-btn {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            padding: 10px 16px;
+            font-family: inherit;
+        }
+
+        .modal-execute-btn {
+            background: var(--accent-crimson);
+            border: none;
+            border-radius: 12px;
+            padding: 10px 20px;
+            color: #ffffff;
+            font-size: 0.85rem;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: inherit;
         }
     </style>
 </head>
 <body>
 
     <div class="app-shell">
-        <!-- 1. TOP HEADER -->
-        <header class="mobile-header">
-            <div class="header-brand">
-                <div class="avatar-wrap">
-                    <img src="/Mikasa-logo.jpeg" alt="Mikasa Avatar" class="avatar-img">
-                    <div class="avatar-pulse"></div>
-                </div>
-                <div class="brand-meta">
-                    <div class="brand-title-row">
-                        <span class="brand-title">MIKASA</span>
-                        <span class="brand-badge">PERSONAL OS</span>
-                    </div>
-                    <span class="brand-subtitle">Swapnil's Executive Companion</span>
+        <!-- TOP HEADER (from Screen 7, 8, 9) -->
+        <header class="hud-top-header">
+            <div class="hud-brand-left">
+                <div class="hud-brand-name">M I K A S A</div>
+                <div class="hud-status-dot-row">
+                    <div class="status-dot" id="system-status-dot"></div>
+                    <span class="status-dot-text" id="system-status-text">Online</span>
                 </div>
             </div>
 
-            <div class="header-actions">
-                <div class="pill-status" id="header-status">
-                    <span style="font-size: 0.6rem;">⚡</span>
-                    <span id="status-text">Online</span>
-                </div>
-                <button class="btn-icon-head" onclick="triggerQuickAction('lock')" title="Lock PC">🔒</button>
+            <div class="hud-avatar-border" onclick="openAgentProfile()">
+                <img src="/Mikasa.jpeg" class="hud-avatar-img" alt="Mikasa">
             </div>
         </header>
 
-        <!-- 2. MAIN VIEWPORT SLIDES -->
-        <div class="viewport-container">
+        <!-- VIEWPORT CONTAINER -->
+        <main class="viewport-container">
 
-            <!-- TAB 1: CHAT HUD -->
-            <div id="tab-chat" class="tab-view chat-view active">
-                <div class="messages-scroll" id="chat-messages">
-                    <!-- Initial Welcome Message -->
-                    <div class="message-row assistant">
-                        <img src="/Mikasa-logo.jpeg" class="msg-avatar" alt="Mikasa">
-                        <div class="bubble">
-                            I am right here with you, Swapnil. 🧣<br><br>
-                            Your personal operating system is synchronized across mobile, cloud, and workstation. What should we conquer or build right now?
+            <!-- TAB 1: HOME (CRIMSON RESONATING ORB CORE - Screens 7, 8, 9) -->
+            <section id="tab-home" class="tab-view active">
+                <div class="assistant-stage">
+                    <div class="orb-stage-wrapper">
+                        <div class="orb-concentric-outer" id="orb-halo-outer"></div>
+                        <div class="orb-concentric-inner" id="orb-halo-inner"></div>
+
+                        <div class="crimson-energy-orb" id="crimson-orb" onclick="handleMicTap()">
+                            <video src="/animated_listening.mp4" autoplay loop muted playsinline class="video-orb-player"></video>
                         </div>
                     </div>
-                </div>
 
-                <!-- Quick Prompt Chips -->
-                <div class="suggestions-bar">
-                    <button class="sug-chip" onclick="sendQuickPrompt('Give me a full sitrep briefing')">📋 Morning Sitrep</button>
-                    <button class="sug-chip" onclick="sendQuickPrompt('Check PC hardware status')">🖥️ PC Telemetry</button>
-                    <button class="sug-chip" onclick="sendQuickPrompt('amr pc theke CV pathao')">📄 Send CV from PC</button>
-                    <button class="sug-chip" onclick="sendQuickPrompt('Check latest commit of stark-os-portfolio')">🐙 GitHub Commits</button>
-                    <button class="sug-chip" onclick="sendQuickPrompt('Why did you choose Swapnil over Eren?')">🧣 Why Swapnil?</button>
-                </div>
+                    <div class="orb-title-text" id="assistant-title-text">Mikasa</div>
 
-                <!-- Input Dock Bar -->
-                <div class="chat-input-bar">
-                    <button class="btn-action-round btn-mic" id="btn-voice-input" onclick="toggleVoiceInput()" title="Voice Dictation">
-                        🎙️
+                    <div class="orb-ready-row">
+                        <div class="status-dot"></div>
+                        <span class="orb-ready-text" id="assistant-ready-label">Ready</span>
+                    </div>
+
+                    <div class="orb-subtitle-prompt" id="assistant-prompt-sub" style="color: #e11d48; font-weight: 600; font-size: 0.92rem;">
+                        "How can I help you, Commander?"
+                    </div>
+
+                    <!-- ABOUT MIKASA AUDIO BUTTON -->
+                    <button class="about-me-audio-pill" onclick="playAboutMeAudio()">
+                        <span>🎧</span>
+                        <span>About Mikasa (Listen)</span>
                     </button>
-                    <div class="input-wrap">
-                        <input type="text" id="input-chat" class="chat-input" placeholder="Message Mikasa..." autocomplete="off">
+
+                    <!-- PROMINENT STANDALONE FLOATING MIC BUTTON (from reference image) -->
+                    <div class="floating-mic-wrapper" style="margin-top: 24px;">
+                        <button class="floating-mic-btn" id="floating-mic" onclick="handleMicTap()">
+                            <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+                                <rect x="8" y="3" width="8" height="11" rx="4" fill="#ffffff" />
+                                <path d="M4.5 10.5V11.5C4.5 15.6421 7.85786 19 12 19C16.1421 19 19.5 15.6421 19.5 11.5V10.5" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" />
+                                <line x1="12" y1="19" x2="12" y2="22.5" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" />
+                                <line x1="8" y1="22.5" x2="16" y2="22.5" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" />
+                            </svg>
+                        </button>
                     </div>
-                    <button class="btn-action-round btn-send" onclick="sendChatMessage()" title="Send">
-                        ➤
-                    </button>
-                </div>
-            </div>
+                    <div style="color: var(--text-muted); font-size: 0.72rem; margin-top: 8px;">Tap to speak</div>
 
-            <!-- TAB 2: PC COCKPIT -->
-            <div id="tab-pc" class="tab-view">
-                <div class="section-header">
-                    <h2 class="section-title">Workstation Cockpit</h2>
-                    <p class="section-subtitle">Swapnil-PC Hardware Bridge & Remote Controls</p>
-                </div>
-
-                <div class="cockpit-grid">
-                    <div class="hud-card">
-                        <div class="hud-card-header">
-                            <span class="card-label">CPU LOAD</span>
-                            <span style="color: var(--accent-cyan);">⚡</span>
+                    <!-- Screen 9: Live Transparent Tool Execution Card -->
+                    <div class="executing-card-overlay" id="execution-card">
+                        <div class="exec-header-row">
+                            <span style="color: var(--accent-crimson);">⎋</span>
+                            <span id="exec-title">Calling Rahim...</span>
                         </div>
-                        <div class="card-value" id="pc-cpu-val">--%</div>
-                        <div class="card-subtext" id="pc-cpu-sub">AMD Ryzen 5 5600G</div>
-                    </div>
-
-                    <div class="hud-card">
-                        <div class="hud-card-header">
-                            <span class="card-label">RAM USAGE</span>
-                            <span style="color: var(--accent-emerald);">💾</span>
+                        <div class="exec-steps-box" id="exec-steps-list">
+                            <div class="exec-step-item done">✓ Finding contact</div>
+                            <div class="exec-step-item done">✓ Preparing call</div>
+                            <div class="exec-step-item done">✓ Calling Rahim</div>
+                            <div class="exec-step-item done">✓ Done</div>
                         </div>
-                        <div class="card-value" id="pc-ram-val">--%</div>
-                        <div class="card-subtext" id="pc-ram-sub">-- / 15.4 GB</div>
-                    </div>
-
-                    <div class="hud-card card-full">
-                        <div class="hud-card-header">
-                            <span class="card-label">ACTIVE WORKSPACE</span>
-                            <span style="color: #38bdf8; font-size: 0.7rem;" id="pc-uptime">Uptime: --</span>
-                        </div>
-                        <div style="font-size: 0.95rem; font-weight: 700; color: #f8fafc;" id="pc-active-win">Connecting to bridge...</div>
-                        <div class="card-subtext" id="pc-disks">Drive C: -- | Drive D: --</div>
+                        <button class="exec-cancel-btn" onclick="hideExecutionCard()">✕ Cancel</button>
                     </div>
                 </div>
+            </section>
 
-                <div class="controls-title">Remote Workstation Controls</div>
-                <div class="actions-list">
-                    <div class="btn-action-tile" onclick="triggerRemoteAction('lock')">
-                        <div class="tile-left">
-                            <div class="tile-icon" style="color: var(--accent-red);">🔒</div>
-                            <div class="tile-text">
-                                <div class="tile-title">Lock Workstation</div>
-                                <div class="tile-desc">Immediate Windows lock (Win + L)</div>
+            <!-- TAB 2: CHAT (DEDICATED CONVERSATIONAL AI STREAM) -->
+            <section id="tab-chat" class="tab-view">
+                <div class="chat-tab-container">
+                    <div class="chat-top-header">
+                        <div>
+                            <div class="chat-top-title">Mikasa AI Chat</div>
+                            <div class="chat-top-sub">Autonomous Multi-Tool Agent</div>
+                        </div>
+                        <button class="chat-clear-btn" onclick="clearWebChat()">Clear</button>
+                    </div>
+
+                    <div class="chat-messages-stream" id="chat-messages-stream">
+                        <div class="chat-msg-row mikasa">
+                            <img src="/mikasa.jpeg" class="chat-avatar-thumb">
+                            <div class="chat-msg-bubble">
+                                Good day, Commander Swapnil. I am online and standing by. How can I assist you?
                             </div>
                         </div>
-                        <div class="tile-arrow">›</div>
                     </div>
 
-                    <div class="btn-action-tile" onclick="triggerRemoteAction('mute')">
-                        <div class="tile-left">
-                            <div class="tile-icon" style="color: var(--accent-amber);">🔇</div>
-                            <div class="tile-text">
-                                <div class="tile-title">Toggle Master Mute</div>
-                                <div class="tile-desc">Mute or unmute PC master audio</div>
+                    <div class="chat-bottom-dock">
+                        <input type="text" id="web-chat-input" class="chat-input-field" placeholder="Ask Mikasa anything..." onkeypress="if(event.key==='Enter') sendWebChat()">
+                        <button class="chat-send-btn" onclick="sendWebChat()">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="#ffffff"><path d="M2.01 21L23 12L2.01 3L2 10L17 12L2 14L2.01 21Z"/></svg>
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 3: TOOLS SCREEN (Screen 10) -->
+            <section id="tab-tools" class="tab-view">
+                <div class="tools-screen">
+                    <div class="tools-main-title">Tools</div>
+                    <div class="tools-main-sub">Access your apps, device & more</div>
+
+                    <div class="tool-category-row">
+                        <button class="tool-cat-pill active" onclick="filterTools('All', this)">All</button>
+                        <button class="tool-cat-pill" onclick="filterTools('Communication', this)">Communication</button>
+                        <button class="tool-cat-pill" onclick="filterTools('Productivity', this)">Productivity</button>
+                        <button class="tool-cat-pill" onclick="filterTools('Workstation', this)">Workstation</button>
+                    </div>
+
+                    <!-- Communication -->
+                    <div class="tool-section tool-sec-comm">
+                        <div class="tool-section-title">Communication</div>
+
+                        <div class="tool-row-tile" onclick="executeCommand('Open Telegram')">
+                            <div class="tool-tile-iconBox tool-tile-icon-box" style="background: #0284c7;">✈️</div>
+                            <div class="tool-tile-meta">
+                                <div class="tool-tile-name">Telegram</div>
+                                <div class="tool-tile-desc">Send messages, open chats</div>
                             </div>
                         </div>
-                        <div class="tile-arrow">›</div>
-                    </div>
 
-                    <div class="btn-action-tile" onclick="triggerRemoteAction('volup')">
-                        <div class="tile-left">
-                            <div class="tile-icon" style="color: var(--accent-cyan);">🔊</div>
-                            <div class="tile-text">
-                                <div class="tile-title">Volume Up</div>
-                                <div class="tile-desc">Increase PC master sound level</div>
+                        <div class="tool-row-tile" onclick="executeCommand('Call Rahim')">
+                            <div class="tool-tile-iconBox tool-tile-icon-box" style="background: #10b981;">📞</div>
+                            <div class="tool-tile-meta">
+                                <div class="tool-tile-name">Phone</div>
+                                <div class="tool-tile-desc">Make calls, manage contacts</div>
                             </div>
                         </div>
-                        <div class="tile-arrow">›</div>
-                    </div>
 
-                    <div class="btn-action-tile" onclick="triggerRemoteAction('voldown')">
-                        <div class="tile-left">
-                            <div class="tile-icon" style="color: var(--accent-cyan);">🔉</div>
-                            <div class="tile-text">
-                                <div class="tile-title">Volume Down</div>
-                                <div class="tile-desc">Decrease PC master sound level</div>
+                        <div class="tool-row-tile" onclick="executeCommand('Send text message')">
+                            <div class="tool-tile-iconBox tool-tile-icon-box" style="background: #06b6d4;">💬</div>
+                            <div class="tool-tile-meta">
+                                <div class="tool-tile-name">SMS</div>
+                                <div class="tool-tile-desc">Send text messages</div>
                             </div>
                         </div>
-                        <div class="tile-arrow">›</div>
-                    </div>
 
-                    <div class="btn-action-tile" onclick="triggerRemoteAction('media')">
-                        <div class="tile-left">
-                            <div class="tile-icon" style="color: #a855f7;">⏯️</div>
-                            <div class="tile-text">
-                                <div class="tile-title">Media Play / Pause</div>
-                                <div class="tile-desc">Toggle Spotify / YouTube playback</div>
+                        <div class="tool-row-tile" onclick="executeCommand('Check unread emails')">
+                            <div class="tool-tile-iconBox tool-tile-icon-box" style="background: #3b82f6;">✉️</div>
+                            <div class="tool-tile-meta">
+                                <div class="tool-tile-name">Email</div>
+                                <div class="tool-tile-desc">Send or read emails</div>
                             </div>
                         </div>
-                        <div class="tile-arrow">›</div>
                     </div>
 
-                    <div class="btn-action-tile" onclick="triggerRemoteAction('screen')">
-                        <div class="tile-left">
-                            <div class="tile-icon" style="color: #64748b;">💤</div>
-                            <div class="tile-text">
-                                <div class="tile-title">Sleep Displays</div>
-                                <div class="tile-desc">Power down desktop monitors</div>
+                    <!-- Productivity -->
+                    <div class="tool-section tool-sec-prod">
+                        <div class="tool-section-title">Productivity</div>
+
+                        <div class="tool-row-tile" onclick="executeCommand('What is on my calendar today?')">
+                            <div class="tool-tile-iconBox tool-tile-icon-box" style="background: #6366f1;">📅</div>
+                            <div class="tool-tile-meta">
+                                <div class="tool-tile-name">Calendar</div>
+                                <div class="tool-tile-desc">Events, reminders, schedule</div>
                             </div>
                         </div>
-                        <div class="tile-arrow">›</div>
+
+                        <div class="tool-row-tile" onclick="executeCommand('List my active notes')">
+                            <div class="tool-tile-iconBox tool-tile-icon-box" style="background: #f59e0b;">📝</div>
+                            <div class="tool-tile-meta">
+                                <div class="tool-tile-name">Notes</div>
+                                <div class="tool-tile-desc">Create and manage notes</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Workstation Control -->
+                    <div class="tool-section tool-sec-work">
+                        <div class="tool-section-title">Workstation Control</div>
+
+                        <div class="tool-row-tile" onclick="triggerDeviceAction('lock')">
+                            <div class="tool-tile-iconBox tool-tile-icon-box" style="background: #e11d48;">🔒</div>
+                            <div class="tool-tile-meta">
+                                <div class="tool-tile-name">Lock Workstation</div>
+                                <div class="tool-tile-desc">Immediate Windows lockdown (Win + L)</div>
+                            </div>
+                        </div>
+
+                        <div class="tool-row-tile" onclick="triggerDeviceAction('mute')">
+                            <div class="tool-tile-iconBox tool-tile-icon-box" style="background: #8b5cf6;">🔇</div>
+                            <div class="tool-tile-meta">
+                                <div class="tool-tile-name">Mute Audio</div>
+                                <div class="tool-tile-desc">Toggle PC master volume</div>
+                            </div>
+                        </div>
+
+                        <div class="tool-row-tile" onclick="triggerDeviceAction('screen')">
+                            <div class="tool-tile-iconBox tool-tile-icon-box" style="background: #475569;">💤</div>
+                            <div class="tool-tile-meta">
+                                <div class="tool-tile-name">Sleep Displays</div>
+                                <div class="tool-tile-desc">Power down monitors</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
+            </section>
 
-            <!-- TAB 3: MEMORY VAULT -->
-            <div id="tab-memory" class="tab-view">
-                <div class="section-header">
-                    <h2 class="section-title">Neural Memory Vault</h2>
-                    <p class="section-subtitle" id="mem-stats-sub">123+ memories learned continuously</p>
+            <!-- TAB 3: MEMORY VAULT SCREEN -->
+            <section id="tab-memory" class="tab-view">
+                <div class="memory-screen">
+                    <div class="tools-main-title">Memory</div>
+                    <div class="tools-main-sub">Persistent long-term memories</div>
+
+                    <input type="text" id="input-mem-search" class="clean-search-input" placeholder="Search memories..." oninput="onSearchMemories(this.value)">
+
+                    <div class="clean-cat-pills-row">
+                        <button class="clean-cat-pill active" onclick="filterMemCat('All', this)">All</button>
+                        <button class="clean-cat-pill" onclick="filterMemCat('fact', this)">Facts</button>
+                        <button class="clean-cat-pill" onclick="filterMemCat('preference', this)">Preferences</button>
+                        <button class="clean-cat-pill" onclick="filterMemCat('workflow', this)">Workflows</button>
+                        <button class="clean-cat-pill" onclick="filterMemCat('decision', this)">Decisions</button>
+                    </div>
+
+                    <div id="memory-cards-container">
+                        <div style="text-align: center; color: var(--text-muted); padding: 20px;">Loading memory graph...</div>
+                    </div>
                 </div>
+            </section>
 
-                <div class="search-bar-wrap">
-                    <input type="text" id="input-mem-search" class="search-input" placeholder="Search facts, preferences, decisions..." oninput="onMemorySearch(this.value)">
+            <!-- TAB 4: SETTINGS SCREEN -->
+            <section id="tab-settings" class="tab-view">
+                <div class="settings-screen">
+                    <div class="tools-main-title">Settings</div>
+                    <div class="tools-main-sub">Assistant, voice & services</div>
+
+                    <div class="settings-group-card">
+                        <div class="settings-group-header">ASSISTANT IDENTITY</div>
+                        <div class="settings-row">
+                            <span class="settings-label">Name</span>
+                            <span class="settings-val">Mikasa</span>
+                        </div>
+                        <div class="settings-row">
+                            <span class="settings-label">Wake Word</span>
+                            <span class="settings-val" style="color: var(--accent-crimson);">"Hey Mikasa"</span>
+                        </div>
+                        <div class="settings-row">
+                            <span class="settings-label">Voice Gender</span>
+                            <span class="settings-val">Natural Female</span>
+                        </div>
+                    </div>
+
+                    <div class="settings-group-card">
+                        <div class="settings-group-header">CONNECTED SERVICES</div>
+                        <div class="settings-row">
+                            <span class="settings-label">Telegram Bridge</span>
+                            <span class="settings-val" style="color: var(--accent-emerald);">Connected ✓</span>
+                        </div>
+                        <div class="settings-row">
+                            <span class="settings-label">Workstation PC</span>
+                            <span class="settings-val" id="settings-pc-val" style="color: var(--accent-emerald);">Swapnil-PC Online</span>
+                        </div>
+                        <div class="settings-row">
+                            <span class="settings-label">Supabase DB</span>
+                            <span class="settings-val" style="color: var(--accent-emerald);">123+ Memories ✓</span>
+                        </div>
+                    </div>
+
+                    <button class="onboard-replay-btn" onclick="openOnboarding()">Replay Onboarding Guide</button>
                 </div>
+            </section>
 
-                <div class="filter-pills-row">
-                    <button class="pill-filter active" onclick="filterMemories(null, this)">All</button>
-                    <button class="pill-filter" onclick="filterMemories('preference', this)">Preferences</button>
-                    <button class="pill-filter" onclick="filterMemories('fact', this)">Facts</button>
-                    <button class="pill-filter" onclick="filterMemories('workflow', this)">Workflows</button>
-                    <button class="pill-filter" onclick="filterMemories('decision', this)">Decisions</button>
-                    <button class="pill-filter" onclick="filterMemories('instruction', this)">Instructions</button>
-                </div>
+        </main>
 
-                <div class="memories-list" id="memories-container">
-                    <div style="text-align: center; padding: 24px; color: var(--text-muted);">Loading neural memories...</div>
-                </div>
-            </div>
-
-            <!-- TAB 4: TASKS VIEW -->
-            <div id="tab-tasks" class="tab-view">
-                <div class="section-header">
-                    <h2 class="section-title">Strategic Ops & Tasks</h2>
-                    <p class="section-subtitle">Active engineering sprints & todos</p>
-                </div>
-
-                <div class="tasks-list" id="tasks-container">
-                    <div style="text-align: center; padding: 24px; color: var(--text-muted);">Loading active tasks...</div>
-                </div>
-            </div>
-
-            <!-- TAB 5: MONITORS VIEW -->
-            <div id="tab-monitors" class="tab-view">
-                <div class="section-header">
-                    <h2 class="section-title">Service Infrastructure</h2>
-                    <p class="section-subtitle">Real-time uptime, latency & health beacons</p>
-                </div>
-
-                <div class="monitors-list" id="monitors-container">
-                    <div style="text-align: center; padding: 24px; color: var(--text-muted);">Probing service health...</div>
-                </div>
-            </div>
-
-        </div>
-
-        <!-- 3. BOTTOM NAVIGATION DOCK -->
-        <nav class="bottom-nav">
-            <button class="nav-item active" onclick="switchTab('chat', this)">
-                <span class="nav-icon">💬</span>
-                <span class="nav-label">Chat</span>
+        <!-- BOTTOM NAVIGATION BAR (Screens 7, 8, 9, 10) -->
+        <nav class="bottom-nav-bar">
+        <!-- BOTTOM NAVIGATION BAR (5 Tabs) -->
+        <nav class="bottom-nav-bar">
+            <button class="bottom-nav-btn active" onclick="switchNav('home', this)">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path d="M3 10.5L12 3L21 10.5V20C21 20.5523 20.5523 21 20 21H4C3.44772 21 3 20.5523 3 20V10.5Z" stroke="#e11d48" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="#e11d48"/>
+                    <circle cx="12" cy="2.5" r="1.5" fill="#e11d48"/>
+                </svg>
+                <span class="bottom-nav-label">Home</span>
             </button>
-            <button class="nav-item" onclick="switchTab('pc', this)">
-                <span class="nav-icon">🖥️</span>
-                <span class="nav-label">PC Cockpit</span>
+            <button class="bottom-nav-btn" onclick="switchNav('chat', this)">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path d="M21 11.5C21.0034 12.8199 20.6951 14.1219 20.1 15.3C19.3944 16.7118 18.3098 17.8992 16.9674 18.7293C15.6251 19.5594 14.0782 19.9994 12.5 20C11.1801 20.0035 9.87812 19.6951 8.7 19.1L3 21L4.9 15.3C4.30493 14.1219 3.99656 12.8199 4 11.5C4.00061 9.92179 4.44061 8.37488 5.27072 7.03258C6.10083 5.69028 7.28825 4.6056 8.7 3.90003C9.87812 3.30496 11.1801 2.99659 12.5 3H13C15.0843 3.11502 17.053 3.99479 18.5291 5.47089C20.0052 6.94699 20.885 8.91568 21 11V11.5Z" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span class="bottom-nav-label">Chat</span>
             </button>
-            <button class="nav-item" onclick="switchTab('memory', this)">
-                <span class="nav-icon">🧠</span>
-                <span class="nav-label">Memories</span>
+            <button class="bottom-nav-btn" onclick="switchNav('tools', this)">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none">
+                    <rect x="3" y="3" width="7.5" height="7.5" rx="2.5" stroke="#94a3b8" stroke-width="2"/>
+                    <rect x="13.5" y="3" width="7.5" height="7.5" rx="2.5" stroke="#94a3b8" stroke-width="2"/>
+                    <rect x="3" y="13.5" width="7.5" height="7.5" rx="2.5" stroke="#94a3b8" stroke-width="2"/>
+                    <rect x="13.5" y="13.5" width="7.5" height="7.5" rx="2.5" stroke="#94a3b8" stroke-width="2"/>
+                </svg>
+                <span class="bottom-nav-label">Tools</span>
             </button>
-            <button class="nav-item" onclick="switchTab('tasks', this)">
-                <span class="nav-icon">📋</span>
-                <span class="nav-label">Tasks</span>
+            <button class="bottom-nav-btn" onclick="switchNav('memory', this)">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 4.5C8 4.5 4 8 4 12C4 16 8 19.5 12 19.5M12 4.5C16 4.5 20 8 20 12C20 16 16 19.5 12 19.5M12 4.5V19.5" stroke="#94a3b8" stroke-width="2" stroke-linecap="round"/>
+                    <circle cx="8" cy="12" r="1.5" fill="#94a3b8"/>
+                    <circle cx="16" cy="12" r="1.5" fill="#94a3b8"/>
+                </svg>
+                <span class="bottom-nav-label">Memory</span>
             </button>
-            <button class="nav-item" onclick="switchTab('monitors', this)">
-                <span class="nav-icon">🌐</span>
-                <span class="nav-label">Monitors</span>
+            <button class="bottom-nav-btn" onclick="switchNav('settings', this)">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="3" stroke="#94a3b8" stroke-width="2"/>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span class="bottom-nav-label">Settings</span>
             </button>
         </nav>
     </div>
 
-    <!-- Toast Notification Element -->
-    <div id="toast" class="toast-box">Notification</div>
+    <!-- ONBOARDING MODAL OVERLAY (Screens 1 to 5) -->
+    <div class="onboarding-overlay" id="onboarding-modal" style="display: none;">
+        <div class="onboarding-top-bar">
+            <div class="onboarding-logo-text">M I K A S A</div>
+        </div>
+
+        <div class="onboarding-body" id="onboard-body-container">
+            <!-- Dynamically populated step content -->
+        </div>
+
+        <div class="onboarding-bottom-nav">
+            <button class="onboarding-nav-btn-text" id="onboard-back-btn" onclick="prevOnboardStep()">Back</button>
+
+            <div class="dots-row" id="onboard-dots">
+                <div class="dot active"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+            </div>
+
+            <button class="onboarding-red-btn" id="onboard-next-btn" onclick="nextOnboardStep()">Next →</button>
+        </div>
+    </div>
+
+    <!-- INPUT PROMPT MODAL -->
+    <div class="input-modal-overlay" id="input-modal">
+        <div class="input-modal-sheet">
+            <div class="input-modal-title">Speak or Enter Command</div>
+            <input type="text" id="voice-query-input" class="input-modal-field" placeholder="Say or type instruction..." onkeypress="if(event.key==='Enter') submitVoiceQuery()">
+
+            <div class="input-modal-presets">
+                <button class="preset-chip" onclick="submitPreset('Give me a full morning sitrep briefing')">Sitrep Briefing</button>
+                <button class="preset-chip" onclick="submitPreset('Lock my PC')">Lock PC</button>
+                <button class="preset-chip" onclick="submitPreset('amr pc theke CV pathao')">Send CV</button>
+                <button class="preset-chip" onclick="submitPreset('Open Telegram')">Open Telegram</button>
+            </div>
+
+            <div class="input-modal-actions">
+                <button class="modal-cancel-btn" onclick="closeInputModal()">Cancel</button>
+                <button class="modal-execute-btn" onclick="submitVoiceQuery()">Execute</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AGENT PROFILE & CONTROLS MODAL -->
+    <div class="input-modal-overlay" id="profile-modal">
+        <div class="input-modal-sheet" style="max-height: 85vh; overflow-y: auto;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <div style="color: #ffffff; font-weight: 800; font-size: 1.05rem;">Agent Profile & Controls</div>
+                <button class="modal-cancel-btn" onclick="closeAgentProfile()">✕</button>
+            </div>
+            
+            <div style="text-align: center; margin-bottom: 20px;">
+                <div style="width: 80px; height: 80px; border-radius: 50%; border: 2px solid var(--accent-crimson); margin: 0 auto; overflow: hidden; padding: 2px;">
+                    <img src="/mikasa.jpeg" style="width: 100%; height: 100%; border-radius: 50%;">
+                </div>
+                <div style="color: #fff; font-size: 1.25rem; font-weight: 800; letter-spacing: 2px; margin-top: 8px;">MIKASA</div>
+                <div style="color: var(--accent-emerald); font-size: 0.8rem; font-weight: 700; margin-top: 4px;">● Active & Online</div>
+                <div style="color: var(--text-muted); font-size: 0.75rem; margin-top: 4px;">Commander Swapnil's Executive AI Assistant</div>
+            </div>
+
+            <div class="settings-group-card" style="margin-bottom: 12px;">
+                <div class="settings-group-header">CORE ARCHITECTURE</div>
+                <div class="settings-row"><span class="settings-label">Cognitive Engine</span><span class="settings-val">Gemini 2.5 Multi-Modal</span></div>
+                <div class="settings-row"><span class="settings-label">Voice Synthesizer</span><span class="settings-val">Natural Female Voice</span></div>
+                <div class="settings-row"><span class="settings-label">Workstation Node</span><span class="settings-val" style="color: var(--accent-emerald);">Swapnil-PC Connected</span></div>
+                <div class="settings-row"><span class="settings-label">Memory Graph</span><span class="settings-val">123+ Memories (Supabase)</span></div>
+            </div>
+
+            <div class="settings-group-card" style="margin-bottom: 16px;">
+                <div class="settings-group-header">FEATURES & NOTIFICATIONS</div>
+                <div class="settings-row"><span class="settings-label">Proactive Surveillance</span><span class="settings-val" style="color: var(--accent-emerald);">Active ✓</span></div>
+                <div class="settings-row"><span class="settings-label">Telegram Bridge</span><span class="settings-val" style="color: var(--accent-emerald);">Connected ✓</span></div>
+                <div class="settings-row"><span class="settings-label">Push Alert Relay</span><span class="settings-val" style="color: var(--accent-emerald);">Enabled ✓</span></div>
+            </div>
+
+            <button style="width: 100%; background: var(--accent-crimson); border: none; border-radius: 14px; padding: 12px; color: #fff; font-weight: 700; font-size: 0.85rem; cursor: pointer; margin-bottom: 8px;" onclick="closeAgentProfile(); playAboutMeAudio();">🎧 Play Voice Introduction</button>
+            <button style="width: 100%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 14px; padding: 12px; color: var(--text-secondary); font-weight: 600; font-size: 0.85rem; cursor: pointer;" onclick="closeAgentProfile(); openOnboarding();">Replay Onboarding Guide</button>
+        </div>
+    </div>
 
     <script>
-        // API Base URL (Dynamically detects current domain or IP, whether localhost, LAN, or Cloud)
         const API_BASE = window.location.origin;
+        const COMMANDER_TOKEN = 'MikasaCommander360!';
 
-        // Auto-token resolution: Query string -> LocalStorage -> Default Passkey
-        const urlParams = new URLSearchParams(window.location.search);
-        let commanderToken = urlParams.get('token') || localStorage.getItem('mikasa_mobile_token');
-        if (!commanderToken) {
-            // Default master passkey to ensure seamless access on personal devices
-            commanderToken = 'MikasaCommander360!';
-            localStorage.setItem('mikasa_mobile_token', commanderToken);
-        } else {
-            localStorage.setItem('mikasa_mobile_token', commanderToken);
+        let assistantState = 'IDLE';
+
+        function openAgentProfile() {
+            document.getElementById('profile-modal')?.classList.add('active');
         }
 
-        // Clean URL if token parameter is present
-        if (urlParams.has('token')) {
-            window.history.replaceState({}, document.title, window.location.pathname);
+        function closeAgentProfile() {
+            document.getElementById('profile-modal')?.classList.remove('active');
         }
 
-        // Standardized Authorized Fetch Wrapper
-        async function apiFetch(endpoint, options = {}) {
-            const headers = {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${commanderToken}`,
-                'x-commander-token': commanderToken,
-                'x-commander-passkey': commanderToken,
-                ...(options.headers || {})
-            };
-            return fetch(`${API_BASE}${endpoint}`, { ...options, headers });
+        function playAboutMeAudio() {
+            const speech = 'I am Mikasa, an autonomous AI assistant created exclusively for Commander Swapnil. Built with neural reasoning and proactive monitoring, I coordinate your digital workspace, manage your memories, and safeguard your workflow. Smart, loyal, and always by your side.';
+            document.getElementById('assistant-prompt-sub').textContent = '"I am Mikasa, Commander Swapnil\'s Autonomous AI Assistant"';
+            speakAsMikasa(speech);
         }
 
-        // Toast Notification Helper
-        function showToast(text, duration = 2500) {
-            const toast = document.getElementById('toast');
-            toast.textContent = text;
-            toast.classList.add('show');
-            setTimeout(() => toast.classList.remove('show'), duration);
+        // Emoji Sanitizer (No cartoon emojis per explicit user command)
+        function stripEmojis(str) {
+            if (!str) return '';
+            return str.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F900}-\u{1F9FF}\u{1F018}-\u{1F0F5}\u{1F200}-\u{1F270}\u{1F9A0}-\u{1F9FF}]/gu, '').trim();
         }
 
-        // Tab Switching Logic
-        function switchTab(tabId, el) {
-            document.querySelectorAll('.tab-view').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        // Tab Navigation
+        function switchNav(tab, btn) {
+            document.querySelectorAll('.tab-view').forEach(v => v.classList.remove('active'));
+            document.querySelectorAll('.bottom-nav-btn').forEach(b => b.classList.remove('active'));
 
-            const targetTab = document.getElementById(`tab-${tabId}`);
-            if (targetTab) targetTab.classList.add('active');
-            if (el) el.classList.add('active');
+            const target = document.getElementById(`tab-${tab}`);
+            if (target) target.classList.add('active');
+            if (btn) btn.classList.add('active');
 
-            // Trigger lazy data loads per tab
-            if (tabId === 'pc') loadPcStatus();
-            if (tabId === 'memory') loadMemories();
-            if (tabId === 'tasks') loadTasks();
-            if (tabId === 'monitors') loadMonitors();
+            if (tab === 'memory') loadMemories();
         }
 
-        // ========================================================
-        // 1. CHAT LOGIC & ENGINE
-        // ========================================================
-        const chatMessages = document.getElementById('chat-messages');
-        const inputChat = document.getElementById('input-chat');
-
-        function appendMessage(role, text, toolUsed = null) {
-            const row = document.createElement('div');
-            row.className = `message-row ${role}`;
-
-            const avatarSrc = role === 'assistant' ? '/Mikasa-logo.jpeg' : '/Mikasa-logo.jpeg';
-            let toolHtml = toolUsed ? `<div class="bubble-tool-tag">⚡ ${escapeHtml(toolUsed)}</div>` : '';
-
-            // Format markdown basics
-            let formattedText = escapeHtml(text)
-                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                .replace(/`(.*?)`/g, '<code>$1</code>')
-                .replace(/\n/g, '<br>');
-
-            let voiceBtnHtml = role === 'assistant' ? `<button class="bubble-voice-btn" onclick="speakText(this)">🔊 Read</button>` : '';
-
-            row.innerHTML = `
-                ${role === 'assistant' ? `<img src="${avatarSrc}" class="msg-avatar" alt="Avatar">` : ''}
-                <div class="bubble">
-                    ${toolHtml}
-                    <div>${formattedText}</div>
-                    ${voiceBtnHtml}
-                </div>
-            `;
-
-            chatMessages.appendChild(row);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-        }
-
-        async function sendChatMessage(customText = null) {
-            const text = (customText || inputChat.value).trim();
-            if (!text) return;
-
-            if (!customText) inputChat.value = '';
-            appendMessage('user', text);
-
-            // Typing indicator
-            const typingRow = document.createElement('div');
-            typingRow.className = 'message-row assistant';
-            typingRow.id = 'typing-indicator';
-            typingRow.innerHTML = `
-                <img src="/Mikasa-logo.jpeg" class="msg-avatar" alt="Avatar">
-                <div class="bubble" style="color: var(--text-muted); font-style: italic;">
-                    Mikasa is thinking...
-                </div>
-            `;
-            chatMessages.appendChild(typingRow);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-
-            try {
-                const res = await apiFetch('/api/chat', {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        message: text,
-                        conversation_id: 'mobile-app-session'
-                    })
-                });
-                const data = await res.json();
-                const indicator = document.getElementById('typing-indicator');
-                if (indicator) indicator.remove();
-
-                const toolUsed = (data.tools_used && data.tools_used.length > 0) ? data.tools_used[0].tool : null;
-                appendMessage('assistant', data.reply || 'Acknowledged, Commander.', toolUsed);
-            } catch (err) {
-                const indicator = document.getElementById('typing-indicator');
-                if (indicator) indicator.remove();
-                appendMessage('assistant', `⚠️ Connection error: ${err.message}`);
+        // Voice Engine: Select Natural Female Voice
+        let selectedFemaleVoice = null;
+        function initFemaleVoice() {
+            if ('speechSynthesis' in window) {
+                const getVoices = () => {
+                    const voices = window.speechSynthesis.getVoices();
+                    selectedFemaleVoice = voices.find(v => {
+                        const name = v.name.toLowerCase();
+                        return (
+                            v.lang.startsWith('en') &&
+                            (name.includes('female') || name.includes('samantha') || name.includes('karen') || name.includes('zira') || name.includes('natural'))
+                        );
+                    });
+                };
+                getVoices();
+                if (window.speechSynthesis.onvoiceschanged !== undefined) {
+                    window.speechSynthesis.onvoiceschanged = getVoices;
+                }
             }
         }
 
-        function sendQuickPrompt(promptText) {
-            sendChatMessage(promptText);
-        }
-
-        inputChat.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') sendChatMessage();
-        });
-
-        // Speech Synthesis (TTS)
-        function speakText(btn) {
-            const bubble = btn.closest('.bubble');
-            const textToSpeak = bubble.innerText.replace('Read', '').trim();
+        function speakAsMikasa(text, onFinish) {
+            const cleanText = stripEmojis(text);
             if ('speechSynthesis' in window) {
                 window.speechSynthesis.cancel();
-                const utterance = new SpeechSynthesisUtterance(textToSpeak);
-                utterance.rate = 1.05;
-                utterance.pitch = 1.05;
+                const utterance = new SpeechSynthesisUtterance(cleanText);
+                utterance.pitch = 1.15; // Natural female pitch
+                utterance.rate = 0.98;
+                if (selectedFemaleVoice) utterance.voice = selectedFemaleVoice;
+
+                utterance.onend = () => {
+                    setAssistantIdle();
+                    if (onFinish) onFinish();
+                };
+                utterance.onerror = () => {
+                    setAssistantIdle();
+                    if (onFinish) onFinish();
+                };
                 window.speechSynthesis.speak(utterance);
+            } else {
+                setAssistantIdle();
+                if (onFinish) onFinish();
             }
         }
 
-        // Speech Recognition (STT Dictation)
+        function setAssistantIdle() {
+            assistantState = 'IDLE';
+            document.getElementById('assistant-title-text').textContent = 'Mikasa';
+            document.getElementById('assistant-ready-label').textContent = 'Ready';
+            document.getElementById('assistant-prompt-sub').textContent = 'How can I help you, Commander?';
+            document.getElementById('crimson-orb').classList.remove('listening');
+            document.getElementById('floating-mic').classList.remove('listening');
+        }
+
+        function handleMicTap() {
+            if (assistantState === 'LISTENING') {
+                if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+                setAssistantIdle();
+                return;
+            }
+
+            assistantState = 'LISTENING';
+            document.getElementById('assistant-title-text').textContent = 'Listening...';
+            document.getElementById('assistant-ready-label').textContent = 'Listening...';
+            document.getElementById('assistant-prompt-sub').textContent = '"Yes, Commander?"';
+            document.getElementById('crimson-orb').classList.add('listening');
+            document.getElementById('floating-mic').classList.add('listening');
+
+            speakAsMikasa('Yes, Commander?', () => {
+                openInputModal();
+            });
+        }
+
+        // Input Modal Handlers
+        function openInputModal() {
+            const m = document.getElementById('input-modal');
+            m.classList.add('active');
+            setTimeout(() => {
+                const inp = document.getElementById('voice-query-input');
+                inp.value = '';
+                inp.focus();
+            }, 100);
+        }
+
+        function closeInputModal() {
+            document.getElementById('input-modal').classList.remove('active');
+            if (assistantState === 'LISTENING') setAssistantIdle();
+        }
+
+        function submitVoiceQuery() {
+            const inp = document.getElementById('voice-query-input');
+            const q = inp.value.trim();
+            if (q) {
+                closeInputModal();
+                executeCommand(q);
+            }
+        }
+
+        function submitPreset(text) {
+            closeInputModal();
+            executeCommand(text);
+        }
+
+        function sendWebChat() {
+            const inp = document.getElementById('web-chat-input');
+            const q = inp.value.trim();
+            if (q) {
+                inp.value = '';
+                appendChatMessage('user', q);
+                executeCommand(q);
+            }
+        }
+
+        function clearWebChat() {
+            const stream = document.getElementById('chat-messages-stream');
+            if (stream) stream.innerHTML = '';
+        }
+
+        function appendChatMessage(sender, text) {
+            const stream = document.getElementById('chat-messages-stream');
+            if (!stream) return;
+            const row = document.createElement('div');
+            row.className = `chat-msg-row ${sender}`;
+            if (sender === 'mikasa') {
+                row.innerHTML = `<img src="/mikasa.jpeg" class="chat-avatar-thumb"><div class="chat-msg-bubble">${text}</div>`;
+            } else {
+                row.innerHTML = `<div class="chat-msg-bubble">${text}</div>`;
+            }
+            stream.appendChild(row);
+            stream.scrollTop = stream.scrollHeight;
+        }
+
+        // Web Speech Recognition Engine
         let recognition = null;
-        let isListening = false;
-        function toggleVoiceInput() {
-            const btn = document.getElementById('btn-voice-input');
+        function initSpeechRecognition() {
             const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
-            if (!SpeechRec) {
-                showToast('Voice dictation not supported in this browser.');
-                return;
-            }
+            if (SpeechRec) {
+                recognition = new SpeechRec();
+                recognition.continuous = false;
+                recognition.interimResults = true;
+                recognition.lang = 'en-US';
 
-            if (isListening) {
-                if (recognition) recognition.stop();
-                isListening = false;
-                btn.classList.remove('listening');
-                return;
-            }
+                recognition.onstart = () => {
+                    assistantState = 'LISTENING';
+                    document.getElementById('floating-mic')?.classList.add('listening');
+                    document.getElementById('assistant-title-text').textContent = 'Listening...';
+                    document.getElementById('assistant-prompt-sub').textContent = '"Listening to your voice..."';
+                };
 
-            recognition = new SpeechRec();
-            recognition.continuous = false;
-            recognition.interimResults = false;
-            recognition.lang = 'en-US';
-
-            recognition.onstart = () => {
-                isListening = true;
-                btn.classList.add('listening');
-                showToast('🎙️ Listening... speak now');
-            };
-
-            recognition.onresult = (e) => {
-                const transcript = e.results[0][0].transcript;
-                inputChat.value = transcript;
-                sendChatMessage();
-            };
-
-            recognition.onerror = (e) => {
-                console.error(e);
-                isListening = false;
-                btn.classList.remove('listening');
-            };
-
-            recognition.onend = () => {
-                isListening = false;
-                btn.classList.remove('listening');
-            };
-
-            recognition.start();
-        }
-
-        // ========================================================
-        // 2. PC COCKPIT & REMOTE HARDWARE CONTROLS
-        // ========================================================
-        async function loadPcStatus() {
-            try {
-                const res = await apiFetch('/api/pc/status');
-                const data = await res.json();
-                if (data && data.cpu) {
-                    document.getElementById('pc-cpu-val').textContent = `${data.cpu.loadPct || 0}%`;
-                    document.getElementById('pc-cpu-sub').textContent = data.cpu.model ? data.cpu.model.trim().slice(0, 24) : 'AMD CPU';
-                }
-                if (data && data.memory) {
-                    document.getElementById('pc-ram-val').textContent = `${data.memory.usagePct || 0}%`;
-                    document.getElementById('pc-ram-sub').textContent = `${data.memory.usedGb || 0} / ${data.memory.totalGb || 0} GB`;
-                }
-                if (data) {
-                    document.getElementById('pc-active-win').textContent = data.activeWindow || 'Windows Desktop';
-                    document.getElementById('pc-uptime').textContent = `Uptime: ${data.uptimeFormatted || 'Live'}`;
-                    if (data.disks && data.disks.length > 0) {
-                        document.getElementById('pc-disks').textContent = data.disks.map(d => `${d.drive} ${d.freeGb}GB free`).join(' | ');
+                recognition.onresult = (e) => {
+                    let transcript = '';
+                    for (let i = e.resultIndex; i < e.results.length; ++i) {
+                        transcript += e.results[i][0].transcript;
                     }
-                }
-            } catch (err) {
-                document.getElementById('pc-active-win').textContent = 'Workstation bridge connecting...';
+                    if (transcript) {
+                        document.getElementById('assistant-prompt-sub').textContent = `"${transcript}"`;
+                    }
+                };
+
+                recognition.onend = () => {
+                    document.getElementById('floating-mic')?.classList.remove('listening');
+                    const text = document.getElementById('assistant-prompt-sub').textContent.replace(/"/g, '').trim();
+                    if (text && text !== 'Listening to your voice...' && text !== 'How can I help you, Commander?') {
+                        executeCommand(text);
+                    } else {
+                        setAssistantIdle();
+                    }
+                };
+
+                recognition.onerror = (e) => {
+                    console.log('Speech error:', e.error);
+                    document.getElementById('floating-mic')?.classList.remove('listening');
+                    setAssistantIdle();
+                };
             }
         }
 
-        async function triggerRemoteAction(action) {
-            showToast(`Executing [${action.toUpperCase()}]...`);
+        function handleMicTap() {
+            if (assistantState === 'LISTENING') {
+                if (recognition) try { recognition.stop(); } catch(e){}
+                setAssistantIdle();
+                return;
+            }
+
+            if (recognition) {
+                try {
+                    recognition.start();
+                    return;
+                } catch(e) {
+                    console.log('Speech start fallback:', e);
+                }
+            }
+
+            openInputModal();
+        }
+
+        // Command Execution
+        async function executeCommand(query) {
+            const cleanQuery = stripEmojis(query);
+            if (!cleanQuery) return;
+
+            // Wake word
+            if (cleanQuery.toLowerCase().includes('hey mikasa') || cleanQuery.toLowerCase() === 'mikasa') {
+                assistantState = 'LISTENING';
+                document.getElementById('assistant-title-text').textContent = 'Listening...';
+                document.getElementById('assistant-prompt-sub').textContent = '"Yes, Commander? How can I serve you?"';
+                speakAsMikasa('Yes, Commander? How can I serve you?');
+                return;
+            }
+
+            assistantState = 'THINKING';
+            document.getElementById('assistant-title-text').textContent = 'Thinking...';
+            document.getElementById('assistant-prompt-sub').textContent = 'Reasoning with Gemini...';
+
+            const isAction = cleanQuery.toLowerCase().includes('call') || cleanQuery.toLowerCase().includes('lock') || cleanQuery.toLowerCase().includes('telegram');
+            if (isAction) {
+                showExecutionCard(cleanQuery.toLowerCase().includes('lock') ? 'Locking Workstation...' : 'Executing action...');
+            }
+
             try {
-                let res;
-                if (action === 'lock') {
-                    res = await apiFetch('/api/pc/lock', { method: 'POST' });
-                } else if (action === 'mute' || action === 'volup' || action === 'voldown') {
-                    const dir = action === 'volup' ? 'up' : (action === 'voldown' ? 'down' : 'mute');
-                    res = await apiFetch('/api/pc/volume', { method: 'POST', body: JSON.stringify({ direction: dir }) });
-                } else if (action === 'media') {
-                    res = await apiFetch('/api/pc/media', { method: 'POST', body: JSON.stringify({ action: 'play_pause' }) });
-                } else if (action === 'screen') {
-                    res = await apiFetch('/api/pc/screen', { method: 'POST', body: JSON.stringify({ action: 'off' }) });
-                }
+                const res = await fetch(`${API_BASE}/api/chat`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${COMMANDER_TOKEN}`,
+                        'x-commander-token': COMMANDER_TOKEN
+                    },
+                    body: JSON.stringify({ message: cleanQuery, conversation_id: 'web-app-hud' })
+                });
+
                 const data = await res.json();
-                showToast(data.message || 'Action executed ✅');
+                const rawReply = data.reply || 'Acknowledged, Commander.';
+                const cleanReply = stripEmojis(rawReply);
+
+                // Update Home subStatus
+                document.getElementById('assistant-prompt-sub').textContent = cleanReply.length > 60 ? `"${cleanReply.slice(0, 58)}..."` : `"${cleanReply}"`;
+
+                // Update Chat stream
+                appendChatMessage('mikasa', cleanReply);
+
+                if (isAction) {
+                    setTimeout(() => hideExecutionCard(), 2000);
+                }
+
+                assistantState = 'SPEAKING';
+                document.getElementById('assistant-title-text').textContent = 'Speaking...';
+
+                speakAsMikasa(cleanReply);
+
             } catch (err) {
-                showToast(`Failed: ${err.message}`);
+                hideExecutionCard();
+                setAssistantIdle();
+                document.getElementById('assistant-prompt-sub').textContent = '"Connection issue encountered, Commander."';
+                speakAsMikasa('Commander, I encountered a connection issue.');
             }
         }
 
-        function triggerQuickAction(action) {
-            triggerRemoteAction(action);
+        function showExecutionCard(title) {
+            const c = document.getElementById('execution-card');
+            document.getElementById('exec-title').textContent = title;
+            c.classList.add('active');
         }
 
-        // ========================================================
-        // 3. NEURAL MEMORY VAULT
-        // ========================================================
-        let currentMemFilter = null;
-        let memSearchQuery = '';
+        function hideExecutionCard() {
+            document.getElementById('execution-card').classList.remove('active');
+        }
 
+        // Hardware Workstation Action
+        async function triggerDeviceAction(action) {
+            showExecutionCard(action === 'lock' ? 'Locking Workstation...' : 'Sending Windows signal...');
+            let ep = '';
+            let body = {};
+            if (action === 'lock') ep = '/api/pc/lock';
+            if (action === 'mute') { ep = '/api/pc/volume'; body = { direction: 'mute' }; }
+            if (action === 'screen') { ep = '/api/pc/screen'; body = { action: 'off' }; }
+
+            try {
+                const res = await fetch(`${API_BASE}${ep}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${COMMANDER_TOKEN}` },
+                    body: JSON.stringify(body)
+                });
+                const d = await res.json();
+                speakAsMikasa(stripEmojis(d.message || 'Done.'));
+                setTimeout(() => hideExecutionCard(), 1800);
+            } catch (e) {
+                hideExecutionCard();
+                alert(e.message);
+            }
+        }
+
+        // Tools Screen Filtering
+        function filterTools(cat, btn) {
+            document.querySelectorAll('.tool-cat-pill').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            const comm = document.querySelector('.tool-sec-comm');
+            const prod = document.querySelector('.tool-sec-prod');
+            const work = document.querySelector('.tool-sec-work');
+
+            if (cat === 'All') {
+                comm.style.display = 'block'; prod.style.display = 'block'; work.style.display = 'block';
+            } else if (cat === 'Communication') {
+                comm.style.display = 'block'; prod.style.display = 'none'; work.style.display = 'none';
+            } else if (cat === 'Productivity') {
+                comm.style.display = 'none'; prod.style.display = 'block'; work.style.display = 'none';
+            } else if (cat === 'Workstation') {
+                comm.style.display = 'none'; prod.style.display = 'none'; work.style.display = 'block';
+            }
+        }
+
+        // Memory Vault
+        let activeMemFilter = 'All';
+        let memSearchQuery = '';
         async function loadMemories() {
-            const container = document.getElementById('memories-container');
-            let url = '/api/memories?limit=50';
-            if (currentMemFilter) url += `&type=${encodeURIComponent(currentMemFilter)}`;
+            const container = document.getElementById('memory-cards-container');
+            let url = `${API_BASE}/api/memories?limit=50`;
+            if (activeMemFilter !== 'All') url += `&type=${activeMemFilter}`;
             if (memSearchQuery) url += `&search=${encodeURIComponent(memSearchQuery)}`;
 
             try {
-                const res = await apiFetch(url);
+                const res = await fetch(url, { headers: { 'Authorization': `Bearer ${COMMANDER_TOKEN}` } });
                 const list = await res.json();
                 if (!Array.isArray(list) || list.length === 0) {
-                    container.innerHTML = `<div style="text-align: center; padding: 24px; color: var(--text-muted);">No memories found.</div>`;
+                    container.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 20px;">No memories found.</div>';
                     return;
                 }
-
                 container.innerHTML = list.map(m => `
-                    <div class="memory-card">
-                        <div class="memory-card-header">
-                            <span class="mem-tag ${m.memory_type || 'fact'}">${m.memory_type || 'fact'}</span>
-                            <span style="font-size: 0.68rem; color: var(--text-muted); font-family: var(--font-mono);">
-                                ${m.created_at ? new Date(m.created_at).toLocaleDateString() : ''}
-                            </span>
+                    <div class="clean-memory-card">
+                        <div class="memory-card-top">
+                            <span class="memory-type-badge">${m.memory_type}</span>
+                            <span class="memory-timestamp">${m.created_at ? new Date(m.created_at).toLocaleDateString() : ''}</span>
                         </div>
-                        <div class="mem-content">${escapeHtml(m.content || '')}</div>
+                        <div class="memory-card-text">${stripEmojis(m.content)}</div>
                     </div>
                 `).join('');
-            } catch (err) {
-                container.innerHTML = `<div style="padding: 16px; color: var(--accent-red);">Error loading memories: ${err.message}</div>`;
+            } catch (e) {
+                container.innerHTML = '<div style="color: var(--accent-crimson); padding: 12px;">Failed loading memories.</div>';
             }
         }
 
-        function filterMemories(type, btn) {
-            currentMemFilter = type;
-            document.querySelectorAll('.pill-filter').forEach(p => p.classList.remove('active'));
+        function filterMemCat(cat, btn) {
+            activeMemFilter = cat;
+            document.querySelectorAll('.clean-cat-pill').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             loadMemories();
         }
 
         let searchDebounceTimer = null;
-        function onMemorySearch(val) {
+        function onSearchMemories(val) {
             clearTimeout(searchDebounceTimer);
             searchDebounceTimer = setTimeout(() => {
                 memSearchQuery = val.trim();
@@ -1487,98 +2042,116 @@
         }
 
         // ========================================================
-        // 4. TASKS LOGIC
+        // ONBOARDING EXPERIENCE (Screens 1 to 5)
         // ========================================================
-        async function loadTasks() {
-            const container = document.getElementById('tasks-container');
-            try {
-                const res = await apiFetch('/api/tasks');
-                const tasks = await res.json();
-                if (!Array.isArray(tasks) || tasks.length === 0) {
-                    container.innerHTML = `<div style="text-align: center; padding: 24px; color: var(--text-muted);">All tasks completed! ✨</div>`;
-                    return;
-                }
-
-                container.innerHTML = tasks.slice(0, 15).map(t => `
-                    <div class="task-card">
-                        <div class="task-info">
-                            <div class="task-title">${escapeHtml(t.title)}</div>
-                            <div class="task-meta">${escapeHtml(t.project_name || t.projects?.name || 'General')} • Priority ${t.priority || 7}</div>
-                        </div>
-                        <button class="btn-check-task" onclick="completeTaskItem('${escapeHtml(t.title)}', this)">✓</button>
+        let currentOnboardStep = 1;
+        const onboardScreens = [
+            {
+                html: `
+                    <img src="/mikasa-portrait.png" class="onboarding-portrait" alt="Mikasa">
+                    <div class="onboarding-title">Your personal <span style="color: #e11d48;">AI assistant.</span></div>
+                    <div class="onboarding-sub">More than a chatbot. Mikasa lives in your phone, ready to help, anytime.</div>
+                `
+            },
+            {
+                html: `
+                    <div class="onboarding-title">Talk <span style="color: #e11d48;">naturally.</span></div>
+                    <div class="onboarding-sub">Say what you need. Mikasa handles the rest.</div>
+                    <div class="waveform-graphic">
+                        <div class="wave-bar" style="height: 18px;"></div>
+                        <div class="wave-bar" style="height: 36px;"></div>
+                        <div class="wave-bar" style="height: 60px;"></div>
+                        <div class="wave-bar" style="height: 42px;"></div>
+                        <div class="wave-bar" style="height: 80px;"></div>
+                        <div class="wave-bar" style="height: 95px;"></div>
+                        <div class="wave-bar" style="height: 60px;"></div>
+                        <div class="wave-bar" style="height: 45px;"></div>
+                        <div class="wave-bar" style="height: 20px;"></div>
                     </div>
-                `).join('');
-            } catch (err) {
-                container.innerHTML = `<div style="padding: 16px; color: var(--accent-red);">Failed loading tasks: ${err.message}</div>`;
+                    <div class="onboard-command-stack">
+                        <div class="onboard-cmd-pill">"Hey Mikasa, call Mom"</div>
+                        <div class="onboard-cmd-pill">"Set a reminder for 8 PM"</div>
+                        <div class="onboard-cmd-pill">"Open Telegram"</div>
+                    </div>
+                `
+            },
+            {
+                html: `
+                    <div class="onboarding-title">Connected to your <span style="color: #e11d48;">digital world.</span></div>
+                    <div class="onboarding-sub">Your apps, calendar, messages, files and more. All in one place.</div>
+                    <div class="onboard-grid">
+                        <div class="onboard-grid-tile"><div class="onboard-tile-icon">📞</div><span class="onboard-tile-label">Phone</span></div>
+                        <div class="onboard-grid-tile"><div class="onboard-tile-icon">⊞</div><span class="onboard-tile-label">Apps</span></div>
+                        <div class="onboard-grid-tile"><div class="onboard-tile-icon">📅</div><span class="onboard-tile-label">Calendar</span></div>
+                        <div class="onboard-grid-tile"><div class="onboard-tile-icon">💬</div><span class="onboard-tile-label">Messages</span></div>
+                        <div class="onboard-grid-tile"><div class="onboard-tile-icon">✈️</div><span class="onboard-tile-label">Telegram</span></div>
+                        <div class="onboard-grid-tile"><div class="onboard-tile-icon">🧠</div><span class="onboard-tile-label">Memory</span></div>
+                    </div>
+                `
+            },
+            {
+                html: `
+                    <div class="onboarding-title">Meet your <span style="color: #e11d48;">assistant.</span></div>
+                    <div class="onboarding-sub">Smart. Loyal. Always with you.</div>
+                    <div class="onboard-avatar-ring">
+                        <img src="/Mikasa.jpeg" class="onboard-avatar-circle" alt="Mikasa">
+                    </div>
+                    <div style="font-size: 1.15rem; font-weight: 700; color: #fff;">Mikasa</div>
+                    <div style="color: #10b981; font-size: 0.78rem; font-weight: 600; margin-top: 4px;">● Online</div>
+                `
+            },
+            {
+                html: `
+                    <div style="color: #64748b; font-size: 0.85rem; font-weight: 600;">Try saying...</div>
+                    <div class="onboarding-title" style="color: #e11d48; margin-top: 4px;">"Hey Mikasa"</div>
+                    <div class="onboarding-sub">Wake her up with your voice.</div>
+                    <div class="onboard-mic-orb" onclick="speakAsMikasa('Yes, Commander? I am ready.')">🎙️</div>
+                    <div style="color: #64748b; font-size: 0.82rem;">Tap to start</div>
+                `
+            }
+        ];
+
+        function renderOnboardStep() {
+            document.getElementById('onboard-body-container').innerHTML = onboardScreens[currentOnboardStep - 1].html;
+            document.getElementById('onboard-back-btn').textContent = currentOnboardStep === 1 ? 'Skip' : 'Back';
+            document.getElementById('onboard-next-btn').textContent = currentOnboardStep === 5 ? 'Finish' : 'Next →';
+
+            const dots = document.querySelectorAll('#onboard-dots .dot');
+            dots.forEach((d, idx) => {
+                if (idx === currentOnboardStep - 1) d.classList.add('active');
+                else d.classList.remove('active');
+            });
+        }
+
+        function openOnboarding() {
+            currentOnboardStep = 1;
+            renderOnboardStep();
+            document.getElementById('onboarding-modal').style.display = 'flex';
+        }
+
+        function nextOnboardStep() {
+            if (currentOnboardStep < 5) {
+                currentOnboardStep++;
+                renderOnboardStep();
+            } else {
+                document.getElementById('onboarding-modal').style.display = 'none';
+                speakAsMikasa('Welcome, Commander Swapnil. I am initialized.');
             }
         }
 
-        async function completeTaskItem(title, btn) {
-            btn.disabled = true;
-            btn.style.background = 'var(--accent-emerald)';
-            btn.style.color = '#fff';
-            showToast(`Completed: ${title}`);
-            try {
-                await apiFetch('/api/tasks/complete', {
-                    method: 'POST',
-                    body: JSON.stringify({ title })
-                });
-                setTimeout(() => loadTasks(), 600);
-            } catch (err) {
-                showToast(err.message);
-                btn.disabled = false;
+        function prevOnboardStep() {
+            if (currentOnboardStep > 1) {
+                currentOnboardStep--;
+                renderOnboardStep();
+            } else {
+                document.getElementById('onboarding-modal').style.display = 'none';
             }
-        }
-
-        // ========================================================
-        // 5. INFRASTRUCTURE MONITORS
-        // ========================================================
-        async function loadMonitors() {
-            const container = document.getElementById('monitors-container');
-            try {
-                const res = await apiFetch('/api/pc/monitors');
-                const list = await res.json();
-                if (!Array.isArray(list) || list.length === 0) {
-                    container.innerHTML = `<div style="text-align: center; padding: 24px; color: var(--text-muted);">No monitored services configured.</div>`;
-                    return;
-                }
-
-                container.innerHTML = list.map(m => {
-                    const isUp = m.status === 'UP';
-                    const badgeClass = isUp ? 'up' : 'down';
-                    return `
-                        <div class="monitor-card">
-                            <div class="mon-top">
-                                <span class="mon-name">${escapeHtml(m.name)}</span>
-                                <span class="mon-badge ${badgeClass}">${isUp ? '● ONLINE' : '▲ ISSUE'}</span>
-                            </div>
-                            <div class="mon-url">${escapeHtml(m.url)}</div>
-                            <div class="mon-foot">
-                                <span>Latency: <strong>${m.latencyMs || 0}ms</strong></span>
-                                <span>SSL: <strong>${escapeHtml(m.ssl || 'VALID')}</strong></span>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-            } catch (err) {
-                container.innerHTML = `<div style="padding: 16px; color: var(--accent-red);">Failed probing monitors: ${err.message}</div>`;
-            }
-        }
-
-        // Utility: HTML Escaping
-        function escapeHtml(str) {
-            if (!str) return '';
-            return String(str)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#039;');
         }
 
         // Initialize on load
         document.addEventListener('DOMContentLoaded', () => {
-            loadPcStatus();
+            initFemaleVoice();
+            initSpeechRecognition();
         });
     </script>
 </body>

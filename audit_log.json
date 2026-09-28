@@ -1,5 +1,235 @@
 [
   {
+    "timestamp": "2026-09-27T20:12:28.493Z",
+    "user_request": "",
+    "agent_decision": "",
+    "tool_used": "",
+    "action_performed": "",
+    "data_affected": null,
+    "result": "Success",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-27T20:01:34.764Z",
+    "user_request": "",
+    "agent_decision": "",
+    "tool_used": "",
+    "action_performed": "",
+    "data_affected": null,
+    "result": "Success",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-27T16:11:55.866Z",
+    "user_request": "",
+    "agent_decision": "",
+    "tool_used": "",
+    "action_performed": "",
+    "data_affected": null,
+    "result": "Success",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-27T16:06:53.270Z",
+    "user_request": "that's great, save it to pending task will post it later",
+    "agent_decision": "Learned new [fact] memory; superseded 0 outdated memories",
+    "tool_used": "Supabase /memories",
+    "action_performed": "store_memory",
+    "data_affected": "bf7d8ed0-f036-4082-976b-26ddf49272c1",
+    "result": "Swapnil wants to save the current content as a pending task to be posted later.",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-27T16:06:15.972Z",
+    "user_request": "Post LinkedIn & Facebook update about Mikasa AI assistant features and JARVIS inspiration",
+    "agent_decision": "Create task in Personal Portfolio",
+    "tool_used": "Supabase /tasks",
+    "action_performed": "insert",
+    "data_affected": "13cc8d81-6e9e-41b0-ba3a-63e830cfe03a",
+    "result": "Task \"Post LinkedIn & Facebook update about Mikasa AI assistant features and JARVIS inspiration\" registered",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-27T16:04:30.219Z",
+    "user_request": "Update portfolio with new project/build: \"Swapnil recently started exploring the\"",
+    "agent_decision": "Create task in Personal Portfolio",
+    "tool_used": "Supabase /tasks",
+    "action_performed": "insert",
+    "data_affected": "b594b428-8ded-4354-92fd-e65a96a0e72a",
+    "result": "Task \"Update portfolio with new project/build: \"Swapnil recently started exploring the\"\" registered",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-27T16:04:29.542Z",
+    "user_request": "it's better but I need another one try to ignore thos dash(-) that feels like ai and starting like few days ago I was starting exploring about personal ai assistant also mention bifg fan of ironman and jervis like make it more intersting start",
+    "agent_decision": "Learned new [fact] memory; superseded 0 outdated memories",
+    "tool_used": "Supabase /memories",
+    "action_performed": "store_memory",
+    "data_affected": "43949c20-792a-41ae-80c8-29637de26aec",
+    "result": "Swapnil recently started exploring the concept of building a personal AI assistant.",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-27T16:04:28.354Z",
+    "user_request": "it's better but I need another one try to ignore thos dash(-) that feels like ai and starting like few days ago I was starting exploring about personal ai assistant also mention bifg fan of ironman and jervis like make it more intersting start",
+    "agent_decision": "Learned new [preference] memory; superseded 0 outdated memories",
+    "tool_used": "Supabase /memories",
+    "action_performed": "store_memory",
+    "data_affected": "6852bd07-78c4-481a-b606-4f23622b966a",
+    "result": "Swapnil dislikes the use of dashes (-) in text generation because it feels too robotic or AI-like.",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-27T16:04:24.365Z",
+    "user_request": "it's better but I need another one try to ignore thos dash(-) that feels like ai and starting like few days ago I was starting exploring about personal ai assistant also mention bifg fan of ironman and jervis like make it more intersting start",
+    "agent_decision": "Learned new [preference] memory; superseded 0 outdated memories",
+    "tool_used": "Supabase /memories",
+    "action_performed": "store_memory",
+    "data_affected": "6ac2dcba-c2cb-49b2-8a55-724074e90e00",
+    "result": "Swapnil is a big fan of Iron Man and JARVIS.",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-27T16:02:25.819Z",
+    "user_request": "make it more interesting intro and no need to add question at the end, make it sound like interesting then tell about features and want to tell like will upgrade it more and more stay with me for tha update",
+    "agent_decision": "Learned new [preference] memory; superseded 0 outdated memories",
+    "tool_used": "Supabase /memories",
+    "action_performed": "store_memory",
+    "data_affected": "54f7a1cb-1c3e-48ae-b300-d246fd179d8c",
+    "result": "Swapnil prefers engaging and catchy AI intro copy without trailing questions at the end, focusing on the core features followed by a statement about continuous future upgrades.",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-27T15:45:57.553Z",
+    "user_request": "it's too short no need to do it for x only I will post it to LinkedIn and facebook so I need properly describ version of it and try not to use unprofessional emoji",
+    "agent_decision": "Learned new [preference] memory; superseded 0 outdated memories",
+    "tool_used": "Supabase /memories",
+    "action_performed": "store_memory",
+    "data_affected": "a82c3da7-49bc-4ca6-8b7a-daa73ecfff9c",
+    "result": "Swapnil prefers detailed, professional, and clean social media posts for LinkedIn and Facebook without over-the-top or unprofessional emojis.",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-27T15:44:33.805Z",
+    "user_request": "\"umm I want to add more like what mikasa can do for me like search anything for me, searching recent job for me, can read temp, reminder like all that feature in short and easy to understan. no need to mention my project I only want to talk about you\"",
+    "agent_decision": "Learned new [preference] memory; superseded 0 outdated memories",
+    "tool_used": "Supabase /memories",
+    "action_performed": "store_memory",
+    "data_affected": "4f401f08-f782-4b51-a6a2-c61be8f26133",
+    "result": "Swapnil wants the AI assistant (Mikasa) to include features such as general web search, recent job searching, temperature reading, and reminders, explained in a short and easy-to-understand way without mentioning his specific projects.",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-27T15:38:32.343Z",
+    "user_request": "umm I want to add more like what mikasa can do for me like search anything for me, searching recent job for me, can read temp, reminder like all that feature in short and easy to understan. no need to mention my project I only want to talk about you",
+    "agent_decision": "Learned new [preference] memory; superseded 0 outdated memories",
+    "tool_used": "Supabase /memories",
+    "action_performed": "store_memory",
+    "data_affected": "bc2649b0-f483-432c-a365-94c90e6c161d",
+    "result": "Swapnil prefers that conversations focus purely on the AI assistant itself without mentioning his specific projects.",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-27T15:38:29.628Z",
+    "user_request": "umm I want to add more like what mikasa can do for me like search anything for me, searching recent job for me, can read temp, reminder like all that feature in short and easy to understan. no need to mention my project I only want to talk about you",
+    "agent_decision": "Learned new [preference] memory; superseded 0 outdated memories",
+    "tool_used": "Supabase /memories",
+    "action_performed": "store_memory",
+    "data_affected": "70b3f8cf-b6b5-481a-895c-0a3e3fe19e98",
+    "result": "Swapnil wants the AI (referred to as Mikasa) to include capabilities like web searching, recent job searching, reading temperatures, and setting reminders, explained in short and easy-to-understand terms.",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-27T15:36:08.278Z",
+    "user_request": "Update portfolio with new project/build: \"Swapnil wants to create social\"",
+    "agent_decision": "Create task in Personal Portfolio",
+    "tool_used": "Supabase /tasks",
+    "action_performed": "insert",
+    "data_affected": "8861c599-28ae-4d42-ae5d-5a91e6e53b63",
+    "result": "Task \"Update portfolio with new project/build: \"Swapnil wants to create social\"\" registered",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-27T15:36:07.606Z",
+    "user_request": "I want to do a post about you in linkedIn and social media, give me social media upload ready version it should be humanify",
+    "agent_decision": "Learned new [preference] memory; superseded 0 outdated memories",
+    "tool_used": "Supabase /memories",
+    "action_performed": "store_memory",
+    "data_affected": "09c8c537-c210-46ef-81ac-ce412dc4ebf3",
+    "result": "Swapnil wants to create social media and LinkedIn posts about his personal AI system (PATHS/Assistant) with a humanified, engaging tone.",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-27T15:33:07.053Z",
+    "user_request": "",
+    "agent_decision": "",
+    "tool_used": "",
+    "action_performed": "",
+    "data_affected": null,
+    "result": "Success",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-27T15:26:46.573Z",
+    "user_request": "",
+    "agent_decision": "",
+    "tool_used": "",
+    "action_performed": "",
+    "data_affected": null,
+    "result": "Success",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-27T15:20:20.767Z",
+    "user_request": "",
+    "agent_decision": "",
+    "tool_used": "",
+    "action_performed": "",
+    "data_affected": null,
+    "result": "Success",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-27T11:33:14.476Z",
+    "user_request": "Kalke shondhay amake ekta reminder dio free mb claim korar jonno",
+    "agent_decision": "Learned new [fact] memory; superseded 0 outdated memories",
+    "tool_used": "Supabase /memories",
+    "action_performed": "store_memory",
+    "data_affected": "72d25267-4be7-441d-8804-e805b0b0b35d",
+    "result": "Swapnil requested a reminder for tomorrow evening to claim free mobile data (MB).",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-27T11:29:22.691Z",
+    "user_request": "Update portfolio with new project/build: \"personal-portfolio\"",
+    "agent_decision": "Create task in Personal Portfolio",
+    "tool_used": "Supabase /tasks",
+    "action_performed": "insert",
+    "data_affected": "3ebc2a79-55f1-4aef-b2c9-f7fad3d6a3f3",
+    "result": "Task \"Update portfolio with new project/build: \"personal-portfolio\"\" registered",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-27T11:29:21.973Z",
+    "user_request": "Dekhoto amr portfolio er repo te last commit kokhono hoyechilo",
+    "agent_decision": "Learned new [fact] memory; superseded 0 outdated memories",
+    "tool_used": "Supabase /memories",
+    "action_performed": "store_memory",
+    "data_affected": "75e58b9d-ea28-4126-9e75-588a7e3f8077",
+    "result": "Swapnil owns a personal portfolio repository named 'personal-portfolio'.",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-27T11:01:57.663Z",
+    "user_request": "Tomake to bollam dekho amr pc online kina",
+    "agent_decision": "Learned new [workflow] memory; superseded 0 outdated memories",
+    "tool_used": "Supabase /memories",
+    "action_performed": "store_memory",
+    "data_affected": "158f3da6-cecf-4b8a-a9c8-dd3bbbdacbb1",
+    "result": "Swapnil uses a local Bridge setup to allow PATHS to check if his personal PC is online.",
+    "verification_status": "verified"
+  },
+  {
     "timestamp": "2026-09-27T09:48:40.079Z",
     "user_request": "Remember this: I prefer dark theme on VS Code and Antigravity",
     "agent_decision": "Learned new [preference] memory; superseded 0 outdated memories",

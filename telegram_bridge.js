@@ -5620,5 +5620,6 @@ module.exports = {
     triggerMemoryExtraction,
     deliverCvDocument,
     recordConversationTurn,
-    getRecentConversationHistory
+    getRecentConversationHistory,
+    transcribeAudioWithGemini
 };

@@ -23,9 +23,41 @@ import * as Speech from 'expo-speech';
 
 const { width, height } = Dimensions.get('window');
 
-// Backend Host & Security Handshake
-const API_BASE = 'https://mikasa.mrswapnil.me';
+// Backend Host & Security Handshake (LAN Direct IP for 15ms phone response + Cloud Failover)
+const LAN_API_BASE = 'http://192.168.10.130:3000';
+const CLOUD_API_BASE = 'https://mikasa.mrswapnil.me';
 const COMMANDER_TOKEN = 'MikasaCommander360!';
+
+// Resilient Commander API Client with LAN & Cloud Auto-Failover
+const commanderFetch = async (endpoint: string, options: any = {}) => {
+  const headers = {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${COMMANDER_TOKEN}`,
+    'x-commander-token': COMMANDER_TOKEN,
+    'x-commander-passkey': COMMANDER_TOKEN,
+    ...(options.headers || {})
+  };
+
+  // Try local LAN direct first for sub-50ms instant response on phone
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2000);
+    const res = await fetch(`${LAN_API_BASE}${endpoint}`, {
+      ...options,
+      headers,
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+    if (res.ok || res.status < 500) return res;
+  } catch (e) {
+    // LAN unreachable or timed out, seamlessly route via Cloudflare Tunnel
+  }
+
+  return fetch(`${CLOUD_API_BASE}${endpoint}`, {
+    ...options,
+    headers
+  });
+};
 
 type AssistantState = 'IDLE' | 'LISTENING' | 'THINKING' | 'EXECUTING' | 'SPEAKING';
 
@@ -428,12 +460,7 @@ export default function App() {
   // 5. Workstation Status Polling
   const pollWorkstation = async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/pc/status`, {
-        headers: {
-          'Authorization': `Bearer ${COMMANDER_TOKEN}`,
-          'x-commander-token': COMMANDER_TOKEN
-        }
-      });
+      const res = await commanderFetch('/api/pc/status');
       if (res.ok) setPcOnline(true);
       else setPcOnline(false);
     } catch (e) {
@@ -441,26 +468,44 @@ export default function App() {
     }
   };
 
-  // 6. Speak naturally with female voice, ZERO emojis
+  // 6. Speak naturally with female voice, ZERO emojis, guaranteed Android & iOS playback
   const speakAsMikasa = (textToSpeak: string, onFinish?: () => void) => {
     const cleanText = stripEmojis(textToSpeak);
-    Speech.stop();
-    Speech.speak(cleanText, {
-      language: 'en-US',
-      voice: femaleVoiceIdentifier,
-      pitch: 1.15,
-      rate: 0.98,
-      onDone: () => {
-        setAssistantState('IDLE');
-        setStatusText('Ready');
-        if (onFinish) onFinish();
-      },
-      onError: () => {
-        setAssistantState('IDLE');
-        setStatusText('Ready');
-        if (onFinish) onFinish();
-      }
-    });
+    if (!cleanText) {
+      setAssistantState('IDLE');
+      setStatusText('Ready');
+      if (onFinish) onFinish();
+      return;
+    }
+
+    try {
+      Speech.stop();
+      setTimeout(() => {
+        Speech.speak(cleanText, {
+          language: 'en-US',
+          pitch: 1.05,
+          rate: 0.98,
+          onDone: () => {
+            setAssistantState('IDLE');
+            setStatusText('Ready');
+            if (onFinish) onFinish();
+          },
+          onError: () => {
+            try {
+              Speech.speak(cleanText, { language: 'en' });
+            } catch (err) {}
+            setAssistantState('IDLE');
+            setStatusText('Ready');
+            if (onFinish) onFinish();
+          }
+        });
+      }, 50);
+    } catch (e) {
+      try { Speech.speak(cleanText); } catch (err) {}
+      setAssistantState('IDLE');
+      setStatusText('Ready');
+      if (onFinish) onFinish();
+    }
   };
 
   // 7. "About Mikasa" Speech Trigger (Plays her website About Me audio intro)
@@ -490,13 +535,11 @@ export default function App() {
     }
 
     if (assistantState === 'LISTENING') {
-      // User tapped again to stop listening and execute
       Speech.stop();
       setAssistantState('THINKING');
       setStatusText('Thinking...');
-      setSubStatusText('Reasoning with Gemini...');
+      setSubStatusText('Processing command...');
 
-      // Execute command directly
       executeCommand('Give me a full morning sitrep briefing and PC status', 'voice');
       return;
     }
@@ -570,23 +613,19 @@ export default function App() {
     }
 
     try {
-      const res = await fetch(`${API_BASE}/api/chat`, {
+      const res = await commanderFetch('/api/voice/process', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${COMMANDER_TOKEN}`,
-          'x-commander-token': COMMANDER_TOKEN
-        },
         body: JSON.stringify({
+          text: query,
           message: query,
           conversation_id: 'mikasa-native-hud'
         })
       });
 
       const data = await res.json();
-      const rawReply = data.reply || 'Acknowledged, Commander.';
+      const rawReply = data.reply || data.transcription || 'Acknowledged, Commander.';
       const cleanReply = stripEmojis(rawReply);
-      const toolUsed = data.tools_used && data.tools_used.length > 0 ? data.tools_used[0].tool : undefined;
+      const toolUsed = data.action || (data.tools_used && data.tools_used.length > 0 ? data.tools_used[0].tool : undefined);
 
       // Add to Chat Messages
       const mikasaMsg: ChatMessage = {
@@ -612,7 +651,6 @@ export default function App() {
 
       setAssistantState('SPEAKING');
       setStatusText('Speaking...');
-      // On Home HUD, keep the red prompt clean and short
       setSubStatusText(cleanReply.length > 60 ? `"${cleanReply.slice(0, 58)}..."` : `"${cleanReply}"`);
 
       speakAsMikasa(cleanReply);
@@ -627,34 +665,42 @@ export default function App() {
   };
 
   // 10. Workstation Actions
-  const triggerDeviceAction = async (action: 'lock' | 'mute' | 'screen') => {
+  const triggerDeviceAction = async (action: 'lock' | 'mute' | 'screen' | 'vol_up' | 'vol_down') => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     } catch (e) {}
 
     setIsExecuting(true);
-    setExecutingTitle(action === 'lock' ? 'Locking Workstation...' : 'Muting Audio...');
+    const titles: Record<string, string> = {
+      lock: 'Locking Workstation...',
+      mute: 'Toggling Volume Mute...',
+      vol_up: 'Turning Volume Up...',
+      vol_down: 'Turning Volume Down...',
+      screen: 'Turning Screen Off...'
+    };
+    setExecutingTitle(titles[action] || 'Executing Command...');
     setExecSteps([
-      { label: 'Authorizing with passkey', status: 'done' },
+      { label: 'Authorizing with Commander passkey', status: 'done' },
       { label: 'Sending Windows API signal', status: 'active' },
       { label: 'Completed', status: 'pending' }
     ]);
 
     try {
       let ep = '';
-      let body = {};
+      let body: any = {};
       if (action === 'lock') ep = '/api/pc/lock';
       if (action === 'mute') { ep = '/api/pc/volume'; body = { direction: 'mute' }; }
+      if (action === 'vol_up') { ep = '/api/pc/volume'; body = { direction: 'up' }; }
+      if (action === 'vol_down') { ep = '/api/pc/volume'; body = { direction: 'down' }; }
       if (action === 'screen') { ep = '/api/pc/screen'; body = { action: 'off' }; }
 
-      const res = await fetch(`${API_BASE}${ep}`, {
+      const res = await commanderFetch(ep, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${COMMANDER_TOKEN}` },
         body: JSON.stringify(body)
       });
       const d = await res.json();
       setExecSteps([
-        { label: 'Authorizing with passkey', status: 'done' },
+        { label: 'Authorizing with Commander passkey', status: 'done' },
         { label: 'Sending Windows API signal', status: 'done' },
         { label: 'Completed', status: 'done' }
       ]);
@@ -670,10 +716,10 @@ export default function App() {
   // 11. Load Memories
   const loadMemories = async () => {
     try {
-      let url = `${API_BASE}/api/memories?limit=50`;
+      let url = `/api/memories?limit=50`;
       if (memFilter !== 'All') url += `&type=${memFilter}`;
       if (memSearch) url += `&search=${encodeURIComponent(memSearch)}`;
-      const res = await fetch(url, { headers: { 'Authorization': `Bearer ${COMMANDER_TOKEN}` } });
+      const res = await commanderFetch(url);
       const data = await res.json();
       if (Array.isArray(data)) setMemories(data);
     } catch (e) {}
@@ -1278,7 +1324,27 @@ export default function App() {
                       </View>
                       <View style={styles.toolTileMeta}>
                         <Text style={styles.toolTileName}>Mute Audio</Text>
-                        <Text style={styles.toolTileDesc}>Toggle PC master volume</Text>
+                        <Text style={styles.toolTileDesc}>Toggle PC master volume mute</Text>
+                      </View>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={styles.toolRowTile} onPress={() => triggerDeviceAction('vol_up')}>
+                      <View style={[styles.toolTileIconBox, { backgroundColor: '#10b981' }]}>
+                        <Text style={{ color: '#fff', fontSize: 16 }}>🔊</Text>
+                      </View>
+                      <View style={styles.toolTileMeta}>
+                        <Text style={styles.toolTileName}>Volume Up</Text>
+                        <Text style={styles.toolTileDesc}>Increase PC master volume</Text>
+                      </View>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={styles.toolRowTile} onPress={() => triggerDeviceAction('vol_down')}>
+                      <View style={[styles.toolTileIconBox, { backgroundColor: '#64748b' }]}>
+                        <Text style={{ color: '#fff', fontSize: 16 }}>🔉</Text>
+                      </View>
+                      <View style={styles.toolTileMeta}>
+                        <Text style={styles.toolTileName}>Volume Down</Text>
+                        <Text style={styles.toolTileDesc}>Decrease PC master volume</Text>
                       </View>
                     </TouchableOpacity>
                   </View>

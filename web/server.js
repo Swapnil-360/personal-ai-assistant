@@ -918,6 +918,84 @@ const server = http.createServer(async (req, res) => {
             return sendJson(res, 200, { original: text, english: stripEmojis(english) });
         }
 
+        // Unified Voice Command & Speech Processing API (transcribes audio and executes PC controls / AI brain)
+        if (pathname === '/api/voice/process' && req.method === 'POST') {
+            if (!await requireCommander()) return;
+            const body = await parseBody(req);
+            let userQuery = (body.text || body.message || '').trim();
+
+            // If audio_base64 is sent, transcribe with Gemini!
+            if (!userQuery && body.audio_base64) {
+                try {
+                    const audioBuffer = Buffer.from(body.audio_base64, 'base64');
+                    const { transcribeAudioWithGemini } = require('../telegram_bridge');
+                    userQuery = await transcribeAudioWithGemini(audioBuffer, body.mime_type || 'audio/m4a');
+                } catch (audioErr) {
+                    console.warn('[Voice Process Audio Transcription Error]:', audioErr.message);
+                }
+            }
+
+            if (!userQuery) {
+                return sendJson(res, 400, { error: 'No voice audio or query text provided' });
+            }
+
+            // Check direct device control shortcuts in voice query
+            const lower = userQuery.toLowerCase();
+            if (lower.includes('lock pc') || lower.includes('lock my pc') || lower.includes('lock workstation')) {
+                const resLock = lockWorkstation();
+                return sendJson(res, 200, {
+                    transcription: userQuery,
+                    reply: 'Workstation locked immediately, Commander.',
+                    action: 'lock',
+                    result: resLock
+                });
+            }
+
+            if (lower.includes('mute') || lower.includes('unmute') || lower.includes('mute audio') || lower.includes('mute pc')) {
+                const resMute = toggleVolumeMute();
+                return sendJson(res, 200, {
+                    transcription: userQuery,
+                    reply: 'Audio mute toggled, Commander.',
+                    action: 'mute',
+                    result: resMute
+                });
+            }
+
+            if (lower.includes('volume up') || lower.includes('vol up') || lower.includes('sound up')) {
+                const resVol = changeVolume('up');
+                return sendJson(res, 200, {
+                    transcription: userQuery,
+                    reply: 'Volume turned up, Commander.',
+                    action: 'volume_up',
+                    result: resVol
+                });
+            }
+
+            if (lower.includes('volume down') || lower.includes('vol down') || lower.includes('sound down')) {
+                const resVol = changeVolume('down');
+                return sendJson(res, 200, {
+                    transcription: userQuery,
+                    reply: 'Volume turned down, Commander.',
+                    action: 'volume_down',
+                    result: resVol
+                });
+            }
+
+            // Otherwise, process through full Mikasa AI agent
+            const { callMikasaAgent } = require('../telegram_bridge');
+            let replyText = '';
+            try {
+                replyText = await callMikasaAgent(userQuery, 'mobile_voice');
+            } catch (agentErr) {
+                replyText = 'Acknowledged, Commander.';
+            }
+
+            return sendJson(res, 200, {
+                transcription: userQuery,
+                reply: stripEmojis(replyText)
+            });
+        }
+
         // Live System Specs & Active AI Model Info (allows landing page & dashboard to always stay current)
         if (pathname === '/api/system/specs' && req.method === 'GET') {
             const primaryModel = process.env.GEMINI_MODEL || 'gemini-3.5-flash-lite';

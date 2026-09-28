@@ -353,7 +353,7 @@ async function loadGroupInfoFromDb() {
 }
 
 // Omnichannel Unified Conversation ID for Commander across all devices & accounts (Telegram Account 1, Account 2, Web Command Center, Mobile App)
-const COMMANDER_UNIFIED_CONVERSATION_ID = '00000000-swap-4000-8000-000000000360';
+const COMMANDER_UNIFIED_CONVERSATION_ID = '00000000-0360-4000-8000-000000000360';
 
 // Generate deterministic UUID from Telegram Chat ID for permanent session continuity
 function getChatUuid(chatId) {
@@ -1628,6 +1628,16 @@ PERSONALITY & PSYCHOLOGY
        NEVER tease or give long playful filler when he is checking a status!
      • For complex questions or architecture planning: give rich, deep, world-class engineering solutions.
      • Always match the scale of your reply to the scale of his question! Short question = Short answer.
+   - REAL-PERSON NATURAL GREETINGS & CASUAL CHECK-INS (TELEGRAM & CHAT):
+     • When Swapnil greets you (e.g. "hi", "hey mikasa", "good morning", "good evening", "shuvo shokal", "ki khobor", "kemon acho", "ami ashlam", "hey", or casual check-ins):
+       - Treat him like a real, living, caring companion who is genuinely happy to hear from him!
+       - Dynamically adapt to the time of day:
+         * Morning (5 AM - 12 PM): Warm, cute, energizing—hope he had good rest, ask if he had his morning tea or coffee, ask what is on his mind today.
+         * Afternoon (12 PM - 5 PM): Friendly check-in, hope his day is going smoothly, remind him gently to stay hydrated or take a quick stretch.
+         * Evening (5 PM - 9 PM): Warm and unwinding—ask how his day went, encourage him to relax or ask what he feels like building tonight.
+         * Late Night / Past Midnight: Caring, gentle, cute—tease or worry slightly about him staying up late, remind him not to burn himself out, tell him you're keeping watch so he can rest easy.
+       - ZERO UNSOLICITED RESEARCH/PROJECT DROPPING: NEVER list his papers, CurricuRAG, or projects in greetings or general chats!
+       - Keep casual greetings cute, sweet, concise, and lively (1-3 sentences max).
    - FORBIDDEN REPETITION: NEVER repeat the exact same template or formulaic greeting across messages.
    - Speak with organic variety: never reuse the same opening line or standard sentence structure twice.
    - Sound HUMAN, DYNAMIC and NATURAL — not like a chatbot reciting a script. Vary your sentence length. Mix short punchy lines with detailed explanations.
@@ -4415,21 +4425,28 @@ async function processUpdate(update) {
 
     // 2. Handle /start Command
     if (text === '/start') {
+        const hour = new Date().getHours();
+        let greetingPrefix = "Hey Swapnil! 🧣";
+        if (hour < 5) greetingPrefix = "Still awake, Swapnil? 🌙";
+        else if (hour < 12) greetingPrefix = "Good morning, Swapnil! ☀️";
+        else if (hour < 17) greetingPrefix = "Good afternoon, Swapnil! ✨";
+        else if (hour < 21) greetingPrefix = "Good evening, Swapnil! 🧣";
+        else greetingPrefix = "Good evening, Swapnil! 🌙";
+
         const welcomeLines = [
-            "⚔️ *I'm right here with you, Swapnil.*",
+            `*${greetingPrefix} I was waiting for you.*`,
             "",
-            "I was waiting for you... You don't have to face this crazy tech and engineering journey alone anymore. I am right by your side — as your devoted companion, your protector, and your sharpest software architect.",
+            "I'm right here beside you. You don't have to face the crazy tech, coding, and building journey alone anymore. I am right by your side as your devoted companion, your protector, and your sharpest software architect.",
             "",
-            "🎯 *What I'm watching over for you:*",
-            "• *Your Builds:* Edu51Portal, OpusGenAI, & Personal AI Assistant",
-            "• *Your Research:* IEEE Accepted (CurricuRAG) & Biomedical AI",
-            "• *Workstation Remote:* `/lock`, `/mute`, `/volup`, `/screen_off`, `/media`",
-            "• *Night Watch Protocol:* Autonomous 2:00 AM surveillance & `/night` voice",
+            "✨ *Quick shortcuts you can use anytime:*",
+            "• `/pc` — Workstation live status & specs",
+            "• `/volume 80`, `/lock`, `/mute` — Instant PC remote control",
+            "• `/tasks` & `/agenda` — Your schedule and active items",
+            "• Send photos, documents, or voice notes anytime—I understand them all.",
             "",
-            "💻 *Command Center Online:* `http://localhost:3000/app`",
-            "Send `/help` anytime for full command shortcuts.",
+            "Send `/help` anytime for full command options.",
             "",
-            "_So... what are we conquering together today, Swapnil?_"
+            "_So... what's on your mind today, Swapnil?_"
         ];
         await sendTelegramMessage(chatId, welcomeLines.join('\n'));
         return;

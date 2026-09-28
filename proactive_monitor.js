@@ -152,19 +152,19 @@ async function runMorningBriefing(commanderChatIds, sendTelegramMessage, force =
             } catch (e) {}
 
             const sitrepLines = [
-                "🌅 *Good Morning, Commander Swapnil! — Sitrep Briefing* 🧣",
+                "Good morning, Swapnil! ☀️ Hope you had a restful sleep. 🧣",
                 "─────────────────────────",
-                `🌤️ *Weather (Dhaka):* ${weatherSummary}`,
+                `🌤️ *Weather in Dhaka:* ${weatherSummary}`,
                 "",
-                "🎯 *High-Priority Engineering Targets:*",
+                "🎯 *Your Agenda & Active Tasks:*",
                 tasksSummary,
                 "",
                 "⏰ *Scheduled Reminders:*",
                 remSummary,
                 "",
-                gitSummary ? `🐙 *GitHub Radar:*\n${gitSummary}\n` : "",
+                gitSummary ? `🐙 *Recent Workstation Activity:*\n${gitSummary}\n` : "",
                 "─────────────────────────",
-                "_All systems online and synced. What are we shipping first today, Commander?_ ⚔️"
+                "_I'm right here beside you. Ready whenever you are to make today great!_ ✨"
             ].filter(Boolean).join('\n');
 
             for (const chatId of chatIds) {
@@ -201,12 +201,12 @@ async function runLateNightCheck(commanderChatIds, sendTelegramMessage, sendTele
         console.log(`[Proactive Monitor] 🌙 Triggering ${force ? 'On-Demand' : '2:00 AM'} Late Night Rest Alert with over_night.mp3 for: ${chatIds.join(', ')}...`);
 
         const alertMsg = [
-            "🌙 *Mikasa Security Protocol — Late Night Watch* 🧣",
+            "Still awake, Swapnil? 🌙",
             "",
-            "Swapnil, it is past 2:00 AM. You have pushed code and built relentlessly today.",
-            "Make sure to save your work and get proper rest so your mind stays sharp tomorrow.",
+            "It's already past 2:00 AM! You worked so hard and built so much today.",
+            "Please make sure to wrap up and get some sleep soon so you don't burn out.",
             "",
-            "_I will keep watch over the server and perimeter while you sleep._ ⚔️"
+            "_Don't worry about a thing—I'm staying right here watching over the system while you rest._ 🧣✨"
         ].join('\n');
 
         const audioPath = path.resolve(__dirname, 'web/audio/over_night.mp3');

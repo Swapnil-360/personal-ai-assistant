@@ -31,11 +31,13 @@ import * as Haptics from 'expo-haptics';
 import * as Speech from 'expo-speech';
 import { CameraView, Camera } from 'expo-camera';
 import * as Location from 'expo-location';
-import { Audio } from 'expo-av';
 import {
+  useAudioRecorder,
+  RecordingPresets,
   setAudioModeAsync,
   requestRecordingPermissionsAsync,
-  getRecordingPermissionsAsync
+  getRecordingPermissionsAsync,
+  createAudioPlayer
 } from 'expo-audio';
 import * as FileSystem from 'expo-file-system/legacy';
 
@@ -358,8 +360,7 @@ export default function App() {
 
   const listeningTimerRef = useRef<any>(null);
   const activeAudioPlayerRef = useRef<any>(null);
-  // Use expo-av Audio.Recording (stable in Expo Go, works on Android & iOS)
-  const recordingRef = useRef<Audio.Recording | null>(null);
+  const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const isRecordingAudioRef = useRef(false);
 
   // Initialize Audio & Query Hardware Permissions on App Start
@@ -378,8 +379,8 @@ export default function App() {
         setMicPermissionGranted(mic.granted);
       } catch (e) {
         try {
-          const { status } = await Audio.requestPermissionsAsync();
-          setMicPermissionGranted(status === 'granted');
+          const mic = await Camera.getMicrophonePermissionsAsync();
+          setMicPermissionGranted(mic.granted);
         } catch (e2) {
           setMicPermissionGranted(false);
         }
@@ -418,15 +419,15 @@ export default function App() {
     try {
       const res = await requestRecordingPermissionsAsync();
       setMicPermissionGranted(res.granted);
-      if (res.granted) return true;
-    } catch (e) {}
-    try {
-      const { status } = await Audio.requestPermissionsAsync();
-      const granted = status === 'granted';
-      setMicPermissionGranted(granted);
-      return granted;
-    } catch (e2) {
-      return false;
+      return res.granted;
+    } catch (e) {
+      try {
+        const res = await Camera.requestMicrophonePermissionsAsync();
+        setMicPermissionGranted(res.granted);
+        return res.granted;
+      } catch (e2) {
+        return false;
+      }
     }
   };
 
@@ -769,7 +770,7 @@ export default function App() {
     speakAsMikasa(introSpeech);
   };
 
-  // 7. Voice: Stop & Process using expo-av Recording
+  // 7. Voice: Stop & Process using expo-audio recorder
   const stopAndProcessVoice = async () => {
     if (listeningTimerRef.current) {
       clearTimeout(listeningTimerRef.current);
@@ -784,16 +785,15 @@ export default function App() {
 
     let audioUri: string | null = null;
     try {
-      await recordingRef.current?.stopAndUnloadAsync();
-      audioUri = recordingRef.current?.getURI() || null;
-      recordingRef.current = null;
+      await audioRecorder.stop();
+      audioUri = audioRecorder.uri || null;
     } catch (stopErr: any) {
-      console.warn('[Recording Stop Error]:', stopErr.message);
+      console.warn('[Recording Stop Error]:', stopErr?.message || stopErr);
     }
 
-    // Reset audio mode for playback
+    // Reset audio mode for TTS playback
     try {
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true });
+      await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
     } catch (e) {}
 
     if (!audioUri) {
@@ -807,7 +807,7 @@ export default function App() {
     try {
       base64Audio = await FileSystem.readAsStringAsync(audioUri, { encoding: FileSystem.EncodingType.Base64 });
     } catch (fsErr: any) {
-      console.warn('[Base64 Read Error]:', fsErr.message);
+      console.warn('[Base64 Read Error]:', fsErr?.message || fsErr);
     }
 
     if (!base64Audio) {
@@ -853,8 +853,18 @@ export default function App() {
       }, ...prev.slice(0, 9)]);
 
       // Handle alarm/reminder phone actions from server
-      if (data.alarm || (data.reminder && data.alarm)) {
-        Alert.alert('⏰ Alarm Set', `"${transcribedQuery}" → Alarm at ${new Date(data.alarm?.time || Date.now()).toLocaleTimeString()}`, [{ text: 'OK' }]);
+      const phoneActions: any[] = data.phone_actions || [];
+      for (const pa of phoneActions) {
+        if (pa.type === 'SET_ALARM' || pa.type === 'alarm_set') {
+          const t = pa.time ? new Date(pa.time) : null;
+          Alert.alert('⏰ Alarm Set', `"${pa.label || transcribedQuery}" at ${t ? t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Scheduled'}`, [{ text: 'OK' }]);
+        }
+        if (pa.type === 'SET_CALENDAR_EVENT' && pa.gcal_url) {
+          Alert.alert('📅 Add to Calendar', `Open Google Calendar for: "${pa.title || transcribedQuery}"?`, [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Open Calendar', onPress: () => Linking.openURL(pa.gcal_url) }
+          ]);
+        }
       }
 
       const cleanReply = stripEmojis(rawReply || 'Acknowledged, Commander.');
@@ -875,7 +885,7 @@ export default function App() {
         setSubStatusText('"How can I help you, Commander?"');
       });
     } catch (apiErr: any) {
-      console.warn('[Voice API Error]:', apiErr.message);
+      console.warn('[Voice API Error]:', apiErr?.message || apiErr);
       setAssistantState('IDLE');
       setStatusText('Ready');
       setSubStatusText('"Voice processing failed"');
@@ -933,12 +943,10 @@ export default function App() {
     Speech.stop();
 
     try {
-      // Use expo-av Audio.Recording for reliable cross-device voice capture in Expo Go
-      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
-      const { recording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
-      );
-      recordingRef.current = recording;
+      // Set audio mode for recording
+      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+      await audioRecorder.prepareToRecordAsync();
+      audioRecorder.record();
       isRecordingAudioRef.current = true;
 
       setAssistantState('LISTENING');
@@ -949,11 +957,11 @@ export default function App() {
       if (listeningTimerRef.current) clearTimeout(listeningTimerRef.current);
       listeningTimerRef.current = setTimeout(() => { stopAndProcessVoice(); }, 10000);
     } catch (recordErr: any) {
-      console.warn('[Audio Record Start Error]:', recordErr.message);
+      console.warn('[Audio Record Start Error]:', recordErr?.message || recordErr);
       setAssistantState('IDLE');
       setStatusText('Ready');
       setSubStatusText('"Microphone error — check permissions"');
-      Alert.alert('Recording Error', 'Could not start microphone: ' + (recordErr.message || 'Unknown error. Try restarting the app.'));
+      Alert.alert('Recording Error', 'Could not start microphone: ' + (recordErr?.message || 'Unknown error. Try restarting the app.'));
     }
   };
 

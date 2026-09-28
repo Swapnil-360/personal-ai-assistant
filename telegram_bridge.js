@@ -5772,48 +5772,83 @@ async function startPolling() {
     loadGroupMembersFromDb();
     loadGroupInfoFromDb();
 
-    // Initialize proactive reminders engine
-    remindersManager.init((rem) => {
+    // Initialize proactive reminders engine with distributed claim & commander multi-account dispatch
+    remindersManager.init(async (rem) => {
+        // If Cloud and Local PC is active, don't duplicate reminders either
+        if (IS_RENDER_CLOUD && (await checkIsLocalActive())) {
+            console.log(`[Reminder] Local PC is active, cloud yielding reminder: "${rem.text}"`);
+            return;
+        }
+
+        // Distributed claim to avoid duplicate reminder execution across processes
+        const claimed = await claimTelegramMessage(`rem_fire_${rem.id}`);
+        if (!claimed) {
+            console.log(`[Reminder] Reminder "${rem.text}" (${rem.id}) already claimed by other active instance.`);
+            return;
+        }
+
         console.log(`[Reminder Fired]: "${rem.text}" for Chat ${rem.chatId}`);
-        if (rem.draftContent) {
-            const platformName = (rem.platform || 'LinkedIn').toUpperCase();
-            const encoded = encodeURIComponent(rem.draftContent);
-            const shareUrl = rem.platform === 'twitter' || rem.platform === 'x'
-                ? `https://twitter.com/intent/tweet?text=${encoded}`
-                : `https://www.linkedin.com/feed/?shareActive=true&text=${encoded}`;
 
-            const alert = [
-                `⏰ *Scheduled Post Alert from Mikasa, Swapnil!* 🧣`,
-                `━━━━━━━━━━━━━━━━━━━━━━━━━`,
-                `💼 *Platform:* ${platformName}`,
-                `📌 *Task:* *"${rem.text}"*`,
-                ``,
-                `📝 *Your Saved Draft:*`,
-                `\`\`\`\n${rem.draftContent}\n\`\`\``,
-                ``,
-                `_Ready to share? Tap below to open directly on ${platformName} with this text pre-filled:_`
-            ].join('\n');
+        // If reminder belongs to Commander, broadcast to all registered Commander accounts
+        const isCommander = isCommanderUser(rem.chatId);
+        const targetChatIds = isCommander ? Array.from(COMMANDER_USER_IDS) : [rem.chatId];
 
-            const markup = {
-                inline_keyboard: [
-                    [{ text: `🚀 1-Tap Share on ${platformName}`, url: shareUrl }]
-                ]
-            };
-            sendTelegramMessage(rem.chatId, alert, null, markup);
-        } else {
-            const alertText = `⏰ *Reminder from Mikasa, Swapnil!*\n\n*"${rem.text}"*\n\n_I promised I'd keep you on track. Ready to execute on this now?_`;
-            sendTelegramMessage(rem.chatId, alertText);
+        for (const targetId of targetChatIds) {
+            if (rem.draftContent) {
+                const platformName = (rem.platform || 'LinkedIn').toUpperCase();
+                const encoded = encodeURIComponent(rem.draftContent);
+                const shareUrl = rem.platform === 'twitter' || rem.platform === 'x'
+                    ? `https://twitter.com/intent/tweet?text=${encoded}`
+                    : `https://www.linkedin.com/feed/?shareActive=true&text=${encoded}`;
+
+                const alert = [
+                    `⏰ *Scheduled Post Alert from Mikasa, Swapnil!* 🧣`,
+                    `━━━━━━━━━━━━━━━━━━━━━━━━━`,
+                    `💼 *Platform:* ${platformName}`,
+                    `📌 *Task:* *"${rem.text}"*`,
+                    ``,
+                    `📝 *Your Saved Draft:*`,
+                    `\`\`\`\n${rem.draftContent}\n\`\`\``,
+                    ``,
+                    `_Ready to share? Tap below to open directly on ${platformName} with this text pre-filled:_`
+                ].join('\n');
+
+                const markup = {
+                    inline_keyboard: [
+                        [{ text: `🚀 1-Tap Share on ${platformName}`, url: shareUrl }]
+                    ]
+                };
+                sendTelegramMessage(targetId, alert, null, markup);
+            } else {
+                const alertText = `⏰ *Reminder from Mikasa, Swapnil!*\n\n*"${rem.text}"*\n\n_I promised I'd keep you on track. Ready to execute on this now?_`;
+                sendTelegramMessage(targetId, alertText);
+            }
         }
     });
 
     // Initialize Proactive Surveillance Engine (Battery watcher, 8:30 AM Sitrep, Late Night Watch)
     proactiveMonitorInstance = initProactiveMonitor({
+        getCommanderChatIds: () => {
+            return Array.from(COMMANDER_USER_IDS).filter(id => !isNaN(id) && id > 0);
+        },
         getCommanderChatId: () => {
             return Array.from(COMMANDER_USER_IDS)[0] || 7112137739;
         },
         sendTelegramMessage: (chatId, text) => sendTelegramMessage(chatId, text),
         sendTelegramAudioBuffer: (chatId, buffer, filename, caption, title, performer) =>
-            sendTelegramAudioBuffer(chatId, buffer, filename, caption, title, performer)
+            sendTelegramAudioBuffer(chatId, buffer, filename, caption, title, performer),
+        isLeader: async () => {
+            if (IS_RENDER_CLOUD) {
+                const localActive = await checkIsLocalActive();
+                if (localActive) {
+                    return false;
+                }
+            }
+            return true;
+        },
+        claimEvent: async (key) => {
+            return await claimTelegramMessage(`proact_${key}`);
+        }
     });
 
     console.log(`[Telegram Bridge] 🚀 Long polling active (${IS_RENDER_CLOUD ? 'Cloud 24/7 Mode' : 'Local PC Mode'})...`);

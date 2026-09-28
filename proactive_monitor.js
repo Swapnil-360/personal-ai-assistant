@@ -18,8 +18,29 @@ function getDhakaTime() {
     return new Date(utc + (3600000 * 6));
 }
 
-async function runBatteryCheck(commanderChatId, sendTelegramMessage, sendTelegramAudioBuffer) {
-    if (!commanderChatId) return;
+function resolveChatIds(input) {
+    if (!input) return [];
+    if (typeof input === 'function') {
+        try {
+            return resolveChatIds(input());
+        } catch (e) {
+            return [];
+        }
+    }
+    if (input instanceof Set) {
+        return Array.from(input).map(Number).filter(id => !isNaN(id) && id > 0);
+    }
+    if (Array.isArray(input)) {
+        return Array.from(new Set(input.map(Number))).filter(id => !isNaN(id) && id > 0);
+    }
+    const num = Number(input);
+    return (!isNaN(num) && num > 0) ? [num] : [];
+}
+
+async function runBatteryCheck(commanderChatIds, sendTelegramMessage, sendTelegramAudioBuffer) {
+    const chatIds = resolveChatIds(commanderChatIds);
+    if (chatIds.length === 0) return;
+
     try {
         const sys = await getSystemInfo();
         const battery = sys.battery;
@@ -33,24 +54,31 @@ async function runBatteryCheck(commanderChatId, sendTelegramMessage, sendTelegra
         if (percent <= 20 && !isCharging) {
             if (now - lastBatteryAlertAt > 45 * 60 * 1000) { // Alert once per 45 min
                 lastBatteryAlertAt = now;
-                console.log(`[Proactive Monitor] ⚠️ Low battery detected: ${percent}% (Discharging). Dispatching alert...`);
+                console.log(`[Proactive Monitor] ⚠️ Low battery detected: ${percent}% (Discharging). Dispatching alert to ${chatIds.join(', ')}...`);
 
                 const alertText = `⚠️ *Mikasa Hardware Surveillance — Low Battery!* ⚡\n\nSwapnil, your PC (Swapnil-PC) battery is at *${percent}%* and running on battery power. Please plug in the charger so our work and coding sessions stay safe! 🧣`;
-                if (typeof sendTelegramMessage === 'function') {
-                    await sendTelegramMessage(commanderChatId, alertText);
-                }
 
-                // Deliver voice warning
+                let audioWav = null;
                 if (typeof sendTelegramAudioBuffer === 'function') {
                     try {
                         const voiceText = `Commander Swapnil, your PC battery is at ${percent} percent and discharging. Please connect your charger.`;
                         const res = await synthesizeGeminiVoice(voiceText, 'Kore');
-                        const wav = Buffer.isBuffer(res) ? res : res?.wav;
-                        if (wav) {
-                            await sendTelegramAudioBuffer(commanderChatId, wav, 'battery_alert.wav', '🧣 Battery Warning', 'Mikasa Security Alert', 'Mikasa Ackerman');
-                        }
+                        audioWav = Buffer.isBuffer(res) ? res : res?.wav;
                     } catch (e) {
                         console.warn('[Proactive Monitor] Voice battery alert error:', e.message);
+                    }
+                }
+
+                for (const chatId of chatIds) {
+                    if (typeof sendTelegramMessage === 'function') {
+                        await sendTelegramMessage(chatId, alertText);
+                    }
+                    if (audioWav && typeof sendTelegramAudioBuffer === 'function') {
+                        try {
+                            await sendTelegramAudioBuffer(chatId, audioWav, 'battery_alert.wav', '🧣 Battery Warning', 'Mikasa Security Alert', 'Mikasa Ackerman');
+                        } catch (err) {
+                            console.warn(`[Proactive Monitor] Failed sending battery voice to ${chatId}:`, err.message);
+                        }
                     }
                 }
             }
@@ -63,8 +91,10 @@ async function runBatteryCheck(commanderChatId, sendTelegramMessage, sendTelegra
     }
 }
 
-async function runMorningBriefing(commanderChatId, sendTelegramMessage, force = false) {
-    if (!commanderChatId) return;
+async function runMorningBriefing(commanderChatIds, sendTelegramMessage, force = false, claimEvent = null) {
+    const chatIds = resolveChatIds(commanderChatIds);
+    if (chatIds.length === 0) return;
+
     const dhakaNow = getDhakaTime();
     const todayStr = dhakaNow.toISOString().slice(0, 10);
     const hour = dhakaNow.getHours();
@@ -72,8 +102,16 @@ async function runMorningBriefing(commanderChatId, sendTelegramMessage, force = 
 
     // Trigger daily between 8:30 AM and 8:45 AM or if explicitly requested (force = true)
     if (force || (hour === 8 && minute >= 30 && minute <= 45 && lastMorningBriefingDate !== todayStr)) {
+        if (!force && typeof claimEvent === 'function') {
+            const claimed = await claimEvent(`morning_sitrep_${todayStr}`);
+            if (!claimed) {
+                console.log(`[Proactive Monitor] 🌅 Morning briefing for ${todayStr} already claimed by another active instance. Skipping.`);
+                lastMorningBriefingDate = todayStr;
+                return;
+            }
+        }
         if (!force) lastMorningBriefingDate = todayStr;
-        console.log(`[Proactive Monitor] 🌅 Triggering ${force ? 'On-Demand' : '8:30 AM'} Morning Sitrep for Commander Swapnil...`);
+        console.log(`[Proactive Monitor] 🌅 Triggering ${force ? 'On-Demand' : '8:30 AM'} Morning Sitrep for Commander Swapnil (${chatIds.join(', ')})...`);
 
         try {
             // 1. Gather Weather
@@ -129,8 +167,10 @@ async function runMorningBriefing(commanderChatId, sendTelegramMessage, force = 
                 "_All systems online and synced. What are we shipping first today, Commander?_ ⚔️"
             ].filter(Boolean).join('\n');
 
-            if (typeof sendTelegramMessage === 'function') {
-                await sendTelegramMessage(commanderChatId, sitrepLines);
+            for (const chatId of chatIds) {
+                if (typeof sendTelegramMessage === 'function') {
+                    await sendTelegramMessage(chatId, sitrepLines);
+                }
             }
         } catch (err) {
             console.warn('[Proactive Monitor] Morning briefing error:', err.message);
@@ -138,8 +178,10 @@ async function runMorningBriefing(commanderChatId, sendTelegramMessage, force = 
     }
 }
 
-async function runLateNightCheck(commanderChatId, sendTelegramMessage, sendTelegramAudioBuffer, force = false) {
-    if (!commanderChatId) return;
+async function runLateNightCheck(commanderChatIds, sendTelegramMessage, sendTelegramAudioBuffer, force = false, claimEvent = null) {
+    const chatIds = resolveChatIds(commanderChatIds);
+    if (chatIds.length === 0) return;
+
     const dhakaNow = getDhakaTime();
     const todayStr = dhakaNow.toISOString().slice(0, 10);
     const hour = dhakaNow.getHours();
@@ -147,8 +189,16 @@ async function runLateNightCheck(commanderChatId, sendTelegramMessage, sendTeleg
 
     // Trigger at 2:00 AM once per night, or if forced
     if (force || (hour === 2 && minute >= 0 && minute <= 15 && lastLateNightAlertDate !== todayStr)) {
+        if (!force && typeof claimEvent === 'function') {
+            const claimed = await claimEvent(`late_night_watch_${todayStr}`);
+            if (!claimed) {
+                console.log(`[Proactive Monitor] 🌙 Late night check for ${todayStr} already claimed by another active instance. Skipping.`);
+                lastLateNightAlertDate = todayStr;
+                return;
+            }
+        }
         if (!force) lastLateNightAlertDate = todayStr;
-        console.log(`[Proactive Monitor] 🌙 Triggering ${force ? 'On-Demand' : '2:00 AM'} Late Night Rest Alert with over_night.mp3...`);
+        console.log(`[Proactive Monitor] 🌙 Triggering ${force ? 'On-Demand' : '2:00 AM'} Late Night Rest Alert with over_night.mp3 for: ${chatIds.join(', ')}...`);
 
         const alertMsg = [
             "🌙 *Mikasa Security Protocol — Late Night Watch* 🧣",
@@ -159,19 +209,34 @@ async function runLateNightCheck(commanderChatId, sendTelegramMessage, sendTeleg
             "_I will keep watch over the server and perimeter while you sleep._ ⚔️"
         ].join('\n');
 
-        if (typeof sendTelegramMessage === 'function') {
-            await sendTelegramMessage(commanderChatId, alertMsg);
+        const audioPath = path.resolve(__dirname, 'web/audio/over_night.mp3');
+        const hasAudio = fs.existsSync(audioPath) && typeof sendTelegramAudioBuffer === 'function';
+        let audioBuf = null;
+        if (hasAudio) {
+            try {
+                audioBuf = fs.readFileSync(audioPath);
+            } catch (readErr) {
+                console.warn('[Proactive Monitor] Could not read over_night.mp3:', readErr.message);
+            }
         }
 
-        // Send over_night.mp3 voice/audio note
-        const audioPath = path.resolve(__dirname, 'web/audio/over_night.mp3');
-        if (fs.existsSync(audioPath) && typeof sendTelegramAudioBuffer === 'function') {
-            try {
-                const buf = fs.readFileSync(audioPath);
-                await sendTelegramAudioBuffer(commanderChatId, buf, 'over_night.mp3', '🌙 Mikasa — Late Night Watch', 'Over Night Protocol', 'Mikasa Ackerman');
-                console.log('[Proactive Monitor] 🎵 Successfully delivered over_night.mp3 voice note to Commander.');
-            } catch (err) {
-                console.warn('[Proactive Monitor] Failed sending over_night.mp3:', err.message);
+        // Deliver text & audio once to EACH of Commander's Telegram accounts
+        for (const chatId of chatIds) {
+            if (typeof sendTelegramMessage === 'function') {
+                try {
+                    await sendTelegramMessage(chatId, alertMsg);
+                } catch (msgErr) {
+                    console.warn(`[Proactive Monitor] Failed sending late night text to ${chatId}:`, msgErr.message);
+                }
+            }
+
+            if (audioBuf && typeof sendTelegramAudioBuffer === 'function') {
+                try {
+                    await sendTelegramAudioBuffer(chatId, audioBuf, 'over_night.mp3', '🌙 Mikasa — Late Night Watch', 'Over Night Protocol', 'Mikasa Ackerman');
+                    console.log(`[Proactive Monitor] 🎵 Successfully delivered over_night.mp3 voice note to Commander (${chatId}).`);
+                } catch (err) {
+                    console.warn(`[Proactive Monitor] Failed sending over_night.mp3 to ${chatId}:`, err.message);
+                }
             }
         }
     }
@@ -180,9 +245,18 @@ async function runLateNightCheck(commanderChatId, sendTelegramMessage, sendTeleg
 function initProactiveMonitor(options = {}) {
     const {
         getCommanderChatId,
+        getCommanderChatIds,
         sendTelegramMessage,
-        sendTelegramAudioBuffer
+        sendTelegramAudioBuffer,
+        isLeader,
+        claimEvent
     } = options;
+
+    const getTargetChatIds = () => {
+        if (typeof getCommanderChatIds === 'function') return resolveChatIds(getCommanderChatIds());
+        if (typeof getCommanderChatId === 'function') return resolveChatIds(getCommanderChatId());
+        return [7112137739];
+    };
 
     if (monitorInterval) clearInterval(monitorInterval);
 
@@ -190,16 +264,30 @@ function initProactiveMonitor(options = {}) {
 
     // Run periodic checks every 60 seconds
     monitorInterval = setInterval(async () => {
-        const chatId = typeof getCommanderChatId === 'function' ? getCommanderChatId() : (getCommanderChatId || 7112137739);
-        await runBatteryCheck(chatId, sendTelegramMessage, sendTelegramAudioBuffer);
-        await runMorningBriefing(chatId, sendTelegramMessage);
-        await runLateNightCheck(chatId, sendTelegramMessage, sendTelegramAudioBuffer);
+        // Leader check: if Cloud and Local PC is active, Cloud stands down to prevent duplication
+        if (typeof isLeader === 'function') {
+            try {
+                const leader = await isLeader();
+                if (!leader) return;
+            } catch (e) {}
+        }
+
+        const chatIds = getTargetChatIds();
+        await runBatteryCheck(chatIds, sendTelegramMessage, sendTelegramAudioBuffer);
+        await runMorningBriefing(chatIds, sendTelegramMessage, false, claimEvent);
+        await runLateNightCheck(chatIds, sendTelegramMessage, sendTelegramAudioBuffer, false, claimEvent);
     }, 60000);
 
     // Initial check after 10s
     setTimeout(async () => {
-        const chatId = typeof getCommanderChatId === 'function' ? getCommanderChatId() : (getCommanderChatId || 7112137739);
-        await runBatteryCheck(chatId, sendTelegramMessage, sendTelegramAudioBuffer);
+        if (typeof isLeader === 'function') {
+            try {
+                const leader = await isLeader();
+                if (!leader) return;
+            } catch (e) {}
+        }
+        const chatIds = getTargetChatIds();
+        await runBatteryCheck(chatIds, sendTelegramMessage, sendTelegramAudioBuffer);
     }, 10000);
 
     return {
@@ -207,10 +295,12 @@ function initProactiveMonitor(options = {}) {
             if (monitorInterval) clearInterval(monitorInterval);
         },
         triggerBriefingNow: async (chatId) => {
-            await runMorningBriefing(chatId, sendTelegramMessage, true);
+            const targets = chatId ? resolveChatIds(chatId) : getTargetChatIds();
+            await runMorningBriefing(targets, sendTelegramMessage, true);
         },
         triggerLateNightNow: async (chatId) => {
-            await runLateNightCheck(chatId, sendTelegramMessage, sendTelegramAudioBuffer, true);
+            const targets = chatId ? resolveChatIds(chatId) : getTargetChatIds();
+            await runLateNightCheck(targets, sendTelegramMessage, sendTelegramAudioBuffer, true);
         }
     };
 }

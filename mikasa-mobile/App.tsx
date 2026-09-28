@@ -335,6 +335,7 @@ export default function App() {
   const pulseInner = useRef(new Animated.Value(1)).current;
   const orbitalSpin = useRef(new Animated.Value(0)).current;
   const pulseOrbital = useRef(new Animated.Value(1)).current;
+  const splashLoadBar = useRef(new Animated.Value(0)).current; // 0→1 loading bar
 
   // Symmetrical Waveform Bars (11 bars)
   const waveHeights = [
@@ -497,17 +498,24 @@ export default function App() {
     }
   };
 
-  // 1. Initial Setup: Splash Loading Sequence -> Directly to Main Home!
+  // 1. Initial Setup: Splash Loading Sequence -> Onboarding
   useEffect(() => {
-    // Dynamic greeting calculation
     const hour = new Date().getHours();
     if (hour < 12) setGreeting('Good morning, Commander Swapnil');
     else if (hour < 18) setGreeting('Good afternoon, Commander Swapnil');
     else setGreeting('Good evening, Commander Swapnil');
 
+    // Animate the splash loading bar over 2.2 seconds
+    Animated.timing(splashLoadBar, {
+      toValue: 1,
+      duration: 2200,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: false
+    }).start();
+
     const splashTimer = setTimeout(() => {
-      setAppFlow('main');
-    }, 1800);
+      setAppFlow('onboarding');
+    }, 2400);
 
     pollWorkstation();
     const interval = setInterval(pollWorkstation, 12000);
@@ -1234,79 +1242,79 @@ export default function App() {
         )}
 
         {/* ========================================================
-            FLOW 1: SPLASH / LAUNCH SCREEN — Fullscreen Mikasa Portrait
+            FLOW 1: SPLASH — Portrait + Animated Loading Bar
             ======================================================== */}
         {appFlow === 'splash' && (
-          <TouchableOpacity
-            style={styles.splashScreen}
-            activeOpacity={1}
-            onPress={() => setAppFlow('onboarding')}
-          >
-            {/* Fullscreen portrait background */}
-            <Image
-              source={require('./assets/mikasa-portrait.png')}
-              style={styles.splashPortraitBg}
-              resizeMode="cover"
-            />
-            {/* Dark gradient overlay at top and bottom */}
-            <View style={styles.splashOverlayTop} />
-            <View style={styles.splashOverlayBottom} />
-
-            {/* Brand name top-left */}
+          <View style={styles.splashScreen}>
+            {/* Brand top-left */}
             <View style={styles.splashTopBar}>
               <Text style={styles.splashBrandTitle}>M I K A S A</Text>
             </View>
 
-            {/* Bottom loading indicator */}
-            <View style={styles.splashBottomRow}>
-              <View style={[styles.statusDot, { backgroundColor: '#10b981' }]} />
-              <Text style={styles.splashLoadingText}>Initializing Neural Core...</Text>
+            {/* Centered portrait image */}
+            <View style={styles.splashImgContainer}>
+              <Image
+                source={require('./assets/mikasa-portrait.png')}
+                style={styles.splashPortraitImg}
+                resizeMode="contain"
+              />
             </View>
-          </TouchableOpacity>
+
+            {/* Loading bar at bottom */}
+            <View style={styles.splashLoadingContainer}>
+              <View style={styles.splashLoadBarTrack}>
+                <Animated.View
+                  style={[
+                    styles.splashLoadBarFill,
+                    { width: splashLoadBar.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }
+                  ]}
+                />
+              </View>
+              <Text style={styles.splashLoadingLabel}>Initializing Neural Core...</Text>
+            </View>
+          </View>
         )}
 
         {/* ========================================================
-            FLOW 2: ONBOARDING — Step 1 matches reference screenshot
+            FLOW 2: ONBOARDING — Matches reference screenshot exactly
             ======================================================== */}
         {appFlow === 'onboarding' && (
           <View style={styles.onboardScreen}>
 
             {onboardingStep === 1 && (
-              // Step 1: Fullscreen portrait + hero text (matching reference screenshot)
-              <View style={{ flex: 1 }}>
-                <Image
-                  source={require('./assets/mikasa-portrait.png')}
-                  style={styles.onboardPortraitBg}
-                  resizeMode="cover"
-                />
-                <View style={styles.onboardOverlayTop} />
-                <View style={styles.onboardOverlayBottom} />
-
-                {/* Top bar */}
-                <View style={styles.onboardTopBar}>
-                  <Text style={styles.onboardBrandLabel}>M I K A S A</Text>
-                  <View style={{ flexDirection: 'row', gap: 10 }}>
-                    <TouchableOpacity
-                      style={styles.onboardSettingsBtn}
-                      onPress={() => setAppFlow('main')}
-                    >
-                      <Text style={{ fontSize: 16 }}>⚙</Text>
-                    </TouchableOpacity>
-                    <View style={styles.onboardToolsBtn}>
-                      <Text style={styles.onboardToolsBtnText}>Tools</Text>
-                    </View>
-                  </View>
+              // Step 1: black bg, text top, portrait centered below, gear+Tools to right
+              <View style={styles.ob1Wrapper}>
+                {/* Brand top-left */}
+                <View style={styles.ob1TopBar}>
+                  <Text style={styles.ob1Brand}>M I K A S A</Text>
                 </View>
 
-                {/* Hero text mid-screen */}
-                <View style={styles.onboardHeroTextBox}>
-                  <Text style={styles.onboardHeroTitle}>
-                    Your personal <Text style={{ color: '#e11d48' }}>AI</Text>
+                {/* Hero text block */}
+                <View style={styles.ob1HeroBlock}>
+                  <Text style={styles.ob1HeroLine1}>
+                    Your personal <Text style={styles.ob1HeroRed}>AI</Text>
                   </Text>
-                  <Text style={styles.onboardHeroTitleRed}>assistant.</Text>
-                  <Text style={styles.onboardHeroSub}>
+                  <Text style={[styles.ob1HeroLine1, styles.ob1HeroRed]}>assistant.</Text>
+                  <Text style={styles.ob1HeroSub}>
                     More than a chatbot. Mikasa lives in your phone, ready to help, anytime.
                   </Text>
+                </View>
+
+                {/* Portrait + side buttons */}
+                <View style={styles.ob1ImageRow}>
+                  <Image
+                    source={require('./assets/mikasa-portrait.png')}
+                    style={styles.ob1Portrait}
+                    resizeMode="contain"
+                  />
+                  <View style={styles.ob1SideButtons}>
+                    <TouchableOpacity style={styles.ob1GearBtn} onPress={() => setAppFlow('main')}>
+                      <Text style={styles.ob1GearIcon}>⚙</Text>
+                    </TouchableOpacity>
+                    <View style={styles.ob1ToolsPill}>
+                      <Text style={styles.ob1ToolsText}>Tools</Text>
+                    </View>
+                  </View>
                 </View>
               </View>
             )}
@@ -1333,9 +1341,7 @@ export default function App() {
                 <Text style={styles.onboardTitle}>
                   5 Command <Text style={{ color: '#e11d48' }}>Workspaces.</Text>
                 </Text>
-                <Text style={styles.onboardSubtitle}>
-                  Home, Chat, Actions, Memory, and Profile.
-                </Text>
+                <Text style={styles.onboardSubtitle}>Home, Chat, Actions, Memory, and Profile.</Text>
                 <View style={styles.onboardGrid}>
                   {[{ icon: '🏠', label: 'Home' }, { icon: '💬', label: 'Chat' }, { icon: '⚙️', label: 'Actions' }, { icon: '🧠', label: 'Memory' }].map(t => (
                     <View key={t.label} style={styles.onboardSquircleTile}>
@@ -2578,40 +2584,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#07080c'
   },
 
-  // SPLASH SCREEN — Fullscreen Portrait Style
+  // SPLASH SCREEN — Portrait on black + loading bar
   splashScreen: {
     flex: 1,
     backgroundColor: '#07080c',
-  },
-  splashPortraitBg: {
-    position: 'absolute',
-    width: '100%',
-    height: '100%',
-    top: 0,
-    left: 0
-  },
-  splashOverlayTop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 200,
-    background: 'linear-gradient(to bottom, #07080c, transparent)',
-    backgroundColor: 'rgba(7,8,12,0.6)'
-  },
-  splashOverlayBottom: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 200,
-    backgroundColor: 'rgba(7,8,12,0.7)'
+    alignItems: 'center',
+    justifyContent: 'space-between'
   },
   splashTopBar: {
-    position: 'absolute',
-    top: 48,
-    left: 20,
-    right: 20
+    width: '100%',
+    paddingTop: 52,
+    paddingHorizontal: 22
   },
   splashBrandTitle: {
     fontSize: 18,
@@ -2619,109 +2602,126 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     letterSpacing: 5
   },
-  splashBottomRow: {
-    position: 'absolute',
-    bottom: 48,
-    left: 20,
-    flexDirection: 'row',
+  splashImgContainer: {
+    flex: 1,
     alignItems: 'center',
-    gap: 8
+    justifyContent: 'center',
+    width: '100%'
   },
-  splashLoadingText: {
-    fontSize: 13,
-    color: '#94a3b8'
+  splashPortraitImg: {
+    width: width * 0.72,
+    height: height * 0.55,
+  },
+  splashLoadingContainer: {
+    width: '100%',
+    paddingHorizontal: 24,
+    paddingBottom: 44,
+    gap: 10
+  },
+  splashLoadBarTrack: {
+    width: '100%',
+    height: 3,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 2,
+    overflow: 'hidden'
+  },
+  splashLoadBarFill: {
+    height: '100%',
+    backgroundColor: '#e11d48',
+    borderRadius: 2
+  },
+  splashLoadingLabel: {
+    fontSize: 12,
+    color: '#64748b',
+    fontWeight: '600'
   },
 
-  // ONBOARDING
-  onboardScreen: {
+  // ONBOARDING STEP 1 — Exact match to reference
+  ob1Wrapper: {
     flex: 1,
     backgroundColor: '#07080c',
     justifyContent: 'space-between'
   },
-  onboardPortraitBg: {
-    position: 'absolute',
-    width: '100%',
-    height: '100%',
-    top: 0,
-    left: 0
+  ob1TopBar: {
+    paddingTop: 52,
+    paddingHorizontal: 22,
+    marginBottom: 8
   },
-  onboardOverlayTop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 300,
-    backgroundColor: 'rgba(7,8,12,0.55)'
-  },
-  onboardOverlayBottom: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 260,
-    backgroundColor: 'rgba(7,8,12,0.88)'
-  },
-  onboardTopBar: {
-    position: 'absolute',
-    top: 48,
-    left: 20,
-    right: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between'
-  },
-  onboardBrandLabel: {
+  ob1Brand: {
     fontSize: 16,
     fontWeight: '900',
     color: '#ffffff',
     letterSpacing: 5
   },
-  onboardSettingsBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(20,22,30,0.85)',
+  ob1HeroBlock: {
+    paddingHorizontal: 22
+  },
+  ob1HeroLine1: {
+    fontSize: 34,
+    fontWeight: '900',
+    color: '#ffffff',
+    lineHeight: 40
+  },
+  ob1HeroRed: {
+    color: '#e11d48'
+  },
+  ob1HeroSub: {
+    fontSize: 13,
+    color: '#94a3b8',
+    marginTop: 10,
+    lineHeight: 19
+  },
+  ob1ImageRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    paddingBottom: 0
+  },
+  ob1Portrait: {
+    width: width * 0.72,
+    height: height * 0.45,
+  },
+  ob1SideButtons: {
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    paddingBottom: 24,
+    gap: 10,
+    marginLeft: 4
+  },
+  ob1GearBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(30,34,48,0.92)',
     borderWidth: 1,
     borderColor: '#2e3245',
     alignItems: 'center',
     justifyContent: 'center'
   },
-  onboardToolsBtn: {
-    backgroundColor: 'rgba(20,22,30,0.85)',
+  ob1GearIcon: {
+    fontSize: 18,
+    color: '#94a3b8'
+  },
+  ob1ToolsPill: {
+    backgroundColor: 'rgba(30,34,48,0.92)',
     borderWidth: 1,
     borderColor: '#2e3245',
-    borderRadius: 18,
+    borderRadius: 20,
     paddingHorizontal: 14,
-    paddingVertical: 8
+    paddingVertical: 9
   },
-  onboardToolsBtnText: {
+  ob1ToolsText: {
     color: '#ffffff',
     fontSize: 12,
     fontWeight: '700'
   },
-  onboardHeroTextBox: {
-    position: 'absolute',
-    bottom: 120,
-    left: 20,
-    right: 20
-  },
-  onboardHeroTitle: {
-    fontSize: 32,
-    fontWeight: '900',
-    color: '#ffffff',
-    lineHeight: 38
-  },
-  onboardHeroTitleRed: {
-    fontSize: 32,
-    fontWeight: '900',
-    color: '#e11d48',
-    lineHeight: 38
-  },
-  onboardHeroSub: {
-    fontSize: 13,
-    color: '#cbd5e1',
-    marginTop: 10,
-    lineHeight: 19
+
+  // ONBOARDING (shared)
+  onboardScreen: {
+    flex: 1,
+    backgroundColor: '#07080c',
+    justifyContent: 'space-between'
   },
   onboardHeader: {
     flexDirection: 'row',

@@ -21,7 +21,15 @@ import { StatusBar } from 'expo-status-bar';
 import Svg, { Path, Rect, Circle, Line } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
 import * as Speech from 'expo-speech';
-import { Audio } from 'expo-av';
+import { CameraView, Camera } from 'expo-camera';
+import * as Location from 'expo-location';
+
+let ExpoAudio: any = null;
+try {
+  ExpoAudio = require('expo-audio');
+} catch (e) {
+  // ExpoAudio optional fallback
+}
 
 const { width, height } = Dimensions.get('window');
 
@@ -332,30 +340,137 @@ export default function App() {
     useRef(new Animated.Value(6)).current
   ];
 
-  const listeningTimerRef = useRef<any>(null);
-  const soundRef = useRef<Audio.Sound | null>(null);
+  // Tier 1 & 2: Permission System & Wake Word Engine States
+  const [micPermissionGranted, setMicPermissionGranted] = useState<boolean | null>(null);
+  const [cameraPermissionGranted, setCameraPermissionGranted] = useState<boolean | null>(null);
+  const [locationPermissionGranted, setLocationPermissionGranted] = useState<boolean | null>(null);
+  const [isWakeWordEnabled, setIsWakeWordEnabled] = useState(false);
+  const [isWakeWordListening, setIsWakeWordListening] = useState(false);
 
-  // Initialize Audio Session for Loudspeaker & Android Audio Mode
+  const listeningTimerRef = useRef<any>(null);
+  const activeAudioPlayerRef = useRef<any>(null);
+
+  // Initialize Audio & Query Hardware Permissions on App Start
   useEffect(() => {
-    async function initAudioMode() {
+    async function initAudioAndPermissions() {
       try {
-        await Audio.setAudioModeAsync({
-          allowsRecordingIOS: false,
-          playsInSilentModeIOS: true,
-          staysActiveInBackground: false,
-          shouldDuckAndroid: false,
-          playThroughEarpieceAndroid: false
-        });
+        if (ExpoAudio && typeof ExpoAudio.setAudioModeAsync === 'function') {
+          await ExpoAudio.setAudioModeAsync({ playsInSilentMode: true });
+        }
       } catch (e) {}
+
+      // Refresh permission statuses
+      try {
+        const mic = await Camera.getMicrophonePermissionsAsync();
+        setMicPermissionGranted(mic.granted);
+      } catch (e) {
+        setMicPermissionGranted(false);
+      }
+
+      try {
+        const cam = await Camera.getCameraPermissionsAsync();
+        setCameraPermissionGranted(cam.granted);
+      } catch (e) {
+        setCameraPermissionGranted(false);
+      }
+
+      try {
+        const loc = await Location.getForegroundPermissionsAsync();
+        setLocationPermissionGranted(loc.granted);
+      } catch (e) {
+        setLocationPermissionGranted(false);
+      }
     }
-    initAudioMode();
+    initAudioAndPermissions();
 
     return () => {
-      if (soundRef.current) {
-        soundRef.current.unloadAsync().catch(() => {});
+      if (activeAudioPlayerRef.current) {
+        try {
+          activeAudioPlayerRef.current.pause();
+          if (typeof activeAudioPlayerRef.current.remove === 'function') {
+            activeAudioPlayerRef.current.remove();
+          }
+        } catch (e) {}
       }
     };
   }, []);
+
+  // Permission Request Helpers
+  const requestMicPermission = async (): Promise<boolean> => {
+    try {
+      const res = await Camera.requestMicrophonePermissionsAsync();
+      setMicPermissionGranted(res.granted);
+      return res.granted;
+    } catch (e) {
+      return false;
+    }
+  };
+
+  const requestCameraPermission = async (): Promise<boolean> => {
+    try {
+      const res = await Camera.requestCameraPermissionsAsync();
+      setCameraPermissionGranted(res.granted);
+      return res.granted;
+    } catch (e) {
+      return false;
+    }
+  };
+
+  const requestLocationPermission = async (): Promise<boolean> => {
+    try {
+      const res = await Location.requestForegroundPermissionsAsync();
+      setLocationPermissionGranted(res.granted);
+      return res.granted;
+    } catch (e) {
+      return false;
+    }
+  };
+
+  // Wake Word Engine: Toggle Switch Handler with Permission Handshake
+  const handleToggleWakeWord = async (value: boolean) => {
+    if (value) {
+      // Must check/request microphone permission first
+      let granted = micPermissionGranted;
+      if (!granted) {
+        granted = await requestMicPermission();
+      }
+
+      if (!granted) {
+        Alert.alert(
+          '🎙️ Microphone Access Required',
+          'Mikasa requires microphone permission to listen for the "Hey, Mikasa" wake word hands-free.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Grant Access',
+              onPress: async () => {
+                const nowGranted = await requestMicPermission();
+                if (nowGranted) {
+                  setIsWakeWordEnabled(true);
+                  setIsWakeWordListening(true);
+                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                  speakAsMikasa('Wake word activated. Listening for Hey Mikasa.');
+                }
+              }
+            }
+          ]
+        );
+        setIsWakeWordEnabled(false);
+        setIsWakeWordListening(false);
+        return;
+      }
+
+      setIsWakeWordEnabled(true);
+      setIsWakeWordListening(true);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      speakAsMikasa('Wake word activated. Standing by for Hey Mikasa, Commander.');
+    } else {
+      setIsWakeWordEnabled(false);
+      setIsWakeWordListening(false);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      speakAsMikasa('Wake word deactivated.');
+    }
+  };
 
   // 1. Initial Setup: Splash Loading Sequence -> Directly to Main Home!
   useEffect(() => {
@@ -530,58 +645,55 @@ export default function App() {
     setStatusText('Speaking...');
 
     // Stop and unload existing sound if playing
-    if (soundRef.current) {
+    if (activeAudioPlayerRef.current) {
       try {
-        await soundRef.current.stopAsync();
-        await soundRef.current.unloadAsync();
+        activeAudioPlayerRef.current.pause();
+        if (typeof activeAudioPlayerRef.current.remove === 'function') {
+          activeAudioPlayerRef.current.remove();
+        }
       } catch (e) {}
-      soundRef.current = null;
+      activeAudioPlayerRef.current = null;
     }
 
-    // Try Gemini Server TTS (Cute Kore Voice) over LAN first
-    try {
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-        playsInSilentModeIOS: true,
-        staysActiveInBackground: false,
-        shouldDuckAndroid: false,
-        playThroughEarpieceAndroid: false
-      });
+    // Try Gemini Server TTS (Cute Kore Voice) over LAN via ExpoAudio if available
+    if (ExpoAudio && typeof ExpoAudio.createAudioPlayer === 'function') {
+      try {
+        const ttsUri = `${LAN_API_BASE}/api/voice/tts?text=${encodeURIComponent(cleanText.slice(0, 300))}`;
+        const player = ExpoAudio.createAudioPlayer(ttsUri);
+        activeAudioPlayerRef.current = player;
+        player.play();
 
-      const ttsUri = `${LAN_API_BASE}/api/voice/tts?text=${encodeURIComponent(cleanText.slice(0, 300))}`;
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: ttsUri },
-        { shouldPlay: true, volume: 1.0 },
-        (status) => {
-          if (status.isLoaded && status.didJustFinish) {
+        player.addListener('playbackStatusUpdate', (status: any) => {
+          if (status?.didJustFinish) {
+            setAssistantState('IDLE');
+            setStatusText('Ready');
+            activeAudioPlayerRef.current = null;
+            if (onFinish) onFinish();
+          }
+        });
+        return;
+      } catch (ttsErr) {}
+    }
+
+    // Native Speech Fallback - reliable on all devices
+    try {
+      Speech.stop();
+      setTimeout(() => {
+        Speech.speak(cleanText, {
+          rate: speechRate || 1.0,
+          pitch: 1.0,
+          onDone: () => {
+            setAssistantState('IDLE');
+            setStatusText('Ready');
+            if (onFinish) onFinish();
+          },
+          onError: () => {
             setAssistantState('IDLE');
             setStatusText('Ready');
             if (onFinish) onFinish();
           }
-        }
-      );
-      soundRef.current = sound;
-      return;
-    } catch (ttsErr) {
-      // Fall through to local speech synthesis
-    }
-
-    try {
-      Speech.stop();
-      Speech.speak(cleanText, {
-        pitch: 1.0,
-        rate: speechRate,
-        onDone: () => {
-          setAssistantState('IDLE');
-          setStatusText('Ready');
-          if (onFinish) onFinish();
-        },
-        onError: () => {
-          setAssistantState('IDLE');
-          setStatusText('Ready');
-          if (onFinish) onFinish();
-        }
-      });
+        });
+      }, 60);
     } catch (e) {
       setAssistantState('IDLE');
       setStatusText('Ready');
@@ -600,50 +712,60 @@ export default function App() {
     setSubStatusText('"I am Mikasa, Commander Swapnil\'s Autonomous AI Companion"');
 
     // Unload previous sound if any
-    if (soundRef.current) {
+    if (activeAudioPlayerRef.current) {
       try {
-        await soundRef.current.stopAsync();
-        await soundRef.current.unloadAsync();
+        activeAudioPlayerRef.current.pause();
+        if (typeof activeAudioPlayerRef.current.remove === 'function') {
+          activeAudioPlayerRef.current.remove();
+        }
       } catch (e) {}
-      soundRef.current = null;
+      activeAudioPlayerRef.current = null;
     }
 
-    try {
-      Speech.stop();
-      // Ensure audio mode is set for speaker output
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-        playsInSilentModeIOS: true,
-        staysActiveInBackground: false,
-        shouldDuckAndroid: false,
-        playThroughEarpieceAndroid: false
-      });
-
-      const audioUri = `${LAN_API_BASE}/audio/who_is_mikasa.mp3`;
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: audioUri },
-        { shouldPlay: true, volume: 1.0 },
-        (status) => {
-          if (status.isLoaded && status.didJustFinish) {
+    // Try authentic audio file via ExpoAudio
+    if (ExpoAudio && typeof ExpoAudio.createAudioPlayer === 'function') {
+      try {
+        const audioUri = `${LAN_API_BASE}/audio/who_is_mikasa.mp3`;
+        const player = ExpoAudio.createAudioPlayer(audioUri);
+        activeAudioPlayerRef.current = player;
+        player.play();
+        player.addListener('playbackStatusUpdate', (status: any) => {
+          if (status?.didJustFinish) {
             setAssistantState('IDLE');
             setStatusText('Ready');
+            activeAudioPlayerRef.current = null;
           }
-        }
-      );
-      soundRef.current = sound;
-    } catch (soundErr) {
-      console.warn('Audio file play error, falling back to TTS:', soundErr);
-      const introSpeech =
-        'I am Mikasa, an autonomous AI companion created exclusively for Commander Swapnil. Built with neural reasoning and proactive monitoring, I coordinate your digital workspace, manage your memories, and safeguard your workflow. Smart, loyal, and always by your side.';
-      speakAsMikasa(introSpeech);
+        });
+        return;
+      } catch (soundErr) {}
     }
+
+    const introSpeech =
+      'I am Mikasa, an autonomous AI companion created exclusively for Commander Swapnil. Built with neural reasoning and proactive monitoring, I coordinate your digital workspace, manage your memories, and safeguard your workflow. Smart, loyal, and always by your side.';
+    speakAsMikasa(introSpeech);
   };
 
-  // 7. Voice Interaction Trigger (Pure direct voice assistant - NO TEXT MODAL!)
-  const handleMicTap = () => {
+  // 7. Voice Interaction Trigger (Pure direct voice assistant - with Mic permission check)
+  const handleMicTap = async () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     } catch (e) {}
+
+    let granted = micPermissionGranted;
+    if (!granted) {
+      granted = await requestMicPermission();
+    }
+    if (!granted) {
+      Alert.alert(
+        '🎙️ Microphone Access Required',
+        'Mikasa needs microphone permission to listen to your voice commands.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Grant Access', onPress: () => requestMicPermission() }
+        ]
+      );
+      return;
+    }
 
     if (listeningTimerRef.current) {
       clearTimeout(listeningTimerRef.current);
@@ -651,10 +773,10 @@ export default function App() {
     }
 
     if (assistantState === 'LISTENING') {
-      if (soundRef.current) {
-        soundRef.current.stopAsync().catch(() => {});
-        soundRef.current.unloadAsync().catch(() => {});
-        soundRef.current = null;
+      if (activeAudioPlayerRef.current) {
+        try {
+          activeAudioPlayerRef.current.pause();
+        } catch (e) {}
       }
       Speech.stop();
       setAssistantState('THINKING');
@@ -665,10 +787,10 @@ export default function App() {
     }
 
     if (assistantState === 'SPEAKING') {
-      if (soundRef.current) {
-        soundRef.current.stopAsync().catch(() => {});
-        soundRef.current.unloadAsync().catch(() => {});
-        soundRef.current = null;
+      if (activeAudioPlayerRef.current) {
+        try {
+          activeAudioPlayerRef.current.pause();
+        } catch (e) {}
       }
       Speech.stop();
       setAssistantState('IDLE');
@@ -682,7 +804,7 @@ export default function App() {
     setStatusText('Listening...');
     setSubStatusText('"Listening to your voice..."');
 
-    // Automatically transition to thinking & answering after 4 seconds of voice input
+    // Automatically transition to thinking & answering after 4.5 seconds of voice input
     listeningTimerRef.current = setTimeout(() => {
       setAssistantState('THINKING');
       setStatusText('Thinking...');
@@ -808,6 +930,21 @@ export default function App() {
     } catch (e) {}
 
     if (action === 'torch') {
+      let granted = cameraPermissionGranted;
+      if (!granted) {
+        granted = await requestCameraPermission();
+      }
+      if (!granted) {
+        Alert.alert(
+          '🔦 Flashlight Permission Required',
+          'Camera access is required on Android to toggle the physical hardware flashlight.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Grant Access', onPress: () => requestCameraPermission() }
+          ]
+        );
+        return;
+      }
       setIsFlashlightOn(prev => !prev);
       const stateStr = !isFlashlightOn ? 'on' : 'off';
       speakAsMikasa(`Flashlight turned ${stateStr}, Commander.`);
@@ -911,6 +1048,15 @@ export default function App() {
     <SafeAreaProvider>
       <SafeAreaView style={styles.container}>
         <StatusBar style="light" />
+
+        {/* Physical Hardware Flashlight / Torch Controller */}
+        {cameraPermissionGranted && CameraView && (
+          <CameraView
+            style={{ width: 1, height: 1, position: 'absolute', opacity: 0 }}
+            enableTorch={isFlashlightOn}
+            facing="back"
+          />
+        )}
 
         {/* ========================================================
             FLOW 1: SPLASH / LAUNCH SCREEN
@@ -1811,6 +1957,59 @@ export default function App() {
                     <Text style={styles.settingsLabel}>Speech Speed</Text>
                     <Text style={styles.settingsVal}>{speechRate.toFixed(1)}x</Text>
                   </View>
+
+                  <View style={styles.settingsRow}>
+                    <View>
+                      <Text style={styles.settingsLabel}>Wake Word ("Hey Mikasa")</Text>
+                      <Text style={{ fontSize: 11, color: isWakeWordListening ? '#10b981' : '#64748b' }}>
+                        {isWakeWordListening ? '🟢 Standby listening active' : '⚪ Tap switch to enable'}
+                      </Text>
+                    </View>
+                    <Switch
+                      value={isWakeWordEnabled}
+                      onValueChange={handleToggleWakeWord}
+                      trackColor={{ false: '#334155', true: '#e11d48' }}
+                      thumbColor="#ffffff"
+                    />
+                  </View>
+                </View>
+
+                {/* Hardware & System Permissions */}
+                <View style={styles.settingsGroupCard}>
+                  <Text style={styles.settingsGroupHeader}>DEVICE HARDWARE & PERMISSIONS</Text>
+
+                  <TouchableOpacity
+                    style={styles.settingsRow}
+                    activeOpacity={0.7}
+                    onPress={requestMicPermission}
+                  >
+                    <Text style={styles.settingsLabel}>🎙️ Microphone Access</Text>
+                    <Text style={[styles.settingsVal, { color: micPermissionGranted ? '#10b981' : '#e11d48' }]}>
+                      {micPermissionGranted ? 'Granted ✓' : 'Tap to Grant ⚠️'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.settingsRow}
+                    activeOpacity={0.7}
+                    onPress={requestCameraPermission}
+                  >
+                    <Text style={styles.settingsLabel}>🔦 Camera / Flashlight</Text>
+                    <Text style={[styles.settingsVal, { color: cameraPermissionGranted ? '#10b981' : '#e11d48' }]}>
+                      {cameraPermissionGranted ? 'Granted ✓' : 'Tap to Grant ⚠️'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.settingsRow}
+                    activeOpacity={0.7}
+                    onPress={requestLocationPermission}
+                  >
+                    <Text style={styles.settingsLabel}>📍 Geolocation Service</Text>
+                    <Text style={[styles.settingsVal, { color: locationPermissionGranted ? '#10b981' : '#f59e0b' }]}>
+                      {locationPermissionGranted ? 'Granted ✓' : 'Optional (Grant)'}
+                    </Text>
+                  </TouchableOpacity>
                 </View>
 
                 {/* 2. Appearance & Cockpit HUD */}

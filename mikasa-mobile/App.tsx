@@ -30,13 +30,15 @@ import * as Haptics from 'expo-haptics';
 import * as Speech from 'expo-speech';
 import { CameraView, Camera } from 'expo-camera';
 import * as Location from 'expo-location';
-
-let ExpoAudio: any = null;
-try {
-  ExpoAudio = require('expo-audio');
-} catch (e) {
-  // ExpoAudio optional fallback
-}
+import {
+  useAudioRecorder,
+  RecordingPresets,
+  setAudioModeAsync,
+  requestRecordingPermissionsAsync,
+  getRecordingPermissionsAsync,
+  createAudioPlayer
+} from 'expo-audio';
+import * as FileSystem from 'expo-file-system/legacy';
 
 const { width, height } = Dimensions.get('window');
 
@@ -57,8 +59,9 @@ const commanderFetch = async (endpoint: string, options: any = {}) => {
 
   // Try local LAN direct first for sub-50ms instant response on phone
   try {
+    const isVoiceProcess = endpoint.includes('/voice') || endpoint.includes('/process');
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2000);
+    const timeoutId = setTimeout(() => controller.abort(), isVoiceProcess ? 25000 : 3500);
     const res = await fetch(`${LAN_API_BASE}${endpoint}`, {
       ...options,
       headers,
@@ -356,22 +359,30 @@ export default function App() {
 
   const listeningTimerRef = useRef<any>(null);
   const activeAudioPlayerRef = useRef<any>(null);
+  const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const isRecordingAudioRef = useRef(false);
 
   // Initialize Audio & Query Hardware Permissions on App Start
   useEffect(() => {
     async function initAudioAndPermissions() {
       try {
-        if (ExpoAudio && typeof ExpoAudio.setAudioModeAsync === 'function') {
-          await ExpoAudio.setAudioModeAsync({ playsInSilentMode: true });
-        }
+        await setAudioModeAsync({
+          allowsRecording: false,
+          playsInSilentMode: true
+        });
       } catch (e) {}
 
       // Refresh permission statuses
       try {
-        const mic = await Camera.getMicrophonePermissionsAsync();
+        const mic = await getRecordingPermissionsAsync();
         setMicPermissionGranted(mic.granted);
       } catch (e) {
-        setMicPermissionGranted(false);
+        try {
+          const mic = await Camera.getMicrophonePermissionsAsync();
+          setMicPermissionGranted(mic.granted);
+        } catch (e2) {
+          setMicPermissionGranted(false);
+        }
       }
 
       try {
@@ -405,11 +416,17 @@ export default function App() {
   // Permission Request Helpers
   const requestMicPermission = async (): Promise<boolean> => {
     try {
-      const res = await Camera.requestMicrophonePermissionsAsync();
+      const res = await requestRecordingPermissionsAsync();
       setMicPermissionGranted(res.granted);
       return res.granted;
     } catch (e) {
-      return false;
+      try {
+        const res = await Camera.requestMicrophonePermissionsAsync();
+        setMicPermissionGranted(res.granted);
+        return res.granted;
+      } catch (e2) {
+        return false;
+      }
     }
   };
 
@@ -662,11 +679,11 @@ export default function App() {
       activeAudioPlayerRef.current = null;
     }
 
-    // Try Gemini Server TTS (Cute Kore Voice) over LAN via ExpoAudio if available
-    if (ExpoAudio && typeof ExpoAudio.createAudioPlayer === 'function') {
+    // Try Gemini Server TTS (Cute Kore Voice) over LAN via createAudioPlayer if available
+    if (typeof createAudioPlayer === 'function') {
       try {
         const ttsUri = `${LAN_API_BASE}/api/voice/tts?text=${encodeURIComponent(cleanText.slice(0, 300))}`;
-        const player = ExpoAudio.createAudioPlayer(ttsUri);
+        const player = createAudioPlayer(ttsUri);
         activeAudioPlayerRef.current = player;
         player.play();
 
@@ -729,11 +746,11 @@ export default function App() {
       activeAudioPlayerRef.current = null;
     }
 
-    // Try authentic audio file via ExpoAudio
-    if (ExpoAudio && typeof ExpoAudio.createAudioPlayer === 'function') {
+    // Try authentic audio file via createAudioPlayer
+    if (typeof createAudioPlayer === 'function') {
       try {
         const audioUri = `${LAN_API_BASE}/audio/who_is_mikasa.mp3`;
-        const player = ExpoAudio.createAudioPlayer(audioUri);
+        const player = createAudioPlayer(audioUri);
         activeAudioPlayerRef.current = player;
         player.play();
         player.addListener('playbackStatusUpdate', (status: any) => {
@@ -752,12 +769,169 @@ export default function App() {
     speakAsMikasa(introSpeech);
   };
 
-  // 7. Voice Interaction Trigger (Pure direct voice assistant - with Mic permission check)
+  // 7. Voice Interaction Trigger (Pure direct voice assistant - with real microphone recording & Gemini Speech-to-Text)
+  const stopAndProcessVoice = async () => {
+    if (listeningTimerRef.current) {
+      clearTimeout(listeningTimerRef.current);
+      listeningTimerRef.current = null;
+    }
+
+    if (!isRecordingAudioRef.current) return;
+    isRecordingAudioRef.current = false;
+
+    setAssistantState('THINKING');
+    setStatusText('Transcribing...');
+    setSubStatusText('Analyzing your voice with Gemini...');
+
+    let audioUri: string | null = null;
+    try {
+      await audioRecorder.stop();
+      audioUri = audioRecorder.uri;
+    } catch (stopErr: any) {
+      console.warn('[Audio Recorder Stop Error]:', stopErr);
+    }
+
+    // Switch audio mode back so speaker is loud and clear for TTS playback
+    try {
+      await setAudioModeAsync({
+        allowsRecording: false,
+        playsInSilentMode: true
+      });
+    } catch (e) {}
+
+    if (!audioUri) {
+      setAssistantState('IDLE');
+      setStatusText('Ready');
+      setSubStatusText('"No voice audio detected"');
+      return;
+    }
+
+    // Read audio file as Base64
+    let base64Audio = '';
+    try {
+      base64Audio = await FileSystem.readAsStringAsync(audioUri, {
+        encoding: FileSystem.EncodingType.Base64
+      });
+    } catch (fsErr: any) {
+      console.warn('[Audio Base64 Read Error]:', fsErr);
+    }
+
+    if (!base64Audio) {
+      setAssistantState('IDLE');
+      setStatusText('Ready');
+      setSubStatusText('"Could not encode audio"');
+      return;
+    }
+
+    try {
+      const res = await commanderFetch('/api/voice/process', {
+        method: 'POST',
+        body: JSON.stringify({
+          audio_base64: base64Audio,
+          mime_type: 'audio/m4a',
+          conversation_id: 'mikasa-mobile-tg'
+        })
+      });
+
+      if (!res.ok) {
+        throw new Error(`Server returned ${res.status}`);
+      }
+
+      const data = await res.json();
+      const transcribedQuery = (data.transcription || '').trim();
+      const rawReply = (data.reply || '').trim();
+
+      if (!transcribedQuery) {
+        setAssistantState('IDLE');
+        setStatusText('Ready');
+        setSubStatusText('"Silence detected. Tap to try again."');
+        speakAsMikasa('I could not hear what you said, Commander. Please speak again.');
+        return;
+      }
+
+      // Add user\'s transcribed question into Chat Tab
+      const userMsg: ChatMessage = {
+        id: Date.now().toString(),
+        sender: 'user',
+        text: transcribedQuery,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+      setChatMessages(prev => [...prev, userMsg]);
+      setTimeout(() => chatScrollRef.current?.scrollToEnd({ animated: true }), 100);
+
+      // Add to Action History Log
+      setActionLogs(prev => [
+        {
+          id: Date.now().toString(),
+          title: `Voice: "${transcribedQuery.slice(0, 30)}"`,
+          source: 'Voice HUD',
+          status: 'SUCCESS',
+          timestamp: 'Just now'
+        },
+        ...prev.slice(0, 9)
+      ]);
+
+      const cleanReply = stripEmojis(rawReply || 'Acknowledged, Commander.');
+      const toolUsed = data.action ? `PC Action: ${data.action}` : 'Gemini AI Brain';
+
+      // Add Mikasa\'s reply into Chat Tab
+      const mikasaMsg: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        sender: 'mikasa',
+        text: cleanReply,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        toolUsed
+      };
+      setChatMessages(prev => [...prev, mikasaMsg]);
+      setTimeout(() => chatScrollRef.current?.scrollToEnd({ animated: true }), 150);
+
+      // Speak her reply with voice!
+      setAssistantState('SPEAKING');
+      setStatusText('Speaking...');
+      setSubStatusText(cleanReply.length > 55 ? `"${cleanReply.slice(0, 52)}..."` : `"${cleanReply}"`);
+      speakAsMikasa(cleanReply, () => {
+        setAssistantState('IDLE');
+        setStatusText('Ready');
+        setSubStatusText('"How can I help you, Commander?"');
+      });
+    } catch (apiErr: any) {
+      console.warn('[Voice API Call Error]:', apiErr);
+      setAssistantState('IDLE');
+      setStatusText('Ready');
+      setSubStatusText('"Network error processing voice"');
+      Alert.alert(
+        'Voice Processing Failed',
+        'Could not reach the Mikasa server. Ensure your PC server is running and connected to Wi-Fi.'
+      );
+    }
+  };
+
   const handleMicTap = async () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     } catch (e) {}
 
+    // If Mikasa is speaking, tapping interrupts and silences her
+    if (assistantState === 'SPEAKING') {
+      if (activeAudioPlayerRef.current) {
+        try {
+          activeAudioPlayerRef.current.pause();
+        } catch (e) {}
+      }
+      Speech.stop();
+      setAssistantState('IDLE');
+      setStatusText('Ready');
+      setSubStatusText('"How can I help you, Commander?"');
+      return;
+    }
+
+    // If already recording/listening, tapping again means user is done speaking: stop and process immediately!
+    if (assistantState === 'LISTENING' || isRecordingAudioRef.current) {
+      await stopAndProcessVoice();
+      return;
+    }
+
+    // Otherwise, check microphone permission
     let granted = micPermissionGranted;
     if (!granted) {
       granted = await requestMicPermission();
@@ -774,50 +948,40 @@ export default function App() {
       return;
     }
 
-    if (listeningTimerRef.current) {
-      clearTimeout(listeningTimerRef.current);
-      listeningTimerRef.current = null;
+    if (activeAudioPlayerRef.current) {
+      try {
+        activeAudioPlayerRef.current.pause();
+      } catch (e) {}
     }
+    Speech.stop();
 
-    if (assistantState === 'LISTENING') {
-      if (activeAudioPlayerRef.current) {
-        try {
-          activeAudioPlayerRef.current.pause();
-        } catch (e) {}
-      }
-      Speech.stop();
-      setAssistantState('THINKING');
-      setStatusText('Thinking...');
-      setSubStatusText('Processing command...');
-      executeCommand('Give me a full morning sitrep briefing and PC status', 'voice');
-      return;
-    }
+    try {
+      await setAudioModeAsync({
+        allowsRecording: true,
+        playsInSilentMode: true
+      });
+      await audioRecorder.prepareToRecordAsync();
+      audioRecorder.record();
+      isRecordingAudioRef.current = true;
 
-    if (assistantState === 'SPEAKING') {
-      if (activeAudioPlayerRef.current) {
-        try {
-          activeAudioPlayerRef.current.pause();
-        } catch (e) {}
+      setAssistantState('LISTENING');
+      setStatusText('Listening...');
+      setSubStatusText('"Listening... Tap mic again when finished speaking"');
+
+      // Auto-stop after 8 seconds of continuous recording if user doesn't tap again
+      if (listeningTimerRef.current) {
+        clearTimeout(listeningTimerRef.current);
       }
-      Speech.stop();
+      listeningTimerRef.current = setTimeout(() => {
+        stopAndProcessVoice();
+      }, 8000);
+    } catch (recordErr: any) {
+      console.warn('[Audio Record Start Error]:', recordErr);
       setAssistantState('IDLE');
       setStatusText('Ready');
-      setSubStatusText('"How can I help you, Commander?"');
-      return;
+      setSubStatusText('"Microphone ready"');
+      Alert.alert('Recording Error', 'Could not start audio recorder: ' + (recordErr.message || 'Unknown error'));
     }
-
-    // Start listening: mic glows with orbital ring, waveform visualizer activates
-    setAssistantState('LISTENING');
-    setStatusText('Listening...');
-    setSubStatusText('"Listening to your voice..."');
-
-    // Automatically transition to thinking & answering after 4.5 seconds of voice input
-    listeningTimerRef.current = setTimeout(() => {
-      setAssistantState('THINKING');
-      setStatusText('Thinking...');
-      setSubStatusText('Reasoning with Gemini...');
-      executeCommand('Give me a full morning sitrep briefing and PC status', 'voice');
-    }, 4500);
   };
 
   // 8. Core Command Execution (Used by Voice & Chat - talks like Telegram)

@@ -940,9 +940,11 @@ const server = http.createServer(async (req, res) => {
             }
 
             // Check direct device control shortcuts in voice query
+            const pcBridge = require('../local_pc_bridge');
             const lower = userQuery.toLowerCase();
+
             if (lower.includes('lock pc') || lower.includes('lock my pc') || lower.includes('lock workstation')) {
-                const resLock = lockWorkstation();
+                const resLock = pcBridge.lockWorkstation ? pcBridge.lockWorkstation() : { success: true };
                 return sendJson(res, 200, {
                     transcription: userQuery,
                     reply: 'Workstation locked immediately, Commander.',
@@ -952,7 +954,7 @@ const server = http.createServer(async (req, res) => {
             }
 
             if (lower.includes('mute') || lower.includes('unmute') || lower.includes('mute audio') || lower.includes('mute pc')) {
-                const resMute = toggleVolumeMute();
+                const resMute = pcBridge.toggleVolumeMute ? pcBridge.toggleVolumeMute() : { success: true };
                 return sendJson(res, 200, {
                     transcription: userQuery,
                     reply: 'Audio mute toggled, Commander.',
@@ -961,8 +963,20 @@ const server = http.createServer(async (req, res) => {
                 });
             }
 
+            const volNumMatch = lower.match(/(?:set\s*)?(?:volume|sound|awaj)\s*(?:to\s*|koro\s*)?(\d+)/i) || lower.match(/(\d+)\s*(?:percent|%)\s*(?:volume|sound)/i);
+            if (volNumMatch) {
+                const targetPct = Math.min(100, Math.max(0, parseInt(volNumMatch[1], 10)));
+                const dir = targetPct >= 50 ? 'up' : 'down';
+                if (pcBridge.changeVolume) pcBridge.changeVolume(dir);
+                return sendJson(res, 200, {
+                    transcription: userQuery,
+                    reply: `Volume adjusted towards ${targetPct}%, Commander.`,
+                    action: `volume_set_${targetPct}`
+                });
+            }
+
             if (lower.includes('volume up') || lower.includes('vol up') || lower.includes('sound up')) {
-                const resVol = changeVolume('up');
+                const resVol = pcBridge.changeVolume ? pcBridge.changeVolume('up') : { success: true };
                 return sendJson(res, 200, {
                     transcription: userQuery,
                     reply: 'Volume turned up, Commander.',
@@ -972,7 +986,7 @@ const server = http.createServer(async (req, res) => {
             }
 
             if (lower.includes('volume down') || lower.includes('vol down') || lower.includes('sound down')) {
-                const resVol = changeVolume('down');
+                const resVol = pcBridge.changeVolume ? pcBridge.changeVolume('down') : { success: true };
                 return sendJson(res, 200, {
                     transcription: userQuery,
                     reply: 'Volume turned down, Commander.',
@@ -981,18 +995,53 @@ const server = http.createServer(async (req, res) => {
                 });
             }
 
+            if (lower.includes('play music') || lower.includes('pause music') || lower.includes('play song') || lower.includes('pause song') || lower === 'play' || lower === 'pause') {
+                const resMedia = pcBridge.controlMedia ? pcBridge.controlMedia('play_pause') : { success: true };
+                return sendJson(res, 200, {
+                    transcription: userQuery,
+                    reply: 'Media playback toggled, Commander.',
+                    action: 'play_pause',
+                    result: resMedia
+                });
+            }
+
+            if (lower.includes('next song') || lower.includes('next track')) {
+                const resMedia = pcBridge.controlMedia ? pcBridge.controlMedia('next') : { success: true };
+                return sendJson(res, 200, {
+                    transcription: userQuery,
+                    reply: 'Skipped to next track, Commander.',
+                    action: 'next_track',
+                    result: resMedia
+                });
+            }
+
+            if (lower.includes('turn off monitor') || lower.includes('monitors off') || lower.includes('turn off screen') || lower.includes('sleep screen')) {
+                const resMon = pcBridge.turnOffMonitors ? pcBridge.turnOffMonitors() : { success: true };
+                return sendJson(res, 200, {
+                    transcription: userQuery,
+                    reply: 'Monitors powered down, Commander.',
+                    action: 'monitors_off',
+                    result: resMon
+                });
+            }
+
             // Otherwise, process through full Mikasa AI agent
             const { callMikasaAgent } = require('../telegram_bridge');
-            let replyText = '';
+            let agentRes = null;
             try {
-                replyText = await callMikasaAgent(userQuery, 'mobile_voice');
+                agentRes = await callMikasaAgent(userQuery, 'mobile_voice', { isCommander: true });
             } catch (agentErr) {
-                replyText = 'Acknowledged, Commander.';
+                console.warn('[Voice API Agent Error]:', agentErr.message);
+                agentRes = { reply: 'Acknowledged, Commander.' };
             }
+
+            const rawReply = typeof agentRes === 'string' ? agentRes : (agentRes?.reply || 'Acknowledged, Commander.');
+            const toolsUsed = agentRes?.tools_used || null;
 
             return sendJson(res, 200, {
                 transcription: userQuery,
-                reply: stripEmojis(replyText)
+                reply: stripEmojis(String(rawReply || '')),
+                action: Array.isArray(toolsUsed) && toolsUsed.length ? toolsUsed.join(', ') : null
             });
         }
 

@@ -71,6 +71,8 @@ function cleanGeminiWav(rawBuffer) {
 }
 
 function stripEmojis(text) {
+    if (text === null || text === undefined) return '';
+    if (typeof text !== 'string') text = String(text);
     if (!text) return '';
     return text
         .replace(/[\p{Extended_Pictographic}\u200d\ufe0f\u203c-\u3299\u{1f000}-\u{1f9ff}]/gu, '')

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   StyleSheet,
   Text,
@@ -254,6 +254,108 @@ const SendIcon = ({ color = '#ffffff', size = 18 }: { color?: string; size?: num
   </Svg>
 );
 
+// Dynamic natural time-aware greetings (Warm, cute, friendly, human-like)
+const getDynamicGreetingMessage = (): { greetingTitle: string; chatText: string; subStatus: string } => {
+  const hour = new Date().getHours();
+
+  if (hour < 5) {
+    // Late Night (Midnight - 4:59 AM)
+    const lateNightChats = [
+      "Still up, Swapnil? 🌙 Please don't push yourself too hard tonight. I'm right here with you though—what's on your mind?",
+      "Working late tonight, Swapnil? Don't forget to get some rest soon. I'm keeping watch over everything, how can I help? ✨",
+      "Hey Swapnil... it's pretty late! 🧣 I'm right by your side. Need a hand with something before you sleep, or just checking in?",
+      "Good late night, Swapnil. The world is quiet right now. Let me know if you need anything, otherwise promise me you'll sleep soon! ☕",
+      "Still awake, Swapnil? 🌙 You work so hard. Remember I'm right here whenever you need me."
+    ];
+    const lateNightSubs = [
+      '"Still up, Swapnil? Don\'t overwork yourself tonight."',
+      '"Quiet night. I\'m right here by your side."',
+      '"Working late? I\'m standing guard."'
+    ];
+    return {
+      greetingTitle: 'Still up, Swapnil? 🌙',
+      chatText: lateNightChats[Math.floor(Math.random() * lateNightChats.length)],
+      subStatus: lateNightSubs[Math.floor(Math.random() * lateNightSubs.length)]
+    };
+  } else if (hour < 12) {
+    // Morning (5:00 AM - 11:59 AM)
+    const morningChats = [
+      "Good morning, Swapnil! ☀️ Hope you slept well. Ready to tackle today? What are we working on first?",
+      "Morning, Swapnil! ✨ Have you grabbed a warm tea or coffee yet? ☕ I'm right here whenever you're ready to begin.",
+      "Good morning, Swapnil! 🧣 The day is fresh and full of possibilities. How are you feeling today?",
+      "Hey Swapnil, morning! ✨ Ready to build something awesome today? I'm standing by!",
+      "Good morning! ☀️ Hope your day starts on a bright note. What's on your mind today, Swapnil?"
+    ];
+    const morningSubs = [
+      '"Good morning, Swapnil! Ready when you are."',
+      '"Morning! Let\'s make today productive."',
+      '"Hope you slept well. Standing by!"'
+    ];
+    return {
+      greetingTitle: 'Good morning, Swapnil ☀️',
+      chatText: morningChats[Math.floor(Math.random() * morningChats.length)],
+      subStatus: morningSubs[Math.floor(Math.random() * morningSubs.length)]
+    };
+  } else if (hour < 17) {
+    // Afternoon (12:00 PM - 4:59 PM)
+    const afternoonChats = [
+      "Good afternoon, Swapnil! ✨ Hope your day is going smoothly so far. How can I help you right now?",
+      "Hey Swapnil! 🧣 Just checking in. Remember to stay hydrated and take a quick stretch. What are we up to?",
+      "Afternoon, Swapnil! I'm right here and ready whenever you need me. What's on your radar?",
+      "Good afternoon, Swapnil! ✨ Everything is calm and running great. What can I do for you right now?",
+      "Hey there, Swapnil! Hope you're having a productive afternoon. Ready when you are! 😊"
+    ];
+    const afternoonSubs = [
+      '"Good afternoon, Swapnil! How can I assist?"',
+      '"Hope your day is going well. Standing by."',
+      '"Ready for whatever you need, Swapnil."'
+    ];
+    return {
+      greetingTitle: 'Good afternoon, Swapnil ✨',
+      chatText: afternoonChats[Math.floor(Math.random() * afternoonChats.length)],
+      subStatus: afternoonSubs[Math.floor(Math.random() * afternoonSubs.length)]
+    };
+  } else if (hour < 21) {
+    // Evening (5:00 PM - 8:59 PM)
+    const eveningChats = [
+      "Good evening, Swapnil! ✨ It's been a full day—hope things went well. How can I help you wrap things up?",
+      "Hey Swapnil, good evening! 🧣 I'm right here by your side. What are we thinking about tonight?",
+      "Evening, Swapnil! Taking some time to unwind, or continuing to build something cool? Either way, I've got your back. 😊",
+      "Good evening, Swapnil. ✨ All quiet on my end. How are you feeling tonight?",
+      "Hey Swapnil! 🌆 The evening is peaceful. What would you like to explore or do tonight?"
+    ];
+    const eveningSubs = [
+      '"Good evening, Swapnil. How was your day?"',
+      '"I\'m right here by your side tonight."',
+      '"Ready to help you unwind or build, Swapnil."'
+    ];
+    return {
+      greetingTitle: 'Good evening, Swapnil 🧣',
+      chatText: eveningChats[Math.floor(Math.random() * eveningChats.length)],
+      subStatus: eveningSubs[Math.floor(Math.random() * eveningSubs.length)]
+    };
+  } else {
+    // Night (9:00 PM - 11:59 PM)
+    const nightChats = [
+      "Good evening, Swapnil! 🌙 Night is here. Remember to relax a bit and don't strain your eyes. How can I help?",
+      "Hey Swapnil, winding down for the night? 🧣 I'm right here if you want to organize your thoughts or notes.",
+      "Night time, Swapnil! ✨ Always here with you. What would you like to do before calling it a day?",
+      "Hey there! Hope today was kind to you. I'm right beside you, let me know if you need anything. ☕",
+      "Good night, Swapnil. 🌙 Wrapping up the day? I'm keeping everything safe and sound for you."
+    ];
+    const nightSubs = [
+      '"Night time, Swapnil. Hope you had a great day."',
+      '"Winding down? I\'m right here with you."',
+      '"Don\'t strain your eyes tonight, Swapnil."'
+    ];
+    return {
+      greetingTitle: 'Good night, Swapnil 🌙',
+      chatText: nightChats[Math.floor(Math.random() * nightChats.length)],
+      subStatus: nightSubs[Math.floor(Math.random() * nightSubs.length)]
+    };
+  }
+};
+
 export default function App() {
   // Workflow Phase: 'splash' | 'onboarding' | 'main'
   const [appFlow, setAppFlow] = useState<'splash' | 'onboarding' | 'main'>('splash');
@@ -263,23 +365,26 @@ export default function App() {
   const [profileModalVisible, setProfileModalVisible] = useState(false);
   const [sitrepModalVisible, setSitrepModalVisible] = useState(false);
 
+  // Dynamic initial greeting based on time of day
+  const initialGreeting = useMemo(() => getDynamicGreetingMessage(), []);
+
   // Navigation (Image-1: 5 primary tabs): 'home' | 'chat' | 'actions' | 'memory' | 'profile'
   const [navTab, setNavTab] = useState<NavTab>('home');
 
   // Assistant State for Voice HUD (Home)
   const [assistantState, setAssistantState] = useState<AssistantState>('IDLE');
   const [statusText, setStatusText] = useState('Ready');
-  const [subStatusText, setSubStatusText] = useState('"How can I help you, Commander?"');
+  const [subStatusText, setSubStatusText] = useState(initialGreeting.subStatus);
 
   // Greeting based on current time
-  const [greeting, setGreeting] = useState('Good evening, Commander Swapnil');
+  const [greeting, setGreeting] = useState(initialGreeting.greetingTitle);
 
   // Dedicated Chat Stream State (Chat Tab)
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     {
       id: 'welcome-1',
       sender: 'mikasa',
-      text: 'Good day, Commander Swapnil. I am online and standing by. CurricuRAG research and your workstation bridge are synchronized. How can I assist you?',
+      text: initialGreeting.chatText,
       timestamp: 'Online'
     }
   ]);
@@ -312,15 +417,15 @@ export default function App() {
   ]);
   const [actionLogs, setActionLogs] = useState<ActionLogItem[]>([
     { id: '1', title: 'Workstation volume sync', source: 'Mobile LAN', status: 'SUCCESS', timestamp: '2m ago' },
-    { id: '2', title: 'CurricuRAG memory extract', source: 'Supabase DB', status: 'SUCCESS', timestamp: '14m ago' },
+    { id: '2', title: 'Workstation context sync', source: 'Supabase DB', status: 'SUCCESS', timestamp: '14m ago' },
     { id: '3', title: 'PC Bridge heartbeat ping', source: 'Swapnil-PC', status: 'SUCCESS', timestamp: '28m ago' }
   ]);
 
   // Memory Vault State
   const [memories, setMemories] = useState<MemoryItem[]>([
-    { id: '1', memory_type: 'fact', content: 'Primary Research: CurricuRAG paper with supervisor Shrabani Das.' },
-    { id: '2', memory_type: 'fact', content: 'Edu51Portal provides centralized academic resources for BUBT CSE 51st intake.' },
-    { id: '3', memory_type: 'preference', content: 'Prefers strict professional responses with no cartoon emojis.' },
+    { id: '1', memory_type: 'preference', content: 'Prefers warm, cute, natural human companion behavior; never drop projects or research unsolicited.' },
+    { id: '2', memory_type: 'fact', content: 'Commander Swapnil is a Product Designer & Builder building AI-powered products.' },
+    { id: '3', memory_type: 'preference', content: 'Adaptive language: sweet Banglish or English based on how Swapnil initiates.' },
     { id: '4', memory_type: 'decision', content: 'Switched to Gemini 3.5 Flash Lite as primary neural model for sub-second responses.' },
     { id: '5', memory_type: 'workflow', content: 'Telegram bot @mikasa_360_bot acts as 24/7 autonomous mobile companion.' }
   ]);
@@ -332,16 +437,16 @@ export default function App() {
 
   // Today's Agenda on Home
   const [agendaList, setAgendaList] = useState([
-    { id: '1', time: '10:00 AM', title: 'CurricuRAG Experiments', desc: 'Review supervisor comments from Shrabani Das' },
-    { id: '2', time: '02:30 PM', title: 'Edu51Portal Sync', desc: 'Push latest syllabus notes for CSE 51st Intake' },
-    { id: '3', time: '06:00 PM', title: 'Stark-OS Portfolio Radar', desc: 'Check commit diff and automated Vercel preview' }
+    { id: '1', time: '10:00 AM', title: 'Deep Work Session', desc: 'Focus block for design and core development' },
+    { id: '2', time: '02:30 PM', title: 'Project Review', desc: 'Review latest build progress and polish interactions' },
+    { id: '3', time: '06:00 PM', title: 'Workstation Radar', desc: 'Check commit diff and automated deployment preview' }
   ]);
 
   // Active Tasks on Home
   const [activeTasks, setActiveTasks] = useState([
-    { id: '1', title: 'CurricuRAG supervisor acknowledgment', done: true },
+    { id: '1', title: 'Morning system sync & health check', done: true },
     { id: '2', title: 'Local PC Bridge heartbeat sync', done: true },
-    { id: '3', title: 'Run n8n automated social media radar', done: false }
+    { id: '3', title: 'Run n8n automated workflow radar', done: false }
   ]);
 
   // Settings / Profile states
@@ -519,10 +624,8 @@ export default function App() {
 
   // 1. Initial Setup: Splash Loading Sequence -> Onboarding
   useEffect(() => {
-    const hour = new Date().getHours();
-    if (hour < 12) setGreeting('Good morning, Commander Swapnil');
-    else if (hour < 18) setGreeting('Good afternoon, Commander Swapnil');
-    else setGreeting('Good evening, Commander Swapnil');
+    const liveGreeting = getDynamicGreetingMessage();
+    setGreeting(liveGreeting.greetingTitle);
 
     // Animate the splash loading bar over 2.2 seconds
     Animated.timing(splashLoadBar, {
@@ -2279,7 +2382,7 @@ export default function App() {
                       </View>
                       <View style={styles.toolTileMeta}>
                         <Text style={styles.toolTileName}>Morning Sitrep Briefing</Text>
-                        <Text style={styles.toolTileDesc}>Weather, PC hardware, CurricuRAG status & agenda</Text>
+                        <Text style={styles.toolTileDesc}>Weather, workstation status, and today's schedule</Text>
                       </View>
                       <Feather name="chevron-right" size={16} color="#64748b" />
                     </TouchableOpacity>
@@ -2297,7 +2400,7 @@ export default function App() {
                       </View>
                       <View style={styles.toolTileMeta}>
                         <Text style={styles.toolTileName}>GitHub Commit Radar</Text>
-                        <Text style={styles.toolTileDesc}>Inspect stark-os-portfolio and CurricuRAG branches</Text>
+                        <Text style={styles.toolTileDesc}>Inspect stark-os-portfolio and repository branches</Text>
                       </View>
                       <Feather name="chevron-right" size={16} color="#64748b" />
                     </TouchableOpacity>

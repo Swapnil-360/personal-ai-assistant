@@ -14,8 +14,15 @@ import {
   KeyboardAvoidingView,
   Alert,
   Modal,
-  Switch
+  Switch,
+  LogBox
 } from 'react-native';
+
+// Suppress transient Expo CLI HMR connection warnings from blocking the screen
+LogBox.ignoreLogs([
+  'Cannot connect to Expo CLI',
+  'Possible Unhandled Promise Rejection'
+]);
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import Svg, { Path, Rect, Circle, Line } from 'react-native-svg';

@@ -15,7 +15,8 @@ import {
   Alert,
   Modal,
   Switch,
-  LogBox
+  LogBox,
+  Linking
 } from 'react-native';
 
 // Suppress transient Expo CLI HMR connection warnings from blocking the screen
@@ -30,13 +31,11 @@ import * as Haptics from 'expo-haptics';
 import * as Speech from 'expo-speech';
 import { CameraView, Camera } from 'expo-camera';
 import * as Location from 'expo-location';
+import { Audio } from 'expo-av';
 import {
-  useAudioRecorder,
-  RecordingPresets,
   setAudioModeAsync,
   requestRecordingPermissionsAsync,
-  getRecordingPermissionsAsync,
-  createAudioPlayer
+  getRecordingPermissionsAsync
 } from 'expo-audio';
 import * as FileSystem from 'expo-file-system/legacy';
 
@@ -359,7 +358,8 @@ export default function App() {
 
   const listeningTimerRef = useRef<any>(null);
   const activeAudioPlayerRef = useRef<any>(null);
-  const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  // Use expo-av Audio.Recording (stable in Expo Go, works on Android & iOS)
+  const recordingRef = useRef<Audio.Recording | null>(null);
   const isRecordingAudioRef = useRef(false);
 
   // Initialize Audio & Query Hardware Permissions on App Start
@@ -378,8 +378,8 @@ export default function App() {
         setMicPermissionGranted(mic.granted);
       } catch (e) {
         try {
-          const mic = await Camera.getMicrophonePermissionsAsync();
-          setMicPermissionGranted(mic.granted);
+          const { status } = await Audio.requestPermissionsAsync();
+          setMicPermissionGranted(status === 'granted');
         } catch (e2) {
           setMicPermissionGranted(false);
         }
@@ -418,15 +418,15 @@ export default function App() {
     try {
       const res = await requestRecordingPermissionsAsync();
       setMicPermissionGranted(res.granted);
-      return res.granted;
-    } catch (e) {
-      try {
-        const res = await Camera.requestMicrophonePermissionsAsync();
-        setMicPermissionGranted(res.granted);
-        return res.granted;
-      } catch (e2) {
-        return false;
-      }
+      if (res.granted) return true;
+    } catch (e) {}
+    try {
+      const { status } = await Audio.requestPermissionsAsync();
+      const granted = status === 'granted';
+      setMicPermissionGranted(granted);
+      return granted;
+    } catch (e2) {
+      return false;
     }
   };
 
@@ -769,13 +769,12 @@ export default function App() {
     speakAsMikasa(introSpeech);
   };
 
-  // 7. Voice Interaction Trigger (Pure direct voice assistant - with real microphone recording & Gemini Speech-to-Text)
+  // 7. Voice: Stop & Process using expo-av Recording
   const stopAndProcessVoice = async () => {
     if (listeningTimerRef.current) {
       clearTimeout(listeningTimerRef.current);
       listeningTimerRef.current = null;
     }
-
     if (!isRecordingAudioRef.current) return;
     isRecordingAudioRef.current = false;
 
@@ -785,35 +784,30 @@ export default function App() {
 
     let audioUri: string | null = null;
     try {
-      await audioRecorder.stop();
-      audioUri = audioRecorder.uri;
+      await recordingRef.current?.stopAndUnloadAsync();
+      audioUri = recordingRef.current?.getURI() || null;
+      recordingRef.current = null;
     } catch (stopErr: any) {
-      console.warn('[Audio Recorder Stop Error]:', stopErr);
+      console.warn('[Recording Stop Error]:', stopErr.message);
     }
 
-    // Switch audio mode back so speaker is loud and clear for TTS playback
+    // Reset audio mode for playback
     try {
-      await setAudioModeAsync({
-        allowsRecording: false,
-        playsInSilentMode: true
-      });
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: false, playsInSilentModeIOS: true });
     } catch (e) {}
 
     if (!audioUri) {
       setAssistantState('IDLE');
       setStatusText('Ready');
-      setSubStatusText('"No voice audio detected"');
+      setSubStatusText('"No audio detected — tap to try again"');
       return;
     }
 
-    // Read audio file as Base64
     let base64Audio = '';
     try {
-      base64Audio = await FileSystem.readAsStringAsync(audioUri, {
-        encoding: FileSystem.EncodingType.Base64
-      });
+      base64Audio = await FileSystem.readAsStringAsync(audioUri, { encoding: FileSystem.EncodingType.Base64 });
     } catch (fsErr: any) {
-      console.warn('[Audio Base64 Read Error]:', fsErr);
+      console.warn('[Base64 Read Error]:', fsErr.message);
     }
 
     if (!base64Audio) {
@@ -828,15 +822,12 @@ export default function App() {
         method: 'POST',
         body: JSON.stringify({
           audio_base64: base64Audio,
-          mime_type: 'audio/m4a',
-          conversation_id: 'mikasa-mobile-tg'
+          mime_type: Platform.OS === 'ios' ? 'audio/m4a' : 'audio/mp4',
+          conversation_id: 'commander_session'
         })
       });
 
-      if (!res.ok) {
-        throw new Error(`Server returned ${res.status}`);
-      }
-
+      if (!res.ok) throw new Error(`Server ${res.status}`);
       const data = await res.json();
       const transcribedQuery = (data.transcription || '').trim();
       const rawReply = (data.reply || '').trim();
@@ -844,48 +835,37 @@ export default function App() {
       if (!transcribedQuery) {
         setAssistantState('IDLE');
         setStatusText('Ready');
-        setSubStatusText('"Silence detected. Tap to try again."');
-        speakAsMikasa('I could not hear what you said, Commander. Please speak again.');
+        setSubStatusText('"Silence detected. Tap mic to try again."');
+        speakAsMikasa('I could not hear you, Commander. Please try again.');
         return;
       }
 
-      // Add user\'s transcribed question into Chat Tab
       const userMsg: ChatMessage = {
-        id: Date.now().toString(),
-        sender: 'user',
-        text: transcribedQuery,
+        id: Date.now().toString(), sender: 'user', text: transcribedQuery,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
       setChatMessages(prev => [...prev, userMsg]);
       setTimeout(() => chatScrollRef.current?.scrollToEnd({ animated: true }), 100);
 
-      // Add to Action History Log
-      setActionLogs(prev => [
-        {
-          id: Date.now().toString(),
-          title: `Voice: "${transcribedQuery.slice(0, 30)}"`,
-          source: 'Voice HUD',
-          status: 'SUCCESS',
-          timestamp: 'Just now'
-        },
-        ...prev.slice(0, 9)
-      ]);
+      setActionLogs(prev => [{
+        id: Date.now().toString(), title: `Voice: "${transcribedQuery.slice(0, 30)}"`,
+        source: 'Voice HUD', status: 'SUCCESS', timestamp: 'Just now'
+      }, ...prev.slice(0, 9)]);
+
+      // Handle alarm/reminder phone actions from server
+      if (data.alarm || (data.reminder && data.alarm)) {
+        Alert.alert('⏰ Alarm Set', `"${transcribedQuery}" → Alarm at ${new Date(data.alarm?.time || Date.now()).toLocaleTimeString()}`, [{ text: 'OK' }]);
+      }
 
       const cleanReply = stripEmojis(rawReply || 'Acknowledged, Commander.');
-      const toolUsed = data.action ? `PC Action: ${data.action}` : 'Gemini AI Brain';
-
-      // Add Mikasa\'s reply into Chat Tab
       const mikasaMsg: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        sender: 'mikasa',
-        text: cleanReply,
+        id: (Date.now() + 1).toString(), sender: 'mikasa', text: cleanReply,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        toolUsed
+        toolUsed: data.action || 'Gemini AI Brain'
       };
       setChatMessages(prev => [...prev, mikasaMsg]);
       setTimeout(() => chatScrollRef.current?.scrollToEnd({ animated: true }), 150);
 
-      // Speak her reply with voice!
       setAssistantState('SPEAKING');
       setStatusText('Speaking...');
       setSubStatusText(cleanReply.length > 55 ? `"${cleanReply.slice(0, 52)}..."` : `"${cleanReply}"`);
@@ -895,14 +875,11 @@ export default function App() {
         setSubStatusText('"How can I help you, Commander?"');
       });
     } catch (apiErr: any) {
-      console.warn('[Voice API Call Error]:', apiErr);
+      console.warn('[Voice API Error]:', apiErr.message);
       setAssistantState('IDLE');
       setStatusText('Ready');
-      setSubStatusText('"Network error processing voice"');
-      Alert.alert(
-        'Voice Processing Failed',
-        'Could not reach the Mikasa server. Ensure your PC server is running and connected to Wi-Fi.'
-      );
+      setSubStatusText('"Voice processing failed"');
+      Alert.alert('Voice Failed', 'Could not reach Mikasa server. Check Wi-Fi connection.');
     }
   };
 
@@ -956,31 +933,27 @@ export default function App() {
     Speech.stop();
 
     try {
-      await setAudioModeAsync({
-        allowsRecording: true,
-        playsInSilentMode: true
-      });
-      await audioRecorder.prepareToRecordAsync();
-      audioRecorder.record();
+      // Use expo-av Audio.Recording for reliable cross-device voice capture in Expo Go
+      await Audio.setAudioModeAsync({ allowsRecordingIOS: true, playsInSilentModeIOS: true });
+      const { recording } = await Audio.Recording.createAsync(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY
+      );
+      recordingRef.current = recording;
       isRecordingAudioRef.current = true;
 
       setAssistantState('LISTENING');
       setStatusText('Listening...');
-      setSubStatusText('"Listening... Tap mic again when finished speaking"');
+      setSubStatusText('"Listening... Tap mic again when finished"');
 
-      // Auto-stop after 8 seconds of continuous recording if user doesn't tap again
-      if (listeningTimerRef.current) {
-        clearTimeout(listeningTimerRef.current);
-      }
-      listeningTimerRef.current = setTimeout(() => {
-        stopAndProcessVoice();
-      }, 8000);
+      // Auto-stop after 10 seconds
+      if (listeningTimerRef.current) clearTimeout(listeningTimerRef.current);
+      listeningTimerRef.current = setTimeout(() => { stopAndProcessVoice(); }, 10000);
     } catch (recordErr: any) {
-      console.warn('[Audio Record Start Error]:', recordErr);
+      console.warn('[Audio Record Start Error]:', recordErr.message);
       setAssistantState('IDLE');
       setStatusText('Ready');
-      setSubStatusText('"Microphone ready"');
-      Alert.alert('Recording Error', 'Could not start audio recorder: ' + (recordErr.message || 'Unknown error'));
+      setSubStatusText('"Microphone error — check permissions"');
+      Alert.alert('Recording Error', 'Could not start microphone: ' + (recordErr.message || 'Unknown error. Try restarting the app.'));
     }
   };
 
@@ -1036,14 +1009,37 @@ export default function App() {
         body: JSON.stringify({
           text: query,
           message: query,
-          conversation_id: 'mikasa-mobile-tg'
+          conversation_id: 'commander_session'
         })
       });
 
       const data = await res.json();
-      const rawReply = data.reply || data.transcription || 'Acknowledged, Commander.';
+      const rawReply = data.reply || data.reply_text || data.transcription || 'Acknowledged, Commander.';
       const cleanReply = stripEmojis(rawReply);
       const toolUsed = data.action || (data.tools_used && data.tools_used.length > 0 ? data.tools_used[0].tool : undefined);
+
+      // Handle phone actions from server (SET_ALARM, SET_CALENDAR_EVENT, etc.)
+      const phoneActions: any[] = data.phone_actions || [];
+      for (const pa of phoneActions) {
+        if (pa.type === 'SET_ALARM' || pa.type === 'alarm_set') {
+          const t = pa.time ? new Date(pa.time) : null;
+          Alert.alert(
+            '⏰ Alarm Locked In',
+            `"${pa.label || query}" — ${t ? t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Scheduled'}`,
+            [{ text: 'OK' }]
+          );
+        }
+        if (pa.type === 'SET_CALENDAR_EVENT' && pa.gcal_url) {
+          Alert.alert(
+            '📅 Add to Calendar',
+            `Open Google Calendar for: "${pa.title || query}"?`,
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Open Calendar', onPress: () => Linking.openURL(pa.gcal_url) }
+            ]
+          );
+        }
+      }
 
       // Add to Chat Messages
       const mikasaMsg: ChatMessage = {
@@ -1230,27 +1226,31 @@ export default function App() {
         )}
 
         {/* ========================================================
-            FLOW 1: SPLASH / LAUNCH SCREEN
+            FLOW 1: SPLASH / LAUNCH SCREEN — Fullscreen Mikasa Portrait
             ======================================================== */}
         {appFlow === 'splash' && (
           <TouchableOpacity
             style={styles.splashScreen}
             activeOpacity={1}
-            onPress={() => setAppFlow('main')}
+            onPress={() => setAppFlow('onboarding')}
           >
-            <View style={styles.splashHaloBox}>
-              <View style={styles.splashCoreRing}>
-                <Image
-                  source={require('./assets/mikasa.jpeg')}
-                  style={styles.splashMikasaAvatar}
-                />
-              </View>
+            {/* Fullscreen portrait background */}
+            <Image
+              source={require('./assets/mikasa-portrait.png')}
+              style={styles.splashPortraitBg}
+              resizeMode="cover"
+            />
+            {/* Dark gradient overlay at top and bottom */}
+            <View style={styles.splashOverlayTop} />
+            <View style={styles.splashOverlayBottom} />
+
+            {/* Brand name top-left */}
+            <View style={styles.splashTopBar}>
+              <Text style={styles.splashBrandTitle}>M I K A S A</Text>
             </View>
 
-            <Text style={styles.splashBrandTitle}>M I K A S A</Text>
-            <Text style={styles.splashBrandTagline}>AUTONOMOUS AI COMPANION</Text>
-
-            <View style={styles.splashLoadingRow}>
+            {/* Bottom loading indicator */}
+            <View style={styles.splashBottomRow}>
               <View style={[styles.statusDot, { backgroundColor: '#10b981' }]} />
               <Text style={styles.splashLoadingText}>Initializing Neural Core...</Text>
             </View>
@@ -1258,30 +1258,46 @@ export default function App() {
         )}
 
         {/* ========================================================
-            FLOW 2: ONBOARDING GUIDE
+            FLOW 2: ONBOARDING — Step 1 matches reference screenshot
             ======================================================== */}
         {appFlow === 'onboarding' && (
           <View style={styles.onboardScreen}>
-            <View style={styles.onboardHeader}>
-              <Text style={styles.onboardStepCount}>STEP {onboardingStep} OF 4</Text>
-              <TouchableOpacity onPress={() => setAppFlow('main')}>
-                <Text style={styles.onboardCloseText}>✕</Text>
-              </TouchableOpacity>
-            </View>
 
             {onboardingStep === 1 && (
-              <View style={styles.onboardSlideBody}>
-                <Text style={styles.onboardTitle}>
-                  Your personal <Text style={{ color: '#e11d48' }}>AI companion.</Text>
-                </Text>
-                <Text style={styles.onboardSubtitle}>
-                  Always ready. Voice-first. Tailored exclusively for Commander Swapnil.
-                </Text>
-                <View style={styles.onboardHeroCard}>
-                  <Image source={require('./assets/mikasa.jpeg')} style={styles.onboardHeroImg} />
-                  <Text style={styles.onboardCardTitle}>Mikasa Ackerman Engine</Text>
-                  <Text style={styles.onboardCardDesc}>
-                    Connected to Swapnil-PC, Telegram Bridge, and Supabase Memory Vault.
+              // Step 1: Fullscreen portrait + hero text (matching reference screenshot)
+              <View style={{ flex: 1 }}>
+                <Image
+                  source={require('./assets/mikasa-portrait.png')}
+                  style={styles.onboardPortraitBg}
+                  resizeMode="cover"
+                />
+                <View style={styles.onboardOverlayTop} />
+                <View style={styles.onboardOverlayBottom} />
+
+                {/* Top bar */}
+                <View style={styles.onboardTopBar}>
+                  <Text style={styles.onboardBrandLabel}>M I K A S A</Text>
+                  <View style={{ flexDirection: 'row', gap: 10 }}>
+                    <TouchableOpacity
+                      style={styles.onboardSettingsBtn}
+                      onPress={() => setAppFlow('main')}
+                    >
+                      <Text style={{ fontSize: 16 }}>⚙</Text>
+                    </TouchableOpacity>
+                    <View style={styles.onboardToolsBtn}>
+                      <Text style={styles.onboardToolsBtnText}>Tools</Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Hero text mid-screen */}
+                <View style={styles.onboardHeroTextBox}>
+                  <Text style={styles.onboardHeroTitle}>
+                    Your personal <Text style={{ color: '#e11d48' }}>AI</Text>
+                  </Text>
+                  <Text style={styles.onboardHeroTitleRed}>assistant.</Text>
+                  <Text style={styles.onboardHeroSub}>
+                    More than a chatbot. Mikasa lives in your phone, ready to help, anytime.
                   </Text>
                 </View>
               </View>
@@ -1313,22 +1329,12 @@ export default function App() {
                   Home, Chat, Actions, Memory, and Profile.
                 </Text>
                 <View style={styles.onboardGrid}>
-                  <View style={styles.onboardSquircleTile}>
-                    <Text style={{ fontSize: 20 }}>🏠</Text>
-                    <Text style={styles.onboardSquircleLabel}>Home</Text>
-                  </View>
-                  <View style={styles.onboardSquircleTile}>
-                    <Text style={{ fontSize: 20 }}>💬</Text>
-                    <Text style={styles.onboardSquircleLabel}>Chat</Text>
-                  </View>
-                  <View style={styles.onboardSquircleTile}>
-                    <Text style={{ fontSize: 20 }}>⚙️</Text>
-                    <Text style={styles.onboardSquircleLabel}>Actions</Text>
-                  </View>
-                  <View style={styles.onboardSquircleTile}>
-                    <Text style={{ fontSize: 20 }}>🧠</Text>
-                    <Text style={styles.onboardSquircleLabel}>Memory</Text>
-                  </View>
+                  {[{ icon: '🏠', label: 'Home' }, { icon: '💬', label: 'Chat' }, { icon: '⚙️', label: 'Actions' }, { icon: '🧠', label: 'Memory' }].map(t => (
+                    <View key={t.label} style={styles.onboardSquircleTile}>
+                      <Text style={{ fontSize: 20 }}>{t.icon}</Text>
+                      <Text style={styles.onboardSquircleLabel}>{t.label}</Text>
+                    </View>
+                  ))}
                 </View>
               </View>
             )}
@@ -1338,9 +1344,7 @@ export default function App() {
                 <Text style={styles.onboardTitle}>
                   Meet your <Text style={{ color: '#e11d48' }}>assistant.</Text>
                 </Text>
-                <Text style={styles.onboardSubtitle}>
-                  Smart. Loyal. Always by your side.
-                </Text>
+                <Text style={styles.onboardSubtitle}>Smart. Loyal. Always by your side.</Text>
                 <View style={styles.onboardAvatarCenterBox}>
                   <View style={styles.onboardAvatarGlowRing}>
                     <Image source={require('./assets/mikasa.jpeg')} style={styles.onboardAvatarCoreImg} />
@@ -1351,6 +1355,7 @@ export default function App() {
               </View>
             )}
 
+            {/* Bottom bar: Skip · dots · Next */}
             <View style={styles.onboardBottomBar}>
               <TouchableOpacity onPress={() => setAppFlow('main')}>
                 <Text style={styles.onboardSkipBtn}>Skip</Text>
@@ -1372,6 +1377,7 @@ export default function App() {
             </View>
           </View>
         )}
+
 
         {/* ========================================================
             FLOW 3: MAIN APP (5 Primary Tabs Matching Image-1)
@@ -2564,50 +2570,51 @@ const styles = StyleSheet.create({
     backgroundColor: '#07080c'
   },
 
-  // SPLASH SCREEN
+  // SPLASH SCREEN — Fullscreen Portrait Style
   splashScreen: {
     flex: 1,
     backgroundColor: '#07080c',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24
   },
-  splashHaloBox: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: 'rgba(225, 29, 72, 0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 24
-  },
-  splashCoreRing: {
-    width: 110,
-    height: 110,
-    borderRadius: 55,
-    borderWidth: 2,
-    borderColor: '#e11d48',
-    overflow: 'hidden'
-  },
-  splashMikasaAvatar: {
+  splashPortraitBg: {
+    position: 'absolute',
     width: '100%',
-    height: '100%'
+    height: '100%',
+    top: 0,
+    left: 0
+  },
+  splashOverlayTop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 200,
+    background: 'linear-gradient(to bottom, #07080c, transparent)',
+    backgroundColor: 'rgba(7,8,12,0.6)'
+  },
+  splashOverlayBottom: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 200,
+    backgroundColor: 'rgba(7,8,12,0.7)'
+  },
+  splashTopBar: {
+    position: 'absolute',
+    top: 48,
+    left: 20,
+    right: 20
   },
   splashBrandTitle: {
-    fontSize: 26,
+    fontSize: 18,
     fontWeight: '900',
     color: '#ffffff',
-    letterSpacing: 6,
-    marginBottom: 6
+    letterSpacing: 5
   },
-  splashBrandTagline: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#e11d48',
-    letterSpacing: 3,
-    marginBottom: 32
-  },
-  splashLoadingRow: {
+  splashBottomRow: {
+    position: 'absolute',
+    bottom: 48,
+    left: 20,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8
@@ -2621,14 +2628,99 @@ const styles = StyleSheet.create({
   onboardScreen: {
     flex: 1,
     backgroundColor: '#07080c',
-    padding: 24,
     justifyContent: 'space-between'
+  },
+  onboardPortraitBg: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    top: 0,
+    left: 0
+  },
+  onboardOverlayTop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 300,
+    backgroundColor: 'rgba(7,8,12,0.55)'
+  },
+  onboardOverlayBottom: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 260,
+    backgroundColor: 'rgba(7,8,12,0.88)'
+  },
+  onboardTopBar: {
+    position: 'absolute',
+    top: 48,
+    left: 20,
+    right: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between'
+  },
+  onboardBrandLabel: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#ffffff',
+    letterSpacing: 5
+  },
+  onboardSettingsBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(20,22,30,0.85)',
+    borderWidth: 1,
+    borderColor: '#2e3245',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  onboardToolsBtn: {
+    backgroundColor: 'rgba(20,22,30,0.85)',
+    borderWidth: 1,
+    borderColor: '#2e3245',
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 8
+  },
+  onboardToolsBtnText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '700'
+  },
+  onboardHeroTextBox: {
+    position: 'absolute',
+    bottom: 120,
+    left: 20,
+    right: 20
+  },
+  onboardHeroTitle: {
+    fontSize: 32,
+    fontWeight: '900',
+    color: '#ffffff',
+    lineHeight: 38
+  },
+  onboardHeroTitleRed: {
+    fontSize: 32,
+    fontWeight: '900',
+    color: '#e11d48',
+    lineHeight: 38
+  },
+  onboardHeroSub: {
+    fontSize: 13,
+    color: '#cbd5e1',
+    marginTop: 10,
+    lineHeight: 19
   },
   onboardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: 10
+    paddingTop: 10,
+    paddingHorizontal: 24
   },
   onboardStepCount: {
     fontSize: 12,

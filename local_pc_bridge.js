@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 const http = require('http');
-const { exec, execSync } = require('child_process');
+const { exec, execSync, spawn } = require('child_process');
 const { recordAuditLog } = require('./actions_handler');
 
 function getEnv(key, fallback = null) {
@@ -823,6 +823,20 @@ function openLocalFolder(folderPath) {
     }
 }
 
+function runPowershellScript(script) {
+    return new Promise((resolve) => {
+        try {
+            const ps = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', '-'], { windowsHide: true });
+            ps.stdin.write(script + '\n');
+            ps.stdin.end();
+            ps.on('close', (code) => resolve(code === 0));
+            ps.on('error', () => resolve(false));
+        } catch (e) {
+            resolve(false);
+        }
+    });
+}
+
 function lockWorkstation() {
     try {
         exec('rundll32.exe user32.dll,LockWorkStation');
@@ -834,7 +848,7 @@ function lockWorkstation() {
 
 function toggleVolumeMute() {
     try {
-        exec('powershell -NoProfile -Command "(New-Object -ComObject WScript.Shell).SendKeys([char]173)"');
+        runPowershellScript('(New-Object -ComObject WScript.Shell).SendKeys([char]173)');
         return { success: true, message: '🔇 Volume mute toggled.' };
     } catch (e) {
         return { success: false, error: e.message };
@@ -844,7 +858,8 @@ function toggleVolumeMute() {
 function changeVolume(direction = 'up') {
     try {
         const charCode = direction === 'up' ? 175 : 174;
-        exec(`powershell -NoProfile -Command "1..5 | ForEach-Object { (New-Object -ComObject WScript.Shell).SendKeys([char]${charCode}) }"`);
+        const script = `for ($i = 0; $i -lt 5; $i++) { (New-Object -ComObject WScript.Shell).SendKeys([char]${charCode}) }`;
+        runPowershellScript(script);
         return { success: true, message: `🔊 Volume turned ${direction}.` };
     } catch (e) {
         return { success: false, error: e.message };
@@ -856,7 +871,7 @@ function controlMedia(action = 'play_pause') {
         let charCode = 179; // play/pause
         if (action === 'next') charCode = 176;
         if (action === 'prev') charCode = 177;
-        exec(`powershell -NoProfile -Command "(New-Object -ComObject WScript.Shell).SendKeys([char]${charCode})"`);
+        runPowershellScript(`(New-Object -ComObject WScript.Shell).SendKeys([char]${charCode})`);
         return { success: true, action, message: `🎵 Media command [${action}] dispatched.` };
     } catch (e) {
         return { success: false, error: e.message };
@@ -865,7 +880,8 @@ function controlMedia(action = 'play_pause') {
 
 function turnOffMonitors() {
     try {
-        exec(`powershell -NoProfile -Command "(Add-Type '[DllImport(\\\"user32.dll\\\")]public static extern int SendMessage(int hWnd, int hMsg, int wParam, int lParam);' -Name a -Passthru)::SendMessage(-1, 0x0112, 0xF170, 2)"`);
+        const script = `Add-Type -MemberDefinition '[DllImport("user32.dll")] public static extern int SendMessage(int hWnd, int hMsg, int wParam, int lParam);' -Name WinMon -Namespace Win32Api; [Win32Api.WinMon]::SendMessage(-1, 0x0112, 0xF170, 2)`;
+        runPowershellScript(script);
         return { success: true, message: '💤 Display monitors powered down.' };
     } catch (e) {
         return { success: false, error: e.message };

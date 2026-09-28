@@ -5,21 +5,23 @@ import {
   View,
   TouchableOpacity,
   ScrollView,
+  Image,
   TextInput,
-  Dimensions,
   Animated,
   Easing,
-  Alert,
-  Image,
-  KeyboardAvoidingView,
+  Dimensions,
   Platform,
-  Modal
+  KeyboardAvoidingView,
+  Alert,
+  Modal,
+  Switch
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import Svg, { Path, Rect, Circle, Line } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
 import * as Speech from 'expo-speech';
+import { Audio } from 'expo-av';
 
 const { width, height } = Dimensions.get('window');
 
@@ -60,6 +62,7 @@ const commanderFetch = async (endpoint: string, options: any = {}) => {
 };
 
 type AssistantState = 'IDLE' | 'LISTENING' | 'THINKING' | 'EXECUTING' | 'SPEAKING';
+type NavTab = 'home' | 'chat' | 'actions' | 'memory' | 'profile';
 
 interface ToolExecutionStep {
   label: string;
@@ -79,6 +82,15 @@ interface ChatMessage {
   text: string;
   timestamp: string;
   toolUsed?: string;
+  imageAttachment?: string;
+}
+
+interface ActionLogItem {
+  id: string;
+  title: string;
+  source: string;
+  status: 'SUCCESS' | 'RUNNING' | 'PENDING';
+  timestamp: string;
 }
 
 // Regex to strictly strip all cartoon emojis per Commander's explicit instruction
@@ -90,102 +102,94 @@ const stripEmojis = (str: string) => {
 };
 
 /* ========================================================
-   MODERN VECTOR ICONS (Based exactly on reference image)
+   SVG ICONS (Exact Match to Image-1 Main Navigation)
    ======================================================== */
+
+// 1. Home Icon (Clean outlined house)
 const HomeIcon = ({ active }: { active: boolean }) => (
   <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
     <Path
-      d="M3 10.5L12 3L21 10.5V20C21 20.5523 20.5523 21 20 21H4C3.44772 21 3 20.5523 3 20V10.5Z"
-      fill={active ? '#e11d48' : 'none'}
+      d="M3 9.5L12 3L21 9.5V20C21 20.5523 20.5523 21 20 21H15V15H9V21H4C3.44772 21 3 20.5523 3 20V9.5Z"
       stroke={active ? '#e11d48' : '#94a3b8'}
-      strokeWidth={2}
+      strokeWidth={1.8}
       strokeLinecap="round"
       strokeLinejoin="round"
     />
-    <Circle cx={12} cy={2.5} r={1.5} fill="#e11d48" />
   </Svg>
 );
 
+// 2. Chat Icon (Speech bubble outline)
 const ChatIcon = ({ active }: { active: boolean }) => (
   <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
     <Path
-      d="M21 11.5C21.0034 12.8199 20.6951 14.1219 20.1 15.3C19.3944 16.7118 18.3098 17.8992 16.9674 18.7293C15.6251 19.5594 14.0782 19.9994 12.5 20C11.1801 20.0035 9.87812 19.6951 8.7 19.1L3 21L4.9 15.3C4.30493 14.1219 3.99656 12.8199 4 11.5C4.00061 9.92179 4.44061 8.37488 5.27072 7.03258C6.10083 5.69028 7.28825 4.6056 8.7 3.90003C9.87812 3.30496 11.1801 2.99659 12.5 3H13C15.0843 3.11502 17.053 3.99479 18.5291 5.47089C20.0052 6.94699 20.885 8.91568 21 11V11.5Z"
+      d="M21 11.5C21.0034 12.8199 20.6951 14.1219 20.1 15.3C19.3944 16.7118 18.3098 17.8992 16.9674 18.7293C15.6251 19.5594 14.0782 19.9994 12.5 20C11.1801 20.0034 9.87812 19.6951 8.7 19.1L3 21L4.9 15.3C4.30493 14.1219 3.99656 12.8199 4 11.5C4.00061 9.92179 4.44061 8.37488 5.27072 7.03258C6.10083 5.69028 7.28825 4.6056 8.7 3.9C9.87812 3.30493 11.1801 2.99656 12.5 3H13C15.0843 3.115 17.053 3.99479 18.5291 5.47089C20.0052 6.94699 20.885 8.91568 21 11V11.5Z"
       stroke={active ? '#e11d48' : '#94a3b8'}
-      strokeWidth={2}
+      strokeWidth={1.8}
       strokeLinecap="round"
       strokeLinejoin="round"
-      fill={active ? 'rgba(225, 29, 72, 0.2)' : 'none'}
     />
   </Svg>
 );
 
-const ToolsIcon = ({ active }: { active: boolean }) => (
-  <Svg width={19} height={19} viewBox="0 0 24 24" fill="none">
+// 3. Actions Icon (Two connected workflow nodes matching Image-1)
+const ActionsIcon = ({ active }: { active: boolean }) => (
+  <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
     <Rect
-      x={3}
-      y={3}
-      width={7.5}
-      height={7.5}
-      rx={2.5}
+      x={4}
+      y={4}
+      width={7}
+      height={7}
+      rx={2}
       stroke={active ? '#e11d48' : '#94a3b8'}
-      strokeWidth={2}
-      fill={active ? '#e11d48' : 'none'}
+      strokeWidth={1.8}
     />
     <Rect
-      x={13.5}
-      y={3}
-      width={7.5}
-      height={7.5}
-      rx={2.5}
+      x={13}
+      y={13}
+      width={7}
+      height={7}
+      rx={2}
       stroke={active ? '#e11d48' : '#94a3b8'}
-      strokeWidth={2}
-      fill={active ? '#e11d48' : 'none'}
+      strokeWidth={1.8}
     />
-    <Rect
-      x={3}
-      y={13.5}
-      width={7.5}
-      height={7.5}
-      rx={2.5}
+    <Path
+      d="M7.5 11V16.5H13"
       stroke={active ? '#e11d48' : '#94a3b8'}
-      strokeWidth={2}
-      fill={active ? '#e11d48' : 'none'}
-    />
-    <Rect
-      x={13.5}
-      y={13.5}
-      width={7.5}
-      height={7.5}
-      rx={2.5}
-      stroke={active ? '#e11d48' : '#94a3b8'}
-      strokeWidth={2}
-      fill={active ? '#e11d48' : 'none'}
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
     />
   </Svg>
 );
 
+// 4. Memory Icon (Anatomical brain outline matching Image-1)
 const MemoryIcon = ({ active }: { active: boolean }) => (
   <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
     <Path
-      d="M12 4.5C8 4.5 4 8 4 12C4 16 8 19.5 12 19.5M12 4.5C16 4.5 20 8 20 12C20 16 16 19.5 12 19.5M12 4.5V19.5"
+      d="M9.5 4C8.5 4 7.6 4.4 7 5.1C6.4 4.4 5.5 4 4.5 4C2.6 4 1 5.6 1 7.5C1 8.3 1.3 9.1 1.8 9.7C1.3 10.4 1 11.2 1 12.1C1 13 1.3 13.8 1.8 14.5C1.3 15.1 1 15.9 1 16.8C1 18.7 2.6 20.3 4.5 20.3C5.3 20.3 6.1 20 6.7 19.5C7.3 20.3 8.3 20.8 9.5 20.8C10.6 20.8 11.5 20.3 12 19.6M14.5 4C15.5 4 16.4 4.4 17 5.1C17.6 4.4 18.5 4 19.5 4C21.4 4 23 5.6 23 7.5C23 8.3 22.7 9.1 22.2 9.7C22.7 10.4 23 11.2 23 12.1C23 13 22.7 13.8 22.2 14.5C22.7 15.1 23 15.9 23 16.8C23 18.7 21.4 20.3 19.5 20.3C18.7 20.3 17.9 20 17.3 19.5C16.7 20.3 15.7 20.8 14.5 20.8C13.4 20.8 12.5 20.3 12 19.6M12 4.5V19.5"
       stroke={active ? '#e11d48' : '#94a3b8'}
-      strokeWidth={2}
+      strokeWidth={1.8}
       strokeLinecap="round"
+      strokeLinejoin="round"
     />
-    <Circle cx={8} cy={12} r={1.5} fill={active ? '#e11d48' : '#94a3b8'} />
-    <Circle cx={16} cy={12} r={1.5} fill={active ? '#e11d48' : '#94a3b8'} />
   </Svg>
 );
 
-const SettingsIcon = ({ active }: { active: boolean }) => (
-  <Svg width={19} height={19} viewBox="0 0 24 24" fill="none">
-    <Circle cx={12} cy={12} r={3} stroke={active ? '#e11d48' : '#94a3b8'} strokeWidth={2} />
-    <Path
-      d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
+// 5. Profile Icon (User outline matching Image-1)
+const ProfileIcon = ({ active }: { active: boolean }) => (
+  <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+    <Circle
+      cx={12}
+      cy={8}
+      r={4}
       stroke={active ? '#e11d48' : '#94a3b8'}
-      strokeWidth={2}
+      strokeWidth={1.8}
+    />
+    <Path
+      d="M4.5 20C4.5 16.5 7.5 14.5 12 14.5C16.5 14.5 19.5 16.5 19.5 20"
+      stroke={active ? '#e11d48' : '#94a3b8'}
+      strokeWidth={1.8}
       strokeLinecap="round"
-      strokeLinejoin="round"
     />
   </Svg>
 );
@@ -218,58 +222,102 @@ export default function App() {
   const [appFlow, setAppFlow] = useState<'splash' | 'onboarding' | 'main'>('splash');
   const [onboardingStep, setOnboardingStep] = useState(1);
 
-  // Agent Profile Modal
+  // Agent Profile Modal & Sitrep Notification Modal
   const [profileModalVisible, setProfileModalVisible] = useState(false);
+  const [sitrepModalVisible, setSitrepModalVisible] = useState(false);
 
-  // Navigation (When appFlow === 'main'): 'home' | 'chat' | 'tools' | 'memory' | 'settings'
-  const [navTab, setNavTab] = useState<'home' | 'chat' | 'tools' | 'memory' | 'settings'>('home');
+  // Navigation (Image-1: 5 primary tabs): 'home' | 'chat' | 'actions' | 'memory' | 'profile'
+  const [navTab, setNavTab] = useState<NavTab>('home');
 
   // Assistant State for Voice HUD (Home)
   const [assistantState, setAssistantState] = useState<AssistantState>('IDLE');
   const [statusText, setStatusText] = useState('Ready');
   const [subStatusText, setSubStatusText] = useState('"How can I help you, Commander?"');
 
+  // Greeting based on current time
+  const [greeting, setGreeting] = useState('Good evening, Commander Swapnil');
+
   // Dedicated Chat Stream State (Chat Tab)
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     {
       id: 'welcome-1',
       sender: 'mikasa',
-      text: 'Good day, Commander Swapnil. I am online and standing by. How can I assist you?',
+      text: 'Good day, Commander Swapnil. I am online and standing by. CurricuRAG research and your workstation bridge are synchronized. How can I assist you?',
       timestamp: 'Online'
     }
   ]);
   const [chatInput, setChatInput] = useState('');
+  const [chatSearch, setChatSearch] = useState('');
+  const [isChatSearchOpen, setIsChatSearchOpen] = useState(false);
   const chatScrollRef = useRef<ScrollView>(null);
 
-  // Tool Execution Card (Screen 9)
+  // Tool Execution Card Overlay
   const [isExecuting, setIsExecuting] = useState(false);
   const [executingTitle, setExecutingTitle] = useState('Executing Action...');
   const [execSteps, setExecSteps] = useState<ToolExecutionStep[]>([]);
 
   // Hardware Status
   const [pcOnline, setPcOnline] = useState(true);
+  const [batteryLevel, setBatteryLevel] = useState(98);
+  const [isFlashlightOn, setIsFlashlightOn] = useState(false);
 
-  // Memory Vault
-  const [memories, setMemories] = useState<MemoryItem[]>([]);
-  const [memSearch, setMemSearch] = useState('');
+  // Actions Center States
+  const [actionCategory, setActionCategory] = useState<'All' | 'Device' | 'Agenda' | 'Workflows' | 'Schedules' | 'Approvals'>('All');
+  const [pendingApprovals, setPendingApprovals] = useState([
+    {
+      id: 'appr-1',
+      title: 'Deploy Stark-OS Portfolio',
+      desc: 'Push latest commit 5f54fae to Vercel production edge',
+      target: 'mrswapnil.me',
+      risk: 'Medium'
+    }
+  ]);
+  const [actionLogs, setActionLogs] = useState<ActionLogItem[]>([
+    { id: '1', title: 'Workstation volume sync', source: 'Mobile LAN', status: 'SUCCESS', timestamp: '2m ago' },
+    { id: '2', title: 'CurricuRAG memory extract', source: 'Supabase DB', status: 'SUCCESS', timestamp: '14m ago' },
+    { id: '3', title: 'PC Bridge heartbeat ping', source: 'Swapnil-PC', status: 'SUCCESS', timestamp: '28m ago' }
+  ]);
+
+  // Memory Vault State
+  const [memories, setMemories] = useState<MemoryItem[]>([
+    { id: '1', memory_type: 'fact', content: 'Primary Research: CurricuRAG paper with supervisor Shrabani Das.' },
+    { id: '2', memory_type: 'fact', content: 'Edu51Portal provides centralized academic resources for BUBT CSE 51st intake.' },
+    { id: '3', memory_type: 'preference', content: 'Prefers strict professional responses with no cartoon emojis.' },
+    { id: '4', memory_type: 'decision', content: 'Switched to Gemini 3.5 Flash Lite as primary neural model for sub-second responses.' },
+    { id: '5', memory_type: 'workflow', content: 'Telegram bot @mikasa_360_bot acts as 24/7 autonomous mobile companion.' }
+  ]);
   const [memFilter, setMemFilter] = useState<'All' | 'fact' | 'preference' | 'workflow' | 'decision'>('All');
+  const [memSearch, setMemSearch] = useState('');
+  const [isAddMemoryModal, setIsAddMemoryModal] = useState(false);
+  const [newMemContent, setNewMemContent] = useState('');
+  const [newMemType, setNewMemType] = useState('fact');
 
-  // Tools Screen Filter
-  const [toolCategory, setToolCategory] = useState<'All' | 'Communication' | 'Productivity' | 'Workstation'>('All');
+  // Today's Agenda on Home
+  const [agendaList, setAgendaList] = useState([
+    { id: '1', time: '10:00 AM', title: 'CurricuRAG Experiments', desc: 'Review supervisor comments from Shrabani Das' },
+    { id: '2', time: '02:30 PM', title: 'Edu51Portal Sync', desc: 'Push latest syllabus notes for CSE 51st Intake' },
+    { id: '3', time: '06:00 PM', title: 'Stark-OS Portfolio Radar', desc: 'Check commit diff and automated Vercel preview' }
+  ]);
 
-  // Voice preference
-  const [femaleVoiceIdentifier, setFemaleVoiceIdentifier] = useState<string | undefined>(undefined);
+  // Active Tasks on Home
+  const [activeTasks, setActiveTasks] = useState([
+    { id: '1', title: 'CurricuRAG supervisor acknowledgment', done: true },
+    { id: '2', title: 'Local PC Bridge heartbeat sync', done: true },
+    { id: '3', title: 'Run n8n automated social media radar', done: false }
+  ]);
 
-  // Loop Breathing & Splash Animations
+  // Settings / Profile states
+  const [speechRate, setSpeechRate] = useState(1.0);
+  const [isProactiveEnabled, setIsProactiveEnabled] = useState(true);
+  const [hudWaveformEnabled, setHudWaveformEnabled] = useState(true);
+
+  // Animations
   const pulseOuter = useRef(new Animated.Value(1)).current;
   const pulseInner = useRef(new Animated.Value(1)).current;
-  const splashProgress = useRef(new Animated.Value(0)).current;
-
-  // Image 2: Active Orbital Ring & Undulating Audio Waveform Animations
   const orbitalSpin = useRef(new Animated.Value(0)).current;
   const pulseOrbital = useRef(new Animated.Value(1)).current;
 
-  // 11 Symmetrical Audio Waveform Bars (like Image 2 Right)
+  // Symmetrical Waveform Bars (11 bars)
   const waveHeights = [
     useRef(new Animated.Value(6)).current,
     useRef(new Animated.Value(12)).current,
@@ -285,78 +333,100 @@ export default function App() {
   ];
 
   const listeningTimerRef = useRef<any>(null);
+  const soundRef = useRef<Audio.Sound | null>(null);
 
-  // 1. Initial Setup: Splash Loading Sequence -> Directly to Main Home!
+  // Initialize Audio Session for Loudspeaker & Android Audio Mode
   useEffect(() => {
-    findBestFemaleVoice();
-    pollWorkstation();
-    const interval = setInterval(pollWorkstation, 15000);
-
-    // Splash animation: smooth 1.8s progress bar, then transitions DIRECTLY to Home Cockpit!
-    Animated.timing(splashProgress, {
-      toValue: 1,
-      duration: 1800,
-      easing: Easing.inOut(Easing.ease),
-      useNativeDriver: false
-    }).start(() => {
-      setAppFlow('main'); // Direct to Home! Never traps user in onboarding on reloads
-    });
+    async function initAudioMode() {
+      try {
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: false,
+          playsInSilentModeIOS: true,
+          staysActiveInBackground: false,
+          shouldDuckAndroid: false,
+          playThroughEarpieceAndroid: false
+        });
+      } catch (e) {}
+    }
+    initAudioMode();
 
     return () => {
-      clearInterval(interval);
-      if (listeningTimerRef.current) clearTimeout(listeningTimerRef.current);
+      if (soundRef.current) {
+        soundRef.current.unloadAsync().catch(() => {});
+      }
     };
   }, []);
 
-  // 2. Continuous Organic Ring Pulsing (Outer + Inner)
+  // 1. Initial Setup: Splash Loading Sequence -> Directly to Main Home!
   useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseOuter, {
-          toValue: 1.12,
-          duration: 3000,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true
-        }),
-        Animated.timing(pulseOuter, {
-          toValue: 1,
-          duration: 3000,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true
-        })
-      ])
-    ).start();
+    // Dynamic greeting calculation
+    const hour = new Date().getHours();
+    if (hour < 12) setGreeting('Good morning, Commander Swapnil');
+    else if (hour < 18) setGreeting('Good afternoon, Commander Swapnil');
+    else setGreeting('Good evening, Commander Swapnil');
 
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseInner, {
-          toValue: 1.06,
-          duration: 2200,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true
-        }),
-        Animated.timing(pulseInner, {
-          toValue: 1,
-          duration: 2200,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true
-        })
-      ])
-    ).start();
+    const splashTimer = setTimeout(() => {
+      setAppFlow('main');
+    }, 1800);
+
+    pollWorkstation();
+    const interval = setInterval(pollWorkstation, 12000);
+
+    return () => {
+      clearTimeout(splashTimer);
+      clearInterval(interval);
+    };
   }, []);
 
-  // 3. Image 2: Orbital Ring Spin + Audio Waveform Bars Dynamic Pulsing
+  // 2. Concentric Ring Pulsing
+  useEffect(() => {
+    const pulseAnim = Animated.loop(
+      Animated.sequence([
+        Animated.parallel([
+          Animated.timing(pulseOuter, {
+            toValue: 1.15,
+            duration: 2200,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true
+          }),
+          Animated.timing(pulseInner, {
+            toValue: 1.08,
+            duration: 2200,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true
+          })
+        ]),
+        Animated.parallel([
+          Animated.timing(pulseOuter, {
+            toValue: 1,
+            duration: 2200,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true
+          }),
+          Animated.timing(pulseInner, {
+            toValue: 1,
+            duration: 2200,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true
+          })
+        ])
+      ])
+    );
+    pulseAnim.start();
+    return () => pulseAnim.stop();
+  }, []);
+
+  // 3. Audio Waveform & Orbital Animations
   useEffect(() => {
     let spinLoop: Animated.CompositeAnimation | null = null;
     let orbitalPulseLoop: Animated.CompositeAnimation | null = null;
-    let waveLoops: Animated.CompositeAnimation[] = [];
+    const waveLoops: Animated.CompositeAnimation[] = [];
 
     if (assistantState === 'LISTENING') {
-      // Rotating orbital ring (Image 2 Left)
       spinLoop = Animated.loop(
         Animated.timing(orbitalSpin, {
           toValue: 1,
-          duration: 3000,
+          duration: 3200,
           easing: Easing.linear,
           useNativeDriver: true
         })
@@ -366,14 +436,14 @@ export default function App() {
       orbitalPulseLoop = Animated.loop(
         Animated.sequence([
           Animated.timing(pulseOrbital, {
-            toValue: 1.08,
-            duration: 800,
+            toValue: 1.12,
+            duration: 750,
             easing: Easing.inOut(Easing.ease),
             useNativeDriver: true
           }),
           Animated.timing(pulseOrbital, {
-            toValue: 1,
-            duration: 800,
+            toValue: 0.98,
+            duration: 750,
             easing: Easing.inOut(Easing.ease),
             useNativeDriver: true
           })
@@ -381,14 +451,13 @@ export default function App() {
       );
       orbitalPulseLoop.start();
 
-      // Undulating symmetrical waveform bars (Image 2 Right)
       const targets = [
         [6, 18],
         [12, 32],
         [20, 50],
         [34, 70],
         [52, 92],
-        [68, 110],
+        [68, 105],
         [52, 92],
         [34, 70],
         [20, 50],
@@ -436,28 +505,7 @@ export default function App() {
     outputRange: ['0deg', '360deg']
   });
 
-  // 4. Find Natural Female Voice
-  const findBestFemaleVoice = async () => {
-    try {
-      const voices = await Speech.getAvailableVoicesAsync();
-      const female = voices.find(v => {
-        const name = (v.name || '').toLowerCase();
-        const id = (v.identifier || '').toLowerCase();
-        return (
-          v.language.startsWith('en') &&
-          (name.includes('female') ||
-           name.includes('samantha') ||
-           name.includes('karen') ||
-           name.includes('victoria') ||
-           name.includes('natural') ||
-           id.includes('female'))
-        );
-      });
-      if (female) setFemaleVoiceIdentifier(female.identifier);
-    } catch (e) {}
-  };
-
-  // 5. Workstation Status Polling
+  // 4. Workstation Status Polling
   const pollWorkstation = async () => {
     try {
       const res = await commanderFetch('/api/pc/status');
@@ -468,8 +516,8 @@ export default function App() {
     }
   };
 
-  // 6. Speak naturally with female voice, ZERO emojis, guaranteed Android & iOS playback
-  const speakAsMikasa = (textToSpeak: string, onFinish?: () => void) => {
+  // 5. Speak naturally with Gemini Cute Kore voice or Expo Speech fallback
+  const speakAsMikasa = async (textToSpeak: string, onFinish?: () => void) => {
     const cleanText = stripEmojis(textToSpeak);
     if (!cleanText) {
       setAssistantState('IDLE');
@@ -478,52 +526,120 @@ export default function App() {
       return;
     }
 
+    setAssistantState('SPEAKING');
+    setStatusText('Speaking...');
+
+    // Stop and unload existing sound if playing
+    if (soundRef.current) {
+      try {
+        await soundRef.current.stopAsync();
+        await soundRef.current.unloadAsync();
+      } catch (e) {}
+      soundRef.current = null;
+    }
+
+    // Try Gemini Server TTS (Cute Kore Voice) over LAN first
     try {
-      Speech.stop();
-      setTimeout(() => {
-        Speech.speak(cleanText, {
-          language: 'en-US',
-          pitch: 1.05,
-          rate: 0.98,
-          onDone: () => {
-            setAssistantState('IDLE');
-            setStatusText('Ready');
-            if (onFinish) onFinish();
-          },
-          onError: () => {
-            try {
-              Speech.speak(cleanText, { language: 'en' });
-            } catch (err) {}
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: false,
+        shouldDuckAndroid: false,
+        playThroughEarpieceAndroid: false
+      });
+
+      const ttsUri = `${LAN_API_BASE}/api/voice/tts?text=${encodeURIComponent(cleanText.slice(0, 300))}`;
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: ttsUri },
+        { shouldPlay: true, volume: 1.0 },
+        (status) => {
+          if (status.isLoaded && status.didJustFinish) {
             setAssistantState('IDLE');
             setStatusText('Ready');
             if (onFinish) onFinish();
           }
-        });
-      }, 50);
+        }
+      );
+      soundRef.current = sound;
+      return;
+    } catch (ttsErr) {
+      // Fall through to local speech synthesis
+    }
+
+    try {
+      Speech.stop();
+      Speech.speak(cleanText, {
+        pitch: 1.0,
+        rate: speechRate,
+        onDone: () => {
+          setAssistantState('IDLE');
+          setStatusText('Ready');
+          if (onFinish) onFinish();
+        },
+        onError: () => {
+          setAssistantState('IDLE');
+          setStatusText('Ready');
+          if (onFinish) onFinish();
+        }
+      });
     } catch (e) {
-      try { Speech.speak(cleanText); } catch (err) {}
       setAssistantState('IDLE');
       setStatusText('Ready');
       if (onFinish) onFinish();
     }
   };
 
-  // 7. "About Mikasa" Speech Trigger (Plays her website About Me audio intro)
-  const playAboutMeAudio = () => {
+  // 6. "About Mikasa" Audio Trigger (Plays her authentic recorded voice intro with fallback)
+  const playAboutMeAudio = async () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     } catch (e) {}
 
-    const introSpeech =
-      'I am Mikasa, an autonomous AI assistant created exclusively for Commander Swapnil. Built with neural reasoning and proactive monitoring, I coordinate your digital workspace, manage your memories, and safeguard your workflow. Smart, loyal, and always by your side.';
-
     setAssistantState('SPEAKING');
     setStatusText('Speaking...');
-    setSubStatusText('"I am Mikasa, Commander Swapnil\'s Autonomous AI Assistant"');
-    speakAsMikasa(introSpeech);
+    setSubStatusText('"I am Mikasa, Commander Swapnil\'s Autonomous AI Companion"');
+
+    // Unload previous sound if any
+    if (soundRef.current) {
+      try {
+        await soundRef.current.stopAsync();
+        await soundRef.current.unloadAsync();
+      } catch (e) {}
+      soundRef.current = null;
+    }
+
+    try {
+      Speech.stop();
+      // Ensure audio mode is set for speaker output
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: false,
+        shouldDuckAndroid: false,
+        playThroughEarpieceAndroid: false
+      });
+
+      const audioUri = `${LAN_API_BASE}/audio/who_is_mikasa.mp3`;
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: audioUri },
+        { shouldPlay: true, volume: 1.0 },
+        (status) => {
+          if (status.isLoaded && status.didJustFinish) {
+            setAssistantState('IDLE');
+            setStatusText('Ready');
+          }
+        }
+      );
+      soundRef.current = sound;
+    } catch (soundErr) {
+      console.warn('Audio file play error, falling back to TTS:', soundErr);
+      const introSpeech =
+        'I am Mikasa, an autonomous AI companion created exclusively for Commander Swapnil. Built with neural reasoning and proactive monitoring, I coordinate your digital workspace, manage your memories, and safeguard your workflow. Smart, loyal, and always by your side.';
+      speakAsMikasa(introSpeech);
+    }
   };
 
-  // 8. Voice Interaction Trigger (Pure direct voice assistant - NO TEXT MODAL!)
+  // 7. Voice Interaction Trigger (Pure direct voice assistant - NO TEXT MODAL!)
   const handleMicTap = () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
@@ -535,16 +651,25 @@ export default function App() {
     }
 
     if (assistantState === 'LISTENING') {
+      if (soundRef.current) {
+        soundRef.current.stopAsync().catch(() => {});
+        soundRef.current.unloadAsync().catch(() => {});
+        soundRef.current = null;
+      }
       Speech.stop();
       setAssistantState('THINKING');
       setStatusText('Thinking...');
       setSubStatusText('Processing command...');
-
       executeCommand('Give me a full morning sitrep briefing and PC status', 'voice');
       return;
     }
 
     if (assistantState === 'SPEAKING') {
+      if (soundRef.current) {
+        soundRef.current.stopAsync().catch(() => {});
+        soundRef.current.unloadAsync().catch(() => {});
+        soundRef.current = null;
+      }
       Speech.stop();
       setAssistantState('IDLE');
       setStatusText('Ready');
@@ -566,7 +691,7 @@ export default function App() {
     }, 4500);
   };
 
-  // 9. Core Command Execution (Used by Voice & Chat)
+  // 8. Core Command Execution (Used by Voice & Chat - talks like Telegram)
   const executeCommand = async (rawQuery: string, source: 'voice' | 'chat' = 'chat') => {
     const query = stripEmojis(rawQuery.trim());
     if (!query) return;
@@ -603,7 +728,7 @@ export default function App() {
     // Device command execution card
     if (query.toLowerCase().includes('call') || query.toLowerCase().includes('rahim') || query.toLowerCase().includes('lock')) {
       setIsExecuting(true);
-      setExecutingTitle(query.toLowerCase().includes('lock') ? 'Locking Workstation...' : 'Calling Rahim...');
+      setExecutingTitle(query.toLowerCase().includes('lock') ? 'Locking Workstation...' : 'Calling Contact...');
       setExecSteps([
         { label: 'Target identified', status: 'done' },
         { label: 'Preparing command execution', status: 'active' },
@@ -618,7 +743,7 @@ export default function App() {
         body: JSON.stringify({
           text: query,
           message: query,
-          conversation_id: 'mikasa-native-hud'
+          conversation_id: 'mikasa-mobile-tg'
         })
       });
 
@@ -637,6 +762,18 @@ export default function App() {
       };
       setChatMessages(prev => [...prev, mikasaMsg]);
       setTimeout(() => chatScrollRef.current?.scrollToEnd({ animated: true }), 150);
+
+      // Add to Action History Log
+      setActionLogs(prev => [
+        {
+          id: Date.now().toString(),
+          title: `Command: "${query.slice(0, 30)}"`,
+          source: source === 'voice' ? 'Voice HUD' : 'Chat Workspace',
+          status: 'SUCCESS',
+          timestamp: 'Just now'
+        },
+        ...prev.slice(0, 9)
+      ]);
 
       // Finish execution card steps
       if (isExecuting) {
@@ -664,11 +801,18 @@ export default function App() {
     }
   };
 
-  // 10. Workstation Actions
-  const triggerDeviceAction = async (action: 'lock' | 'mute' | 'screen' | 'vol_up' | 'vol_down') => {
+  // 9. Workstation & Device Actions (The 13 Mobile App Controls)
+  const triggerDeviceAction = async (action: 'lock' | 'mute' | 'screen' | 'vol_up' | 'vol_down' | 'torch') => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     } catch (e) {}
+
+    if (action === 'torch') {
+      setIsFlashlightOn(prev => !prev);
+      const stateStr = !isFlashlightOn ? 'on' : 'off';
+      speakAsMikasa(`Flashlight turned ${stateStr}, Commander.`);
+      return;
+    }
 
     setIsExecuting(true);
     const titles: Record<string, string> = {
@@ -713,7 +857,7 @@ export default function App() {
     }
   };
 
-  // 11. Load Memories
+  // 10. Load Memories
   const loadMemories = async () => {
     try {
       let url = `/api/memories?limit=50`;
@@ -721,7 +865,7 @@ export default function App() {
       if (memSearch) url += `&search=${encodeURIComponent(memSearch)}`;
       const res = await commanderFetch(url);
       const data = await res.json();
-      if (Array.isArray(data)) setMemories(data);
+      if (Array.isArray(data) && data.length > 0) setMemories(data);
     } catch (e) {}
   };
 
@@ -729,13 +873,47 @@ export default function App() {
     if (navTab === 'memory') loadMemories();
   }, [navTab, memFilter, memSearch]);
 
+  // Handle adding new memory
+  const handleAddMemory = async () => {
+    if (!newMemContent.trim()) return;
+    try {
+      const res = await commanderFetch('/api/memories', {
+        method: 'POST',
+        body: JSON.stringify({
+          content: newMemContent.trim(),
+          memory_type: newMemType
+        })
+      });
+      setNewMemContent('');
+      setIsAddMemoryModal(false);
+      loadMemories();
+      speakAsMikasa('Memory recorded successfully, Commander.');
+    } catch (e) {
+      setIsAddMemoryModal(false);
+    }
+  };
+
+  // Handle deleting memory
+  const handleDeleteMemory = async (id: string) => {
+    try {
+      await commanderFetch(`/api/memories/${id}`, { method: 'DELETE' });
+      setMemories(prev => prev.filter(m => m.id !== id));
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    } catch (e) {}
+  };
+
+  // Filtered Chat Messages
+  const visibleChatMessages = chatSearch.trim()
+    ? chatMessages.filter(m => m.text.toLowerCase().includes(chatSearch.toLowerCase()))
+    : chatMessages;
+
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.container}>
         <StatusBar style="light" />
 
         {/* ========================================================
-            FLOW 1: SPLASH / LAUNCH SCREEN (Screen 1 in Image 3)
+            FLOW 1: SPLASH / LAUNCH SCREEN
             ======================================================== */}
         {appFlow === 'splash' && (
           <TouchableOpacity
@@ -743,178 +921,112 @@ export default function App() {
             activeOpacity={1}
             onPress={() => setAppFlow('main')}
           >
-            <View style={styles.splashPortraitContainer}>
-              <Image
-                source={require('./assets/mikasa-portrait.png')}
-                style={styles.splashPortraitImg}
-                resizeMode="contain"
-              />
-            </View>
-
-            <View style={styles.splashBottomContent}>
-              {/* Modern Origami / Geometric M Logo */}
-              <View style={styles.splashEmblem}>
-                <Svg width={36} height={36} viewBox="0 0 24 24" fill="none">
-                  <Path
-                    d="M3 20V4L12 13L21 4V20L17 16L12 21L7 16L3 20Z"
-                    fill="#e11d48"
-                  />
-                </Svg>
-              </View>
-
-              <Text style={styles.splashBrandTitle}>M I K A S A</Text>
-              <Text style={styles.splashTagline}>Your Personal AI Assistant</Text>
-
-              {/* Glowing Loading Bar */}
-              <View style={styles.splashProgressBarTrack}>
-                <Animated.View
-                  style={[
-                    styles.splashProgressBarFill,
-                    {
-                      width: splashProgress.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: ['0%', '100%']
-                      })
-                    }
-                  ]}
+            <View style={styles.splashHaloBox}>
+              <View style={styles.splashCoreRing}>
+                <Image
+                  source={require('./assets/mikasa.jpeg')}
+                  style={styles.splashMikasaAvatar}
                 />
               </View>
+            </View>
+
+            <Text style={styles.splashBrandTitle}>M I K A S A</Text>
+            <Text style={styles.splashBrandTagline}>AUTONOMOUS AI COMPANION</Text>
+
+            <View style={styles.splashLoadingRow}>
+              <View style={[styles.statusDot, { backgroundColor: '#10b981' }]} />
+              <Text style={styles.splashLoadingText}>Initializing Neural Core...</Text>
             </View>
           </TouchableOpacity>
         )}
 
         {/* ========================================================
-            FLOW 2: ONBOARDING SCREENS (Screens 2 to 5 in Image 3)
+            FLOW 2: ONBOARDING GUIDE
             ======================================================== */}
         {appFlow === 'onboarding' && (
-          <View style={styles.onboardContainer}>
-            {/* Top Bar with Logo */}
-            <View style={styles.onboardTopBar}>
-              <Text style={styles.onboardTopBrand}>M I K A S A</Text>
+          <View style={styles.onboardScreen}>
+            <View style={styles.onboardHeader}>
+              <Text style={styles.onboardStepCount}>STEP {onboardingStep} OF 4</Text>
+              <TouchableOpacity onPress={() => setAppFlow('main')}>
+                <Text style={styles.onboardCloseText}>✕</Text>
+              </TouchableOpacity>
             </View>
 
-            {/* SCREEN 1/4: "Your personal AI assistant." */}
             {onboardingStep === 1 && (
               <View style={styles.onboardSlideBody}>
                 <Text style={styles.onboardTitle}>
-                  Your personal <Text style={{ color: '#e11d48' }}>AI assistant.</Text>
+                  Your personal <Text style={{ color: '#e11d48' }}>AI companion.</Text>
                 </Text>
                 <Text style={styles.onboardSubtitle}>
-                  More than a chatbot. Mikasa lives in your phone, ready to help, anytime.
+                  Always ready. Voice-first. Tailored exclusively for Commander Swapnil.
                 </Text>
-
-                <View style={styles.onboardHeroContainer}>
-                  <Image
-                    source={require('./assets/mikasa-portrait.png')}
-                    style={styles.onboardHeroImg}
-                    resizeMode="contain"
-                  />
+                <View style={styles.onboardHeroCard}>
+                  <Image source={require('./assets/mikasa.jpeg')} style={styles.onboardHeroImg} />
+                  <Text style={styles.onboardCardTitle}>Mikasa Ackerman Engine</Text>
+                  <Text style={styles.onboardCardDesc}>
+                    Connected to Swapnil-PC, Telegram Bridge, and Supabase Memory Vault.
+                  </Text>
                 </View>
               </View>
             )}
 
-            {/* SCREEN 2/4: "Talk naturally." */}
             {onboardingStep === 2 && (
               <View style={styles.onboardSlideBody}>
                 <Text style={styles.onboardTitle}>
-                  Talk <Text style={{ color: '#e11d48' }}>naturally.</Text>
+                  Speak <Text style={{ color: '#e11d48' }}>naturally.</Text>
                 </Text>
                 <Text style={styles.onboardSubtitle}>
-                  Say what you need. Mikasa handles the rest.
+                  Hands-free voice recognition with live undulating crimson waveforms.
                 </Text>
-
-                <View style={styles.waveformGraphicBox}>
-                  {[16, 32, 60, 40, 75, 96, 64, 85, 42, 22, 14].map((h, i) => (
-                    <View key={i} style={[styles.onboardWaveBar, { height: h }]} />
-                  ))}
-                </View>
-
-                <View style={styles.onboardCmdStack}>
-                  <View style={styles.onboardCmdPill}>
-                    <Text style={styles.onboardCmdPillText}>"Hey Mikasa, call Mom"</Text>
+                <View style={styles.onboardMicShowcaseBox}>
+                  <View style={styles.floatingMicBtn}>
+                    <MicrophoneIcon color="#ffffff" size={32} />
                   </View>
-                  <View style={styles.onboardCmdPill}>
-                    <Text style={styles.onboardCmdPillText}>"Set a reminder for 8 PM"</Text>
-                  </View>
-                  <View style={styles.onboardCmdPill}>
-                    <Text style={styles.onboardCmdPillText}>"Open Telegram"</Text>
-                  </View>
+                  <Text style={styles.onboardMicSub}>Tap mic once to speak • Tap again to send</Text>
                 </View>
               </View>
             )}
 
-            {/* SCREEN 3/4: "Connected to your digital world." */}
             {onboardingStep === 3 && (
               <View style={styles.onboardSlideBody}>
                 <Text style={styles.onboardTitle}>
-                  Connected to your <Text style={{ color: '#e11d48' }}>digital world.</Text>
+                  5 Command <Text style={{ color: '#e11d48' }}>Workspaces.</Text>
                 </Text>
                 <Text style={styles.onboardSubtitle}>
-                  Your apps, calendar, messages, files and more. All in one place.
+                  Home, Chat, Actions, Memory, and Profile.
                 </Text>
-
-                <View style={styles.onboardSquircleGrid}>
+                <View style={styles.onboardGrid}>
                   <View style={styles.onboardSquircleTile}>
-                    <View style={styles.onboardSquircleIcon}>
-                      <Text style={{ fontSize: 20 }}>📞</Text>
-                    </View>
-                    <Text style={styles.onboardSquircleLabel}>Phone</Text>
+                    <Text style={{ fontSize: 20 }}>🏠</Text>
+                    <Text style={styles.onboardSquircleLabel}>Home</Text>
                   </View>
-
                   <View style={styles.onboardSquircleTile}>
-                    <View style={styles.onboardSquircleIcon}>
-                      <Text style={{ fontSize: 20 }}>⊞</Text>
-                    </View>
-                    <Text style={styles.onboardSquircleLabel}>Apps</Text>
+                    <Text style={{ fontSize: 20 }}>💬</Text>
+                    <Text style={styles.onboardSquircleLabel}>Chat</Text>
                   </View>
-
                   <View style={styles.onboardSquircleTile}>
-                    <View style={styles.onboardSquircleIcon}>
-                      <Text style={{ fontSize: 20 }}>📅</Text>
-                    </View>
-                    <Text style={styles.onboardSquircleLabel}>Calendar</Text>
+                    <Text style={{ fontSize: 20 }}>⚙️</Text>
+                    <Text style={styles.onboardSquircleLabel}>Actions</Text>
                   </View>
-
                   <View style={styles.onboardSquircleTile}>
-                    <View style={styles.onboardSquircleIcon}>
-                      <Text style={{ fontSize: 20 }}>💬</Text>
-                    </View>
-                    <Text style={styles.onboardSquircleLabel}>Messages</Text>
-                  </View>
-
-                  <View style={styles.onboardSquircleTile}>
-                    <View style={styles.onboardSquircleIcon}>
-                      <Text style={{ fontSize: 20 }}>✈️</Text>
-                    </View>
-                    <Text style={styles.onboardSquircleLabel}>Telegram</Text>
-                  </View>
-
-                  <View style={styles.onboardSquircleTile}>
-                    <View style={styles.onboardSquircleIcon}>
-                      <Text style={{ fontSize: 20 }}>🧠</Text>
-                    </View>
+                    <Text style={{ fontSize: 20 }}>🧠</Text>
                     <Text style={styles.onboardSquircleLabel}>Memory</Text>
                   </View>
                 </View>
               </View>
             )}
 
-            {/* SCREEN 4/4: "Meet your assistant." */}
             {onboardingStep === 4 && (
               <View style={styles.onboardSlideBody}>
                 <Text style={styles.onboardTitle}>
                   Meet your <Text style={{ color: '#e11d48' }}>assistant.</Text>
                 </Text>
                 <Text style={styles.onboardSubtitle}>
-                  Smart. Loyal. Always with you.
+                  Smart. Loyal. Always by your side.
                 </Text>
-
                 <View style={styles.onboardAvatarCenterBox}>
                   <View style={styles.onboardAvatarGlowRing}>
-                    <Image
-                      source={require('./assets/mikasa.jpeg')}
-                      style={styles.onboardAvatarCoreImg}
-                    />
+                    <Image source={require('./assets/mikasa.jpeg')} style={styles.onboardAvatarCoreImg} />
                   </View>
                   <Text style={styles.onboardAvatarCoreName}>Mikasa</Text>
                   <Text style={styles.onboardAvatarCoreStatus}>● Online</Text>
@@ -922,51 +1034,21 @@ export default function App() {
               </View>
             )}
 
-            {/* Bottom Navigation Controls (Skip / Back + Dots + Next / Get Started) */}
             <View style={styles.onboardBottomBar}>
-              {onboardingStep === 1 ? (
-                <TouchableOpacity
-                  onPress={() => {
-                    setAppFlow('main');
-                    speakAsMikasa('Welcome, Commander Swapnil. I am initialized.');
-                  }}
-                >
-                  <Text style={styles.onboardSkipBtn}>Skip</Text>
-                </TouchableOpacity>
-              ) : (
-                <TouchableOpacity onPress={() => setOnboardingStep(s => s - 1)}>
-                  <Text style={styles.onboardSkipBtn}>Back</Text>
-                </TouchableOpacity>
-              )}
-
-              {/* 4 Pagination Dots */}
+              <TouchableOpacity onPress={() => setAppFlow('main')}>
+                <Text style={styles.onboardSkipBtn}>Skip</Text>
+              </TouchableOpacity>
               <View style={styles.onboardDotsRow}>
                 {[1, 2, 3, 4].map(step => (
-                  <View
-                    key={step}
-                    style={[
-                      styles.onboardDot,
-                      onboardingStep === step && styles.onboardDotActive
-                    ]}
-                  />
+                  <View key={step} style={[styles.onboardDot, onboardingStep === step && styles.onboardDotActive]} />
                 ))}
               </View>
-
               {onboardingStep < 4 ? (
-                <TouchableOpacity
-                  style={styles.onboardNextBtn}
-                  onPress={() => setOnboardingStep(s => s + 1)}
-                >
+                <TouchableOpacity style={styles.onboardNextBtn} onPress={() => setOnboardingStep(s => s + 1)}>
                   <Text style={styles.onboardNextBtnText}>Next →</Text>
                 </TouchableOpacity>
               ) : (
-                <TouchableOpacity
-                  style={styles.onboardNextBtn}
-                  onPress={() => {
-                    setAppFlow('main');
-                    speakAsMikasa('Welcome, Commander Swapnil. I am initialized and ready.');
-                  }}
-                >
+                <TouchableOpacity style={styles.onboardNextBtn} onPress={() => setAppFlow('main')}>
                   <Text style={styles.onboardNextBtnText}>Get Started →</Text>
                 </TouchableOpacity>
               )}
@@ -975,36 +1057,50 @@ export default function App() {
         )}
 
         {/* ========================================================
-            FLOW 3: MAIN APP (5 Vector Tabs)
+            FLOW 3: MAIN APP (5 Primary Tabs Matching Image-1)
             ======================================================== */}
         {appFlow === 'main' && (
           <View style={{ flex: 1 }}>
+
             {/* ========================================================
-                TAB 1: HOME (PURE VOICE ASSISTANT HUD - NO SCROLL CLUTTER)
+                TAB 1: HOME (CLEAN VOICE ASSISTANT HUD - NO SCROLL CLUTTER)
+                Stationary Geometric Stage + Floating Orbital Mic
                 ======================================================== */}
             {navTab === 'home' && (
               <View style={styles.homeVoiceScreen}>
-                {/* Top Brand Bar */}
+                {/* 1. Top Brand Header with Status & Notification Bell */}
                 <View style={styles.hudTopHeader}>
                   <View style={styles.hudBrandLeft}>
                     <Text style={styles.hudBrandName}>M I K A S A</Text>
                     <View style={styles.hudStatusDotRow}>
                       <View style={[styles.statusDot, { backgroundColor: '#10b981' }]} />
                       <Text style={styles.statusDotText}>
-                        {assistantState === 'LISTENING' ? 'Listening...' : assistantState === 'EXECUTING' ? 'Executing...' : 'Online'}
+                        {assistantState === 'LISTENING' ? 'Listening...' : assistantState === 'EXECUTING' ? 'Executing...' : pcOnline ? 'Swapnil-PC Online' : 'Online'}
                       </Text>
                     </View>
                   </View>
 
-                  {/* Profile Trigger Button (Avatar at Top Right) */}
-                  <TouchableOpacity onPress={() => setProfileModalVisible(true)}>
-                    <View style={styles.hudAvatarBorder}>
-                      <Image source={require('./assets/mikasa.jpeg')} style={styles.hudAvatarImg} />
-                    </View>
-                  </TouchableOpacity>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                    {/* Notification Bell Trigger for Sitrep & Agenda */}
+                    <TouchableOpacity
+                      style={styles.hudBellBtn}
+                      onPress={() => setSitrepModalVisible(true)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={{ fontSize: 18 }}>🔔</Text>
+                      <View style={styles.hudBellBadge} />
+                    </TouchableOpacity>
+
+                    {/* Profile Trigger Button (Avatar at Top Right) */}
+                    <TouchableOpacity onPress={() => setProfileModalVisible(true)} activeOpacity={0.7}>
+                      <View style={styles.hudAvatarBorder}>
+                        <Image source={require('./assets/mikasa.jpeg')} style={styles.hudAvatarImg} />
+                      </View>
+                    </TouchableOpacity>
+                  </View>
                 </View>
 
-                {/* Stationary Geometric Center Stage */}
+                {/* 2. Stationary Geometric Center Stage */}
                 <View style={styles.homeStationaryStage}>
                   {/* Concentric Resonating Rings + 1:1 Circle Video Orb */}
                   <View style={styles.orbStageWrapper}>
@@ -1044,7 +1140,7 @@ export default function App() {
                     </TouchableOpacity>
                   </View>
 
-                  {/* Status Hierarchy (Screen 7 & 8) */}
+                  {/* Status Hierarchy */}
                   <Text style={styles.orbTitleText}>
                     {assistantState === 'LISTENING' ? 'Listening...' : 'Mikasa'}
                   </Text>
@@ -1054,7 +1150,7 @@ export default function App() {
                     <Text style={styles.orbReadyText}>{statusText}</Text>
                   </View>
 
-                  {/* Image 2 Right: Active Pulsing Crimson Audio Waveform while listening */}
+                  {/* Undulating Crimson Waveform while listening */}
                   {assistantState === 'LISTENING' ? (
                     <View style={styles.liveAudioWaveformBox}>
                       {waveHeights.map((h, i) => (
@@ -1063,7 +1159,7 @@ export default function App() {
                     </View>
                   ) : (
                     <>
-                      {/* Red Subtitle Prompt matching reference image */}
+                      {/* Red Subtitle Prompt */}
                       <Text style={styles.orbSubtitlePromptRed}>
                         {subStatusText}
                       </Text>
@@ -1081,7 +1177,7 @@ export default function App() {
                   )}
                 </View>
 
-                {/* Image 2 Left: Prominent Standalone Floating Mic with Animated Orbital Ring */}
+                {/* 3. Prominent Standalone Floating Mic with Animated Orbital Ring */}
                 <View style={styles.homeMicAnchor}>
                   <View style={styles.orbitalMicWrapper}>
                     {assistantState === 'LISTENING' && (
@@ -1143,31 +1239,74 @@ export default function App() {
             )}
 
             {/* ========================================================
-                TAB 2: CHAT (DEDICATED CONVERSATIONAL AI STREAM)
+                TAB 2: CHAT (FULL WORKSPACE - TALKS LIKE TG @mikasa_360_bot)
+                Text + Voice + File Attachments + Image Analysis + Search + Memories
                 ======================================================== */}
             {navTab === 'chat' && (
               <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : undefined}
                 style={styles.chatTabScreen}
               >
-                {/* Chat Header */}
-                <View style={styles.chatTopBar}>
-                  <View>
-                    <Text style={styles.chatTopTitle}>Mikasa AI Chat</Text>
-                    <Text style={styles.chatTopSub}>Autonomous Multi-Tool Agent</Text>
+                {/* Telegram-style Top Header */}
+                <View style={styles.tgChatHeader}>
+                  <View style={styles.tgAvatarBox}>
+                    <Image source={require('./assets/mikasa.jpeg')} style={styles.tgAvatarImg} />
+                    <View style={styles.tgOnlineDot} />
                   </View>
-                  <TouchableOpacity style={styles.chatClearBtn} onPress={() => setChatMessages([])}>
-                    <Text style={styles.chatClearText}>Clear</Text>
+
+                  <View style={{ flex: 1, marginLeft: 10 }}>
+                    <Text style={styles.tgHeaderName}>Mikasa Ackerman 🧣</Text>
+                    <Text style={styles.tgHeaderStatus}>online • loyal companion</Text>
+                  </View>
+
+                  <TouchableOpacity
+                    style={styles.tgSearchIconBtn}
+                    onPress={() => setIsChatSearchOpen(v => !v)}
+                  >
+                    <Text style={{ fontSize: 18, color: '#94a3b8' }}>🔍</Text>
                   </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.tgSearchIconBtn, { marginLeft: 8 }]}
+                    onPress={() => setChatMessages([])}
+                  >
+                    <Text style={{ fontSize: 13, color: '#e11d48', fontWeight: 'bold' }}>Clear</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Conversation Search Bar */}
+                {isChatSearchOpen && (
+                  <View style={styles.chatSearchInputBox}>
+                    <TextInput
+                      style={styles.chatSearchInput}
+                      placeholder="Search conversation..."
+                      placeholderTextColor="#64748b"
+                      value={chatSearch}
+                      onChangeText={setChatSearch}
+                      autoFocus
+                    />
+                    {chatSearch.length > 0 && (
+                      <TouchableOpacity onPress={() => setChatSearch('')}>
+                        <Text style={{ color: '#94a3b8', fontSize: 14 }}>✕</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                )}
+
+                {/* Active Memory Context Banner */}
+                <View style={styles.tgMemoryBanner}>
+                  <Text style={styles.tgMemoryBannerText}>
+                    🧠 123+ Long-Term Memories Active (CurricuRAG, Stark-OS, BUBT CSE 51st)
+                  </Text>
                 </View>
 
                 {/* Scrollable Message List */}
                 <ScrollView
                   ref={chatScrollRef}
                   style={styles.chatMessageScroll}
-                  contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 12, gap: 12 }}
+                  contentContainerStyle={{ paddingHorizontal: 14, paddingVertical: 12, gap: 10 }}
                 >
-                  {chatMessages.map(msg => (
+                  {visibleChatMessages.map(msg => (
                     <View
                       key={msg.id}
                       style={[
@@ -1191,184 +1330,406 @@ export default function App() {
                           </View>
                         )}
                         <Text style={styles.chatMessageText}>{msg.text}</Text>
-                        <Text style={styles.chatTimeText}>{msg.timestamp}</Text>
+                        <View style={styles.chatMetaRow}>
+                          <Text style={styles.chatTimeText}>{msg.timestamp}</Text>
+                          {msg.sender === 'user' && (
+                            <Text style={styles.chatCheckmarks}>✓✓</Text>
+                          )}
+                        </View>
                       </View>
                     </View>
                   ))}
                 </ScrollView>
 
-                {/* Professional Docked Chat Input Bar */}
-                <View style={styles.chatInputDock}>
+                {/* Multi-Attachment & Input Dock */}
+                <View style={styles.tgInputDock}>
+                  {/* Image / Vision Analysis Button */}
+                  <TouchableOpacity
+                    style={styles.tgAttachBtn}
+                    onPress={() => {
+                      executeCommand('Analyze current camera view and describe surroundings', 'chat');
+                      speakAsMikasa('Commander, analyzing visual feed.');
+                    }}
+                  >
+                    <Text style={{ fontSize: 18 }}>📷</Text>
+                  </TouchableOpacity>
+
+                  {/* File Attachment Button */}
+                  <TouchableOpacity
+                    style={styles.tgAttachBtn}
+                    onPress={() => {
+                      executeCommand('Review research papers and project files', 'chat');
+                    }}
+                  >
+                    <Text style={{ fontSize: 18 }}>📎</Text>
+                  </TouchableOpacity>
+
                   <TextInput
                     style={styles.chatInputField}
-                    placeholder="Ask Mikasa anything..."
+                    placeholder="Message Mikasa..."
                     placeholderTextColor="#64748b"
                     value={chatInput}
                     onChangeText={setChatInput}
                     onSubmitEditing={() => executeCommand(chatInput, 'chat')}
                   />
 
-                  <TouchableOpacity
-                    style={styles.chatSendBtn}
-                    onPress={() => executeCommand(chatInput, 'chat')}
-                    activeOpacity={0.7}
-                  >
-                    <SendIcon color="#ffffff" size={15} />
-                  </TouchableOpacity>
+                  {chatInput.trim().length > 0 ? (
+                    <TouchableOpacity
+                      style={styles.chatSendBtn}
+                      onPress={() => executeCommand(chatInput, 'chat')}
+                      activeOpacity={0.7}
+                    >
+                      <SendIcon color="#ffffff" size={15} />
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.chatVoiceMicBtn}
+                      onPress={handleMicTap}
+                      activeOpacity={0.7}
+                    >
+                      <MicrophoneIcon color="#ffffff" size={18} />
+                    </TouchableOpacity>
+                  )}
                 </View>
               </KeyboardAvoidingView>
             )}
 
             {/* ========================================================
-                TAB 3: TOOLS / APPS SCREEN
+                TAB 3: ACTIONS (AUTOMATION CONTROL CENTER)
+                Workflows + Reminders + Scheduled Jobs + Execution History + Sensitive Approvals
+                (Covering the 13 Mobile Apps Control Domains)
                 ======================================================== */}
-            {navTab === 'tools' && (
-              <ScrollView style={styles.subScreenContainer} contentContainerStyle={{ padding: 20, paddingBottom: 80 }}>
-                <Text style={styles.toolsMainTitle}>Tools</Text>
-                <Text style={styles.toolsMainSub}>Access your apps, device & more</Text>
-
-                <View style={styles.toolCategoryRow}>
-                  {(['All', 'Communication', 'Productivity', 'Workstation'] as const).map(cat => {
-                    const active = toolCategory === cat;
-                    return (
-                      <TouchableOpacity
-                        key={cat}
-                        style={[styles.toolCatPill, active && styles.toolCatPillActive]}
-                        onPress={() => setToolCategory(cat)}
-                      >
-                        <Text style={[styles.toolCatText, active && styles.toolCatTextActive]}>{cat}</Text>
-                      </TouchableOpacity>
-                    );
-                  })}
+            {navTab === 'actions' && (
+              <ScrollView style={styles.subScreenContainer} contentContainerStyle={{ padding: 18, paddingBottom: 80 }}>
+                <View style={styles.actionsTopHeaderRow}>
+                  <View>
+                    <Text style={styles.toolsMainTitle}>Actions Center</Text>
+                    <Text style={styles.toolsMainSub}>Workflows, automations & device controls</Text>
+                  </View>
+                  <View style={styles.actionsRunningBadge}>
+                    <Text style={styles.actionsRunningText}>PC Synced</Text>
+                  </View>
                 </View>
 
-                {(toolCategory === 'All' || toolCategory === 'Communication') && (
-                  <View style={styles.toolSection}>
-                    <Text style={styles.toolSectionTitle}>Communication</Text>
-
-                    <TouchableOpacity style={styles.toolRowTile} onPress={() => executeCommand('Open Telegram', 'chat')}>
-                      <View style={[styles.toolTileIconBox, { backgroundColor: '#0284c7' }]}>
-                        <Text style={{ color: '#fff', fontSize: 16 }}>✈</Text>
-                      </View>
-                      <View style={styles.toolTileMeta}>
-                        <Text style={styles.toolTileName}>Telegram</Text>
-                        <Text style={styles.toolTileDesc}>Send messages, open chats</Text>
-                      </View>
+                {/* Sub-Filters: All | Device | Agenda | Workflows | Schedules | Approvals */}
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, marginVertical: 12 }}>
+                  {(['All', 'Device', 'Agenda', 'Workflows', 'Schedules', 'Approvals'] as const).map(cat => (
+                    <TouchableOpacity
+                      key={cat}
+                      style={[styles.cleanCatPill, actionCategory === cat && styles.cleanCatPillActive]}
+                      onPress={() => setActionCategory(cat)}
+                    >
+                      <Text style={[styles.cleanCatText, actionCategory === cat && styles.cleanCatTextActive]}>
+                        {cat === 'Agenda' ? 'Agenda & Tasks' : cat}
+                      </Text>
                     </TouchableOpacity>
+                  ))}
+                </ScrollView>
 
-                    <TouchableOpacity style={styles.toolRowTile} onPress={() => executeCommand('Call Rahim', 'chat')}>
-                      <View style={[styles.toolTileIconBox, { backgroundColor: '#10b981' }]}>
-                        <Text style={{ color: '#fff', fontSize: 16 }}>☎</Text>
+                {/* 1. Sensitive Action Approvals (if pending) */}
+                {(actionCategory === 'All' || actionCategory === 'Approvals') && pendingApprovals.length > 0 && (
+                  <View style={styles.approvalSection}>
+                    <Text style={styles.actionSectionHeader}>PENDING APPROVALS (SENSITIVE)</Text>
+                    {pendingApprovals.map(appr => (
+                      <View key={appr.id} style={styles.approvalCard}>
+                        <View style={styles.approvalTopRow}>
+                          <Text style={styles.approvalCardTitle}>{appr.title}</Text>
+                          <View style={styles.approvalRiskPill}>
+                            <Text style={styles.approvalRiskText}>{appr.risk} Risk</Text>
+                          </View>
+                        </View>
+                        <Text style={styles.approvalCardDesc}>{appr.desc}</Text>
+                        <View style={styles.approvalActionsRow}>
+                          <TouchableOpacity
+                            style={styles.approvalConfirmBtn}
+                            onPress={() => {
+                              setPendingApprovals([]);
+                              speakAsMikasa('Approved. Deploying to production, Commander.');
+                              Alert.alert('Action Executed', `${appr.title} has been authorized and dispatched.`);
+                            }}
+                          >
+                            <Text style={styles.approvalConfirmText}>✓ Approve Action</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={styles.approvalRejectBtn}
+                            onPress={() => {
+                              setPendingApprovals([]);
+                              speakAsMikasa('Action canceled, Commander.');
+                            }}
+                          >
+                            <Text style={styles.approvalRejectText}>✕ Reject</Text>
+                          </TouchableOpacity>
+                        </View>
                       </View>
-                      <View style={styles.toolTileMeta}>
-                        <Text style={styles.toolTileName}>Phone</Text>
-                        <Text style={styles.toolTileDesc}>Make calls, manage contacts</Text>
-                      </View>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity style={styles.toolRowTile} onPress={() => executeCommand('Send text message', 'chat')}>
-                      <View style={[styles.toolTileIconBox, { backgroundColor: '#06b6d4' }]}>
-                        <Text style={{ color: '#fff', fontSize: 16 }}>✉</Text>
-                      </View>
-                      <View style={styles.toolTileMeta}>
-                        <Text style={styles.toolTileName}>SMS</Text>
-                        <Text style={styles.toolTileDesc}>Send text messages</Text>
-                      </View>
-                    </TouchableOpacity>
+                    ))}
                   </View>
                 )}
 
-                {(toolCategory === 'All' || toolCategory === 'Productivity') && (
-                  <View style={styles.toolSection}>
-                    <Text style={styles.toolSectionTitle}>Productivity</Text>
+                {/* 2. Device & System Control (13 Mobile Controls) */}
+                {(actionCategory === 'All' || actionCategory === 'Device') && (
+                  <View style={styles.actionSection}>
+                    <Text style={styles.actionSectionHeader}>DEVICE & WORKSTATION CONTROLS</Text>
 
-                    <TouchableOpacity style={styles.toolRowTile} onPress={() => executeCommand('What is on my calendar today?', 'chat')}>
-                      <View style={[styles.toolTileIconBox, { backgroundColor: '#6366f1' }]}>
-                        <Text style={{ color: '#fff', fontSize: 16 }}>📅</Text>
-                      </View>
-                      <View style={styles.toolTileMeta}>
-                        <Text style={styles.toolTileName}>Calendar</Text>
-                        <Text style={styles.toolTileDesc}>Events, reminders, schedule</Text>
-                      </View>
-                    </TouchableOpacity>
+                    {/* Quick Grid Controls */}
+                    <View style={styles.deviceActionGrid}>
+                      <TouchableOpacity
+                        style={styles.deviceActionTile}
+                        onPress={() => triggerDeviceAction('lock')}
+                      >
+                        <Text style={{ fontSize: 24 }}>🔒</Text>
+                        <Text style={styles.deviceActionTileName}>Lock PC</Text>
+                        <Text style={styles.deviceActionTileSub}>Win + L</Text>
+                      </TouchableOpacity>
 
-                    <TouchableOpacity style={styles.toolRowTile} onPress={() => executeCommand('List my active notes', 'chat')}>
-                      <View style={[styles.toolTileIconBox, { backgroundColor: '#f59e0b' }]}>
-                        <Text style={{ color: '#fff', fontSize: 16 }}>✎</Text>
-                      </View>
-                      <View style={styles.toolTileMeta}>
-                        <Text style={styles.toolTileName}>Notes</Text>
-                        <Text style={styles.toolTileDesc}>Create and manage notes</Text>
-                      </View>
-                    </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.deviceActionTile}
+                        onPress={() => triggerDeviceAction('vol_up')}
+                      >
+                        <Text style={{ fontSize: 24 }}>🔊</Text>
+                        <Text style={styles.deviceActionTileName}>Vol Up</Text>
+                        <Text style={styles.deviceActionTileSub}>+5 Steps</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.deviceActionTile}
+                        onPress={() => triggerDeviceAction('vol_down')}
+                      >
+                        <Text style={{ fontSize: 24 }}>🔉</Text>
+                        <Text style={styles.deviceActionTileName}>Vol Down</Text>
+                        <Text style={styles.deviceActionTileSub}>-5 Steps</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.deviceActionTile}
+                        onPress={() => triggerDeviceAction('mute')}
+                      >
+                        <Text style={{ fontSize: 24 }}>🔇</Text>
+                        <Text style={styles.deviceActionTileName}>Mute</Text>
+                        <Text style={styles.deviceActionTileSub}>Toggle</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.deviceActionTile}
+                        onPress={() => triggerDeviceAction('torch')}
+                      >
+                        <Text style={{ fontSize: 24 }}>🔦</Text>
+                        <Text style={styles.deviceActionTileName}>Flashlight</Text>
+                        <Text style={[styles.deviceActionTileSub, isFlashlightOn && { color: '#10b981' }]}>
+                          {isFlashlightOn ? 'ON' : 'OFF'}
+                        </Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.deviceActionTile}
+                        onPress={() => {
+                          speakAsMikasa(`Battery level is ${batteryLevel} percent, connected and operating normally.`);
+                        }}
+                      >
+                        <Text style={{ fontSize: 24 }}>🔋</Text>
+                        <Text style={styles.deviceActionTileName}>Battery</Text>
+                        <Text style={styles.deviceActionTileSub}>{batteryLevel}% Charging</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 )}
 
-                {(toolCategory === 'All' || toolCategory === 'Workstation') && (
-                  <View style={styles.toolSection}>
-                    <Text style={styles.toolSectionTitle}>Workstation Control</Text>
+                {/* 2.5 Agenda & Tasks Section */}
+                {(actionCategory === 'All' || actionCategory === 'Agenda') && (
+                  <View style={styles.actionSection}>
+                    <Text style={styles.actionSectionHeader}>TODAY'S AGENDA & TASKS</Text>
+                    {agendaList.map(item => (
+                      <View key={item.id} style={styles.agendaCard}>
+                        <View style={styles.agendaTimeBox}>
+                          <Text style={styles.agendaTimeText}>{item.time}</Text>
+                        </View>
+                        <View style={styles.agendaMeta}>
+                          <Text style={styles.agendaTitleText}>{item.title}</Text>
+                          <Text style={styles.agendaDescText}>{item.desc}</Text>
+                        </View>
+                      </View>
+                    ))}
 
-                    <TouchableOpacity style={styles.toolRowTile} onPress={() => triggerDeviceAction('lock')}>
+                    <View style={{ marginTop: 8 }}>
+                      {activeTasks.map(task => (
+                        <TouchableOpacity
+                          key={task.id}
+                          style={styles.taskItemRow}
+                          onPress={() => {
+                            setActiveTasks(prev =>
+                              prev.map(t => (t.id === task.id ? { ...t, done: !t.done } : t))
+                            );
+                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          }}
+                        >
+                          <View style={[styles.taskCheckbox, task.done && styles.taskCheckboxDone]}>
+                            {task.done && <Text style={{ color: '#fff', fontSize: 11, fontWeight: 'bold' }}>✓</Text>}
+                          </View>
+                          <Text style={[styles.taskTitleText, task.done && styles.taskTitleDone]}>
+                            {task.title}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                )}
+
+                {/* 3. Automation Workflows */}
+                {(actionCategory === 'All' || actionCategory === 'Workflows') && (
+                  <View style={styles.actionSection}>
+                    <Text style={styles.actionSectionHeader}>AUTOMATED WORKFLOWS</Text>
+
+                    <TouchableOpacity
+                      style={styles.toolRowTile}
+                      onPress={() => {
+                        setNavTab('chat');
+                        executeCommand('Give me a full morning sitrep briefing and PC status', 'chat');
+                      }}
+                    >
                       <View style={[styles.toolTileIconBox, { backgroundColor: '#e11d48' }]}>
-                        <Text style={{ color: '#fff', fontSize: 16 }}>🔒</Text>
+                        <Text style={{ color: '#fff', fontSize: 16 }}>🌅</Text>
                       </View>
                       <View style={styles.toolTileMeta}>
-                        <Text style={styles.toolTileName}>Lock Workstation</Text>
-                        <Text style={styles.toolTileDesc}>Immediate Windows lockdown (Win + L)</Text>
+                        <Text style={styles.toolTileName}>Morning Sitrep Briefing</Text>
+                        <Text style={styles.toolTileDesc}>Weather, PC hardware, CurricuRAG status & agenda</Text>
                       </View>
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={styles.toolRowTile} onPress={() => triggerDeviceAction('mute')}>
-                      <View style={[styles.toolTileIconBox, { backgroundColor: '#8b5cf6' }]}>
-                        <Text style={{ color: '#fff', fontSize: 16 }}>🔇</Text>
+                    <TouchableOpacity
+                      style={styles.toolRowTile}
+                      onPress={() => {
+                        setNavTab('chat');
+                        executeCommand('Check latest commits on stark-os-portfolio repo', 'chat');
+                      }}
+                    >
+                      <View style={[styles.toolTileIconBox, { backgroundColor: '#2563eb' }]}>
+                        <Text style={{ color: '#fff', fontSize: 16 }}>🐙</Text>
                       </View>
                       <View style={styles.toolTileMeta}>
-                        <Text style={styles.toolTileName}>Mute Audio</Text>
-                        <Text style={styles.toolTileDesc}>Toggle PC master volume mute</Text>
+                        <Text style={styles.toolTileName}>GitHub Commit Radar</Text>
+                        <Text style={styles.toolTileDesc}>Inspect stark-os-portfolio and CurricuRAG branches</Text>
                       </View>
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={styles.toolRowTile} onPress={() => triggerDeviceAction('vol_up')}>
+                    <TouchableOpacity
+                      style={styles.toolRowTile}
+                      onPress={() => {
+                        setNavTab('chat');
+                        executeCommand('Generate LinkedIn job radar for AI and full-stack positions', 'chat');
+                      }}
+                    >
+                      <View style={[styles.toolTileIconBox, { backgroundColor: '#0284c7' }]}>
+                        <Text style={{ color: '#fff', fontSize: 16 }}>💼</Text>
+                      </View>
+                      <View style={styles.toolTileMeta}>
+                        <Text style={styles.toolTileName}>LinkedIn Job Radar</Text>
+                        <Text style={styles.toolTileDesc}>Scan remote fullstack and AI engineer openings</Text>
+                      </View>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.toolRowTile}
+                      onPress={() => {
+                        setNavTab('chat');
+                        executeCommand('Check Edu51Portal server health and latency', 'chat');
+                      }}
+                    >
                       <View style={[styles.toolTileIconBox, { backgroundColor: '#10b981' }]}>
-                        <Text style={{ color: '#fff', fontSize: 16 }}>🔊</Text>
+                        <Text style={{ color: '#fff', fontSize: 16 }}>🛡️</Text>
                       </View>
                       <View style={styles.toolTileMeta}>
-                        <Text style={styles.toolTileName}>Volume Up</Text>
-                        <Text style={styles.toolTileDesc}>Increase PC master volume</Text>
-                      </View>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity style={styles.toolRowTile} onPress={() => triggerDeviceAction('vol_down')}>
-                      <View style={[styles.toolTileIconBox, { backgroundColor: '#64748b' }]}>
-                        <Text style={{ color: '#fff', fontSize: 16 }}>🔉</Text>
-                      </View>
-                      <View style={styles.toolTileMeta}>
-                        <Text style={styles.toolTileName}>Volume Down</Text>
-                        <Text style={styles.toolTileDesc}>Decrease PC master volume</Text>
+                        <Text style={styles.toolTileName}>Edu51Portal Health Monitor</Text>
+                        <Text style={styles.toolTileDesc}>Sub-second latency checks for BUBT CSE 51st students</Text>
                       </View>
                     </TouchableOpacity>
                   </View>
                 )}
+
+                {/* 4. Scheduled Jobs & Reminders */}
+                {(actionCategory === 'All' || actionCategory === 'Schedules') && (
+                  <View style={styles.actionSection}>
+                    <Text style={styles.actionSectionHeader}>SCHEDULED JOBS & CRON REMINDERS</Text>
+
+                    <View style={styles.scheduleItemRow}>
+                      <View style={styles.scheduleTimeBadge}>
+                        <Text style={styles.scheduleTimeText}>09:00 AM</Text>
+                      </View>
+                      <View style={{ flex: 1, marginLeft: 12 }}>
+                        <Text style={styles.scheduleTitle}>Daily Morning Announcement</Text>
+                        <Text style={styles.scheduleSub}>Speaks morning sitrep & calendar agenda</Text>
+                      </View>
+                      <Text style={{ color: '#10b981', fontWeight: 'bold' }}>Active</Text>
+                    </View>
+
+                    <View style={styles.scheduleItemRow}>
+                      <View style={styles.scheduleTimeBadge}>
+                        <Text style={styles.scheduleTimeText}>Every 10m</Text>
+                      </View>
+                      <View style={{ flex: 1, marginLeft: 12 }}>
+                        <Text style={styles.scheduleTitle}>Supabase Memory Extractor</Text>
+                        <Text style={styles.scheduleSub}>Captures conversational facts automatically</Text>
+                      </View>
+                      <Text style={{ color: '#10b981', fontWeight: 'bold' }}>Active</Text>
+                    </View>
+
+                    <View style={styles.scheduleItemRow}>
+                      <View style={styles.scheduleTimeBadge}>
+                        <Text style={styles.scheduleTimeText}>Every 30m</Text>
+                      </View>
+                      <View style={{ flex: 1, marginLeft: 12 }}>
+                        <Text style={styles.scheduleTitle}>PC Workstation Heartbeat</Text>
+                        <Text style={styles.scheduleSub}>Broadcasts local LAN availability</Text>
+                      </View>
+                      <Text style={{ color: '#10b981', fontWeight: 'bold' }}>Active</Text>
+                    </View>
+                  </View>
+                )}
+
+                {/* 5. Execution History Log */}
+                <View style={[styles.actionSection, { marginBottom: 30 }]}>
+                  <Text style={styles.actionSectionHeader}>EXECUTION HISTORY</Text>
+                  {actionLogs.map(log => (
+                    <View key={log.id} style={styles.historyCard}>
+                      <View style={styles.historyStatusIndicator} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.historyTitleText}>{log.title}</Text>
+                        <Text style={styles.historySourceText}>{log.source} • {log.timestamp}</Text>
+                      </View>
+                      <Text style={styles.historySuccessPill}>SUCCESS</Text>
+                    </View>
+                  ))}
+                </View>
               </ScrollView>
             )}
 
             {/* ========================================================
-                TAB 4: MEMORY VAULT SCREEN
+                TAB 4: MEMORY (SEARCHABLE PERSONAL KNOWLEDGE SPACE)
+                Facts + Projects + Goals + Preferences + Previous Context
                 ======================================================== */}
             {navTab === 'memory' && (
               <View style={styles.subScreenContainer}>
-                <View style={{ padding: 20 }}>
-                  <Text style={styles.toolsMainTitle}>Memory</Text>
-                  <Text style={styles.toolsMainSub}>Persistent long-term memories</Text>
+                <View style={{ padding: 18 }}>
+                  <View style={styles.sectionHeaderRow}>
+                    <View>
+                      <Text style={styles.toolsMainTitle}>Memory Vault</Text>
+                      <Text style={styles.toolsMainSub}>Searchable personal knowledge space</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.addMemoryTriggerBtn}
+                      onPress={() => setIsAddMemoryModal(true)}
+                    >
+                      <Text style={styles.addMemoryTriggerText}>+ Add</Text>
+                    </TouchableOpacity>
+                  </View>
 
                   <TextInput
                     style={styles.cleanSearchInput}
-                    placeholder="Search memories..."
+                    placeholder="Search facts, projects, goals..."
                     placeholderTextColor="#64748b"
                     value={memSearch}
                     onChangeText={setMemSearch}
                   />
 
+                  {/* Filter Pills */}
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, marginVertical: 10 }}>
                     {(['All', 'fact', 'preference', 'workflow', 'decision'] as const).map(cat => {
                       const active = memFilter === cat;
@@ -1378,8 +1739,8 @@ export default function App() {
                           style={[styles.cleanCatPill, active && styles.cleanCatPillActive]}
                           onPress={() => setMemFilter(cat)}
                         >
-                          <Text style={[styles.cleanCatPillText, active && styles.cleanCatPillTextActive]}>
-                            {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                          <Text style={[styles.cleanCatText, active && styles.cleanCatTextActive]}>
+                            {cat === 'All' ? 'All Memories' : cat.toUpperCase()}
                           </Text>
                         </TouchableOpacity>
                       );
@@ -1387,14 +1748,22 @@ export default function App() {
                   </ScrollView>
                 </View>
 
-                <ScrollView style={{ flex: 1, paddingHorizontal: 20 }} contentContainerStyle={{ paddingBottom: 80 }}>
-                  {memories.map(m => (
-                    <View key={m.id} style={styles.cleanMemoryCard}>
-                      <View style={styles.memoryCardTop}>
-                        <Text style={styles.memoryTypeBadge}>{m.memory_type}</Text>
-                        <Text style={styles.memoryTimestamp}>{m.created_at ? new Date(m.created_at).toLocaleDateString() : ''}</Text>
+                {/* Memory Cards Stream */}
+                <ScrollView contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 90, gap: 10 }}>
+                  {memories.map(mem => (
+                    <View key={mem.id} style={styles.cleanMemCard}>
+                      <View style={styles.cleanMemTop}>
+                        <View style={styles.cleanMemTypeBadge}>
+                          <Text style={styles.cleanMemTypeText}>{(mem.memory_type || 'FACT').toUpperCase()}</Text>
+                        </View>
+                        <TouchableOpacity
+                          style={styles.memDeleteBtn}
+                          onPress={() => handleDeleteMemory(mem.id)}
+                        >
+                          <Text style={styles.memDeleteText}>✕</Text>
+                        </TouchableOpacity>
                       </View>
-                      <Text style={styles.memoryCardText}>{stripEmojis(m.content)}</Text>
+                      <Text style={styles.cleanMemContent}>{mem.content}</Text>
                     </View>
                   ))}
                 </ScrollView>
@@ -1402,47 +1771,121 @@ export default function App() {
             )}
 
             {/* ========================================================
-                TAB 5: SETTINGS SCREEN
+                TAB 5: PROFILE (SETTINGS, PERMISSIONS & ASSISTANT BEHAVIOR)
+                Voice + Language + Appearance + Connected Accounts + Permissions + Models
                 ======================================================== */}
-            {navTab === 'settings' && (
-              <ScrollView style={styles.subScreenContainer} contentContainerStyle={{ padding: 20, paddingBottom: 80 }}>
-                <Text style={styles.toolsMainTitle}>Settings</Text>
-                <Text style={styles.toolsMainSub}>Assistant, voice & services</Text>
-
-                <View style={styles.settingsGroupCard}>
-                  <Text style={styles.settingsGroupHeader}>ASSISTANT IDENTITY</Text>
-                  <View style={styles.settingsRow}>
-                    <Text style={styles.settingsLabel}>Name</Text>
-                    <Text style={styles.settingsVal}>Mikasa</Text>
-                  </View>
-                  <View style={styles.settingsRow}>
-                    <Text style={styles.settingsLabel}>Wake Word</Text>
-                    <Text style={[styles.settingsVal, { color: '#e11d48' }]}>"Hey Mikasa"</Text>
-                  </View>
-                  <View style={styles.settingsRow}>
-                    <Text style={styles.settingsLabel}>Voice Gender</Text>
-                    <Text style={styles.settingsVal}>Natural Female</Text>
+            {navTab === 'profile' && (
+              <ScrollView style={styles.subScreenContainer} contentContainerStyle={{ padding: 18, paddingBottom: 80 }}>
+                {/* Profile Card Header */}
+                <View style={styles.profileHeaderCard}>
+                  <Image source={require('./assets/mikasa.jpeg')} style={styles.profileCardAvatar} />
+                  <View style={{ flex: 1, marginLeft: 14 }}>
+                    <Text style={styles.profileCardName}>Md. Miftahur Rahman Swapnil</Text>
+                    <Text style={styles.profileCardSub}>Commander • Full-Stack AI Engineer</Text>
+                    <View style={styles.profileTagRow}>
+                      <View style={styles.profileTagBadge}>
+                        <Text style={styles.profileTagText}>Mikasa v3.2</Text>
+                      </View>
+                      <View style={[styles.profileTagBadge, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
+                        <Text style={[styles.profileTagText, { color: '#10b981' }]}>Online</Text>
+                      </View>
+                    </View>
                   </View>
                 </View>
 
+                {/* 1. Voice & Speech Settings */}
+                <View style={styles.settingsGroupCard}>
+                  <Text style={styles.settingsGroupHeader}>VOICE & SPEECH SYNTHESIS</Text>
+
+                  <View style={styles.settingsRow}>
+                    <Text style={styles.settingsLabel}>Speech Engine</Text>
+                    <Text style={styles.settingsVal}>Gemini HD + Native TTS</Text>
+                  </View>
+
+                  <View style={styles.settingsRow}>
+                    <Text style={styles.settingsLabel}>Voice Gender</Text>
+                    <Text style={[styles.settingsVal, { color: '#e11d48' }]}>Mikasa Natural Female</Text>
+                  </View>
+
+                  <View style={styles.settingsRow}>
+                    <Text style={styles.settingsLabel}>Speech Speed</Text>
+                    <Text style={styles.settingsVal}>{speechRate.toFixed(1)}x</Text>
+                  </View>
+                </View>
+
+                {/* 2. Appearance & Cockpit HUD */}
+                <View style={styles.settingsGroupCard}>
+                  <Text style={styles.settingsGroupHeader}>APPEARANCE & HUD</Text>
+
+                  <View style={styles.settingsRow}>
+                    <Text style={styles.settingsLabel}>Theme</Text>
+                    <Text style={styles.settingsVal}>Cyberpunk Crimson Dark</Text>
+                  </View>
+
+                  <View style={styles.settingsRow}>
+                    <Text style={styles.settingsLabel}>Live Waveform Visualizer</Text>
+                    <Switch
+                      value={hudWaveformEnabled}
+                      onValueChange={setHudWaveformEnabled}
+                      trackColor={{ false: '#334155', true: '#e11d48' }}
+                      thumbColor="#ffffff"
+                    />
+                  </View>
+                </View>
+
+                {/* 3. Connected Accounts & Bridge */}
                 <View style={styles.settingsGroupCard}>
                   <Text style={styles.settingsGroupHeader}>CONNECTED SERVICES</Text>
+
                   <View style={styles.settingsRow}>
                     <Text style={styles.settingsLabel}>Telegram Bridge</Text>
-                    <Text style={[styles.settingsVal, { color: '#10b981' }]}>Connected ✓</Text>
+                    <Text style={[styles.settingsVal, { color: '#10b981' }]}>@mikasa_360_bot (Active ✓)</Text>
                   </View>
+
                   <View style={styles.settingsRow}>
                     <Text style={styles.settingsLabel}>Workstation PC</Text>
                     <Text style={[styles.settingsVal, { color: pcOnline ? '#10b981' : '#f59e0b' }]}>
-                      {pcOnline ? 'Swapnil-PC Online' : 'Standby'}
+                      {pcOnline ? 'Swapnil-PC (192.168.10.130)' : 'Standby'}
                     </Text>
                   </View>
+
                   <View style={styles.settingsRow}>
                     <Text style={styles.settingsLabel}>Supabase DB</Text>
-                    <Text style={[styles.settingsVal, { color: '#10b981' }]}>123+ Memories ✓</Text>
+                    <Text style={[styles.settingsVal, { color: '#10b981' }]}>123+ Memories Loaded ✓</Text>
+                  </View>
+
+                  <View style={styles.settingsRow}>
+                    <Text style={styles.settingsLabel}>GitHub Repository</Text>
+                    <Text style={styles.settingsVal}>Swapnil-360 ✓</Text>
                   </View>
                 </View>
 
+                {/* 4. Model Preferences & Brain */}
+                <View style={styles.settingsGroupCard}>
+                  <Text style={styles.settingsGroupHeader}>NEURAL MODEL PREFERENCES</Text>
+
+                  <View style={styles.settingsRow}>
+                    <Text style={styles.settingsLabel}>Primary Engine</Text>
+                    <Text style={styles.settingsVal}>gemini-3.5-flash-lite</Text>
+                  </View>
+
+                  <View style={styles.settingsRow}>
+                    <Text style={styles.settingsLabel}>Failover Engine</Text>
+                    <Text style={styles.settingsVal}>gpt-4o-mini</Text>
+                  </View>
+
+                  <View style={styles.settingsRow}>
+                    <Text style={styles.settingsLabel}>Proactive Surveillance</Text>
+                    <Switch
+                      value={isProactiveEnabled}
+                      onValueChange={setIsProactiveEnabled}
+                      trackColor={{ false: '#334155', true: '#e11d48' }}
+                      thumbColor="#ffffff"
+                    />
+                  </View>
+                </View>
+
+                {/* 5. Replay Onboarding Guide */}
                 <TouchableOpacity
                   style={styles.onboardReplayBtn}
                   onPress={() => {
@@ -1456,56 +1899,124 @@ export default function App() {
             )}
 
             {/* ========================================================
-                BOTTOM NAVIGATION BAR (5 Vector Tabs)
+                MAIN NAVIGATION BAR (Exact Match to Image-1)
+                5 Segmented Primary Tabs: Home | Chat | Actions | Memory | Profile
                 ======================================================== */}
             <View style={styles.bottomNavBar}>
               <TouchableOpacity
-                style={styles.bottomNavBtn}
+                style={[styles.bottomNavBtn, navTab === 'home' && styles.bottomNavBtnActive]}
                 onPress={() => setNavTab('home')}
                 activeOpacity={0.7}
               >
                 <HomeIcon active={navTab === 'home'} />
-                <Text style={[styles.bottomNavLabel, navTab === 'home' && styles.bottomNavLabelActive]}>Home</Text>
+                <Text style={[styles.bottomNavLabel, navTab === 'home' && styles.bottomNavLabelActive]}>
+                  Home
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.bottomNavBtn}
+                style={[styles.bottomNavBtn, navTab === 'chat' && styles.bottomNavBtnActive]}
                 onPress={() => setNavTab('chat')}
                 activeOpacity={0.7}
               >
                 <ChatIcon active={navTab === 'chat'} />
-                <Text style={[styles.bottomNavLabel, navTab === 'chat' && styles.bottomNavLabelActive]}>Chat</Text>
+                <Text style={[styles.bottomNavLabel, navTab === 'chat' && styles.bottomNavLabelActive]}>
+                  Chat
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.bottomNavBtn}
-                onPress={() => setNavTab('tools')}
+                style={[styles.bottomNavBtn, navTab === 'actions' && styles.bottomNavBtnActive]}
+                onPress={() => setNavTab('actions')}
                 activeOpacity={0.7}
               >
-                <ToolsIcon active={navTab === 'tools'} />
-                <Text style={[styles.bottomNavLabel, navTab === 'tools' && styles.bottomNavLabelActive]}>Tools</Text>
+                <ActionsIcon active={navTab === 'actions'} />
+                <Text style={[styles.bottomNavLabel, navTab === 'actions' && styles.bottomNavLabelActive]}>
+                  Actions
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.bottomNavBtn}
+                style={[styles.bottomNavBtn, navTab === 'memory' && styles.bottomNavBtnActive]}
                 onPress={() => setNavTab('memory')}
                 activeOpacity={0.7}
               >
                 <MemoryIcon active={navTab === 'memory'} />
-                <Text style={[styles.bottomNavLabel, navTab === 'memory' && styles.bottomNavLabelActive]}>Memory</Text>
+                <Text style={[styles.bottomNavLabel, navTab === 'memory' && styles.bottomNavLabelActive]}>
+                  Memory
+                </Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.bottomNavBtn}
-                onPress={() => setNavTab('settings')}
+                style={[styles.bottomNavBtn, navTab === 'profile' && styles.bottomNavBtnActive]}
+                onPress={() => setNavTab('profile')}
                 activeOpacity={0.7}
               >
-                <SettingsIcon active={navTab === 'settings'} />
-                <Text style={[styles.bottomNavLabel, navTab === 'settings' && styles.bottomNavLabelActive]}>Settings</Text>
+                <ProfileIcon active={navTab === 'profile'} />
+                <Text style={[styles.bottomNavLabel, navTab === 'profile' && styles.bottomNavLabelActive]}>
+                  Profile
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
         )}
+
+        {/* ========================================================
+            ADD MEMORY MODAL SHEET
+            ======================================================== */}
+        <Modal
+          visible={isAddMemoryModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setIsAddMemoryModal(false)}
+        >
+          <View style={styles.profileModalBackdrop}>
+            <View style={styles.addMemorySheet}>
+              <Text style={styles.addMemoryTitle}>Record New Memory</Text>
+              <Text style={styles.addMemorySub}>Saves permanently to Mikasa's Supabase brain</Text>
+
+              <TextInput
+                style={styles.addMemoryTextInput}
+                placeholder="Type fact, project update, or preference..."
+                placeholderTextColor="#64748b"
+                multiline
+                numberOfLines={4}
+                value={newMemContent}
+                onChangeText={setNewMemContent}
+              />
+
+              <View style={styles.addMemoryTypeRow}>
+                {(['fact', 'preference', 'project', 'goal'] as const).map(t => (
+                  <TouchableOpacity
+                    key={t}
+                    style={[styles.addMemoryTypePill, newMemType === t && styles.addMemoryTypePillActive]}
+                    onPress={() => setNewMemType(t)}
+                  >
+                    <Text style={[styles.addMemoryTypeText, newMemType === t && styles.addMemoryTypeTextActive]}>
+                      {t.toUpperCase()}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <View style={styles.addMemoryBtnRow}>
+                <TouchableOpacity
+                  style={styles.addMemoryCancelBtn}
+                  onPress={() => setIsAddMemoryModal(false)}
+                >
+                  <Text style={styles.addMemoryCancelText}>Cancel</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.addMemorySaveBtn}
+                  onPress={handleAddMemory}
+                >
+                  <Text style={styles.addMemorySaveText}>Save to Memory</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
 
         {/* ========================================================
             AGENT PROFILE & MANAGEMENT MODAL (Tapping Top Right Avatar)
@@ -1518,7 +2029,6 @@ export default function App() {
         >
           <View style={styles.profileModalBackdrop}>
             <View style={styles.profileModalSheet}>
-              {/* Header with Close */}
               <View style={styles.profileSheetTop}>
                 <Text style={styles.profileSheetMainTitle}>Agent Profile & Controls</Text>
                 <TouchableOpacity
@@ -1530,7 +2040,6 @@ export default function App() {
               </View>
 
               <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
-                {/* Avatar & Badges */}
                 <View style={styles.profileAvatarCenterBox}>
                   <View style={styles.profileAvatarHalo}>
                     <Image source={require('./assets/mikasa.jpeg')} style={styles.profileAvatarImg} />
@@ -1538,376 +2047,421 @@ export default function App() {
                   <Text style={styles.profileName}>MIKASA</Text>
                   <View style={styles.profileOnlineBadge}>
                     <View style={[styles.statusDot, { backgroundColor: '#10b981' }]} />
-                    <Text style={styles.profileOnlineBadgeText}>Active & Online</Text>
-                  </View>
-                  <Text style={styles.profileRoleText}>Commander Swapnil's Executive AI Assistant</Text>
-                </View>
-
-                {/* Core Architecture */}
-                <View style={styles.profileSectionCard}>
-                  <Text style={styles.profileSectionTitle}>CORE ARCHITECTURE</Text>
-                  <View style={styles.profileDetailRow}>
-                    <Text style={styles.profileDetailLabel}>Cognitive Engine</Text>
-                    <Text style={styles.profileDetailVal}>Gemini 2.5 Multi-Modal</Text>
-                  </View>
-                  <View style={styles.profileDetailRow}>
-                    <Text style={styles.profileDetailLabel}>Voice Engine</Text>
-                    <Text style={styles.profileDetailVal}>Natural Female Synthesizer</Text>
-                  </View>
-                  <View style={styles.profileDetailRow}>
-                    <Text style={styles.profileDetailLabel}>Workstation Node</Text>
-                    <Text style={[styles.profileDetailVal, { color: pcOnline ? '#10b981' : '#f59e0b' }]}>
-                      {pcOnline ? 'Swapnil-PC Connected' : 'Offline'}
-                    </Text>
-                  </View>
-                  <View style={styles.profileDetailRow}>
-                    <Text style={styles.profileDetailLabel}>Memory Graph</Text>
-                    <Text style={styles.profileDetailVal}>123+ Memories (Supabase)</Text>
+                    <Text style={styles.profileOnlineText}>Autonomous Companion Online</Text>
                   </View>
                 </View>
 
-                {/* Feature & Notification Management */}
-                <View style={styles.profileSectionCard}>
-                  <Text style={styles.profileSectionTitle}>FEATURE & NOTIFICATION STATUS</Text>
-                  <View style={styles.profileDetailRow}>
-                    <Text style={styles.profileDetailLabel}>Proactive Workstation Monitor</Text>
-                    <Text style={[styles.profileDetailVal, { color: '#10b981' }]}>Active ✓</Text>
-                  </View>
-                  <View style={styles.profileDetailRow}>
-                    <Text style={styles.profileDetailLabel}>Telegram Direct Bridge</Text>
-                    <Text style={[styles.profileDetailVal, { color: '#10b981' }]}>Connected ✓</Text>
-                  </View>
-                  <View style={styles.profileDetailRow}>
-                    <Text style={styles.profileDetailLabel}>Push Alert Relay</Text>
-                    <Text style={[styles.profileDetailVal, { color: '#10b981' }]}>Enabled ✓</Text>
-                  </View>
-                  <View style={styles.profileDetailRow}>
-                    <Text style={styles.profileDetailLabel}>Autonomous Self-Healing</Text>
-                    <Text style={[styles.profileDetailVal, { color: '#10b981' }]}>Guaranteed ✓</Text>
-                  </View>
+                <View style={styles.profileSectionBox}>
+                  <Text style={styles.profileSecTitle}>QUICK INTRO</Text>
+                  <TouchableOpacity
+                    style={styles.profilePlayBtn}
+                    onPress={() => {
+                      setProfileModalVisible(false);
+                      playAboutMeAudio();
+                    }}
+                  >
+                    <Text style={styles.profilePlayBtnText}>🎧 Play "About Mikasa" Audio</Text>
+                  </TouchableOpacity>
                 </View>
 
-                {/* Action Buttons */}
-                <TouchableOpacity
-                  style={styles.profileActionBtn}
-                  onPress={() => {
-                    setProfileModalVisible(false);
-                    playAboutMeAudio();
-                  }}
-                >
-                  <Text style={styles.profileActionBtnText}>🎧 Play Voice Introduction</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.profileActionBtn, { backgroundColor: 'rgba(255, 255, 255, 0.05)', borderColor: 'rgba(255, 255, 255, 0.1)' }]}
-                  onPress={() => {
-                    setProfileModalVisible(false);
-                    setOnboardingStep(1);
-                    setAppFlow('onboarding');
-                  }}
-                >
-                  <Text style={[styles.profileActionBtnText, { color: '#cbd5e1' }]}>Replay Onboarding Guide</Text>
-                </TouchableOpacity>
+                <View style={styles.profileSectionBox}>
+                  <Text style={styles.profileSecTitle}>ONBOARDING GUIDE</Text>
+                  <TouchableOpacity
+                    style={styles.profileGuideBtn}
+                    onPress={() => {
+                      setProfileModalVisible(false);
+                      setOnboardingStep(1);
+                      setAppFlow('onboarding');
+                    }}
+                  >
+                    <Text style={styles.profileGuideBtnText}>📖 Replay Onboarding Guide</Text>
+                  </TouchableOpacity>
+                </View>
               </ScrollView>
             </View>
           </View>
         </Modal>
 
+        {/* ========================================================
+            SITREP & BRIEFING NOTIFICATION MODAL (Tapping 🔔 in Home)
+            Agenda + Active Tasks + Recent Activity Log
+            ======================================================== */}
+        <Modal
+          visible={sitrepModalVisible}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setSitrepModalVisible(false)}
+        >
+          <View style={styles.profileModalBackdrop}>
+            <View style={styles.profileModalSheet}>
+              <View style={styles.profileSheetTop}>
+                <View>
+                  <Text style={styles.profileSheetMainTitle}>Commander Sitrep</Text>
+                  <Text style={{ color: '#94a3b8', fontSize: 11, marginTop: 2 }}>Daily Agenda, Tasks & Live Logs</Text>
+                </View>
+                <TouchableOpacity
+                  style={styles.profileCloseBtn}
+                  onPress={() => setSitrepModalVisible(false)}
+                >
+                  <Text style={styles.profileCloseBtnText}>✕</Text>
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24, paddingTop: 10 }}>
+                {/* 1. Today's Agenda */}
+                <View style={{ marginBottom: 18 }}>
+                  <View style={styles.sectionHeaderRow}>
+                    <Text style={styles.sectionTitle}>Today's Agenda</Text>
+                    <Text style={styles.sectionActionText}>3 Events</Text>
+                  </View>
+
+                  {agendaList.map(item => (
+                    <View key={item.id} style={styles.agendaCard}>
+                      <View style={styles.agendaTimeBox}>
+                        <Text style={styles.agendaTimeText}>{item.time}</Text>
+                      </View>
+                      <View style={styles.agendaMeta}>
+                        <Text style={styles.agendaTitleText}>{item.title}</Text>
+                        <Text style={styles.agendaDescText}>{item.desc}</Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+
+                {/* 2. Active Tasks */}
+                <View style={{ marginBottom: 18 }}>
+                  <View style={styles.sectionHeaderRow}>
+                    <Text style={styles.sectionTitle}>Active Tasks</Text>
+                    <Text style={styles.sectionActionText}>Synced</Text>
+                  </View>
+
+                  {activeTasks.map(task => (
+                    <TouchableOpacity
+                      key={task.id}
+                      style={styles.taskItemRow}
+                      onPress={() => {
+                        setActiveTasks(prev =>
+                          prev.map(t => (t.id === task.id ? { ...t, done: !t.done } : t))
+                        );
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      }}
+                    >
+                      <View style={[styles.taskCheckbox, task.done && styles.taskCheckboxDone]}>
+                        {task.done && <Text style={{ color: '#fff', fontSize: 11, fontWeight: 'bold' }}>✓</Text>}
+                      </View>
+                      <Text style={[styles.taskTitleText, task.done && styles.taskTitleDone]}>
+                        {task.title}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                {/* 3. Recent Activity */}
+                <View style={{ marginBottom: 10 }}>
+                  <View style={styles.sectionHeaderRow}>
+                    <Text style={styles.sectionTitle}>Recent Activity</Text>
+                    <Text style={styles.sectionActionText}>Live Log</Text>
+                  </View>
+
+                  {actionLogs.map(log => (
+                    <View key={log.id} style={styles.recentActivityRow}>
+                      <View style={[styles.activityDot, { backgroundColor: '#e11d48' }]} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.activityTitle}>{log.title}</Text>
+                        <Text style={styles.activitySub}>{log.source} • {log.timestamp}</Text>
+                      </View>
+                      <View style={styles.activitySuccessBadge}>
+                        <Text style={styles.activitySuccessText}>{log.status}</Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
       </SafeAreaView>
     </SafeAreaProvider>
   );
 }
 
+/* ========================================================
+   STYLESHEET (Cyberpunk Crimson Dark Cockpit)
+   ======================================================== */
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#07080c'
   },
 
-  /* ========================================================
-     SPLASH SCREEN STYLES (Screen 1 in Image 3)
-     ======================================================== */
+  // SPLASH SCREEN
   splashScreen: {
     flex: 1,
     backgroundColor: '#07080c',
-    justifyContent: 'space-between',
-    paddingVertical: 30
-  },
-  splashPortraitContainer: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 20
+    padding: 24
   },
-  splashPortraitImg: {
-    width: width * 0.88,
-    height: height * 0.52
-  },
-  splashBottomContent: {
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    marginBottom: 20
-  },
-  splashEmblem: {
-    marginBottom: 8
-  },
-  splashBrandTitle: {
-    color: '#ffffff',
-    fontSize: 22,
-    fontWeight: '800',
-    letterSpacing: 4
-  },
-  splashTagline: {
-    color: '#94a3b8',
-    fontSize: 12,
-    marginTop: 4,
-    letterSpacing: 0.5
-  },
-  splashProgressBarTrack: {
-    width: 140,
-    height: 3,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 2,
-    marginTop: 28,
-    overflow: 'hidden'
-  },
-  splashProgressBarFill: {
-    height: '100%',
-    backgroundColor: '#e11d48',
-    borderRadius: 2
-  },
-
-  /* ========================================================
-     ONBOARDING SCREEN STYLES (Screens 2 to 5 in Image 3)
-     ======================================================== */
-  onboardContainer: {
-    flex: 1,
-    backgroundColor: '#07080c',
-    justifyContent: 'space-between',
-    paddingBottom: 24
-  },
-  onboardTopBar: {
-    height: 50,
-    justifyContent: 'center',
-    paddingHorizontal: 24
-  },
-  onboardTopBrand: {
-    color: '#ffffff',
-    fontSize: 13,
-    fontWeight: '800',
-    letterSpacing: 3
-  },
-  onboardSlideBody: {
-    flex: 1,
-    paddingHorizontal: 24,
-    justifyContent: 'center'
-  },
-  onboardTitle: {
-    color: '#ffffff',
-    fontSize: 28,
-    fontWeight: '800',
-    letterSpacing: -0.5
-  },
-  onboardSubtitle: {
-    color: '#94a3b8',
-    fontSize: 14,
-    lineHeight: 20,
-    marginTop: 8,
-    marginBottom: 24
-  },
-  onboardHeroContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 10
-  },
-  onboardHeroImg: {
-    width: width * 0.82,
-    height: height * 0.42
-  },
-  waveformGraphicBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    height: 110,
-    marginVertical: 18
-  },
-  onboardWaveBar: {
-    width: 4,
-    backgroundColor: '#e11d48',
-    borderRadius: 3
-  },
-  onboardCmdStack: {
-    gap: 10,
-    marginTop: 10
-  },
-  onboardCmdPill: {
-    backgroundColor: 'rgba(16, 18, 26, 0.85)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
-    borderRadius: 18,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    alignItems: 'center'
-  },
-  onboardCmdPillText: {
-    color: '#cbd5e1',
-    fontSize: 13,
-    fontWeight: '500'
-  },
-  onboardSquircleGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    gap: 14,
-    marginTop: 12
-  },
-  onboardSquircleTile: {
-    width: (width - 76) / 3,
-    height: (width - 76) / 3,
-    backgroundColor: 'rgba(16, 18, 26, 0.85)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6
-  },
-  onboardSquircleIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: 'rgba(225, 29, 72, 0.1)',
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  onboardSquircleLabel: {
-    color: '#94a3b8',
-    fontSize: 11,
-    fontWeight: '600'
-  },
-  onboardAvatarCenterBox: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 20
-  },
-  onboardAvatarGlowRing: {
+  splashHaloBox: {
     width: 140,
     height: 140,
     borderRadius: 70,
-    borderWidth: 2,
-    borderColor: '#e11d48',
-    padding: 4,
+    backgroundColor: 'rgba(225, 29, 72, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#e11d48',
-    shadowOpacity: 0.8,
-    shadowRadius: 28,
-    elevation: 14
+    marginBottom: 24
+  },
+  splashCoreRing: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    borderWidth: 2,
+    borderColor: '#e11d48',
+    overflow: 'hidden'
+  },
+  splashMikasaAvatar: {
+    width: '100%',
+    height: '100%'
+  },
+  splashBrandTitle: {
+    fontSize: 26,
+    fontWeight: '900',
+    color: '#ffffff',
+    letterSpacing: 6,
+    marginBottom: 6
+  },
+  splashBrandTagline: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#e11d48',
+    letterSpacing: 3,
+    marginBottom: 32
+  },
+  splashLoadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8
+  },
+  splashLoadingText: {
+    fontSize: 13,
+    color: '#94a3b8'
+  },
+
+  // ONBOARDING
+  onboardScreen: {
+    flex: 1,
+    backgroundColor: '#07080c',
+    padding: 24,
+    justifyContent: 'space-between'
+  },
+  onboardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 10
+  },
+  onboardStepCount: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#e11d48',
+    letterSpacing: 1.5
+  },
+  onboardCloseText: {
+    fontSize: 18,
+    color: '#94a3b8',
+    padding: 4
+  },
+  onboardSlideBody: {
+    alignItems: 'center',
+    paddingVertical: 20
+  },
+  onboardTitle: {
+    fontSize: 28,
+    fontWeight: '900',
+    color: '#ffffff',
+    textAlign: 'center',
+    marginBottom: 8
+  },
+  onboardSubtitle: {
+    fontSize: 14,
+    color: '#94a3b8',
+    textAlign: 'center',
+    paddingHorizontal: 20,
+    marginBottom: 28
+  },
+  onboardHeroCard: {
+    width: '100%',
+    backgroundColor: '#13161f',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#222634',
+    padding: 20,
+    alignItems: 'center'
+  },
+  onboardHeroImg: {
+    width: 90,
+    height: 90,
+    borderRadius: 45,
+    borderWidth: 2,
+    borderColor: '#e11d48',
+    marginBottom: 14
+  },
+  onboardCardTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#ffffff',
+    marginBottom: 4
+  },
+  onboardCardDesc: {
+    fontSize: 12,
+    color: '#94a3b8',
+    textAlign: 'center'
+  },
+  onboardMicShowcaseBox: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 30
+  },
+  onboardMicSub: {
+    fontSize: 13,
+    color: '#94a3b8',
+    marginTop: 20
+  },
+  onboardGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    justifyContent: 'center',
+    width: '100%'
+  },
+  onboardSquircleTile: {
+    width: (width - 72) / 2,
+    backgroundColor: '#13161f',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#222634',
+    padding: 18,
+    alignItems: 'center'
+  },
+  onboardSquircleLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#ffffff',
+    marginTop: 8
+  },
+  onboardAvatarCenterBox: {
+    alignItems: 'center'
+  },
+  onboardAvatarGlowRing: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    borderWidth: 2,
+    borderColor: '#e11d48',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(225, 29, 72, 0.15)',
+    marginBottom: 14
   },
   onboardAvatarCoreImg: {
-    width: 128,
-    height: 128,
-    borderRadius: 64
+    width: 104,
+    height: 104,
+    borderRadius: 52
   },
   onboardAvatarCoreName: {
-    color: '#ffffff',
     fontSize: 22,
-    fontWeight: '800',
-    marginTop: 16
+    fontWeight: '900',
+    color: '#ffffff',
+    letterSpacing: 2
   },
   onboardAvatarCoreStatus: {
+    fontSize: 12,
     color: '#10b981',
-    fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '700',
     marginTop: 4
   },
   onboardBottomBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 24,
-    height: 56
+    paddingBottom: 20
   },
   onboardSkipBtn: {
-    color: '#64748b',
     fontSize: 14,
-    fontWeight: '600'
+    color: '#94a3b8',
+    fontWeight: '600',
+    padding: 8
   },
   onboardDotsRow: {
     flexDirection: 'row',
     gap: 6
   },
   onboardDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#334155'
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#222634'
   },
   onboardDotActive: {
-    backgroundColor: '#e11d48',
-    width: 18
+    width: 20,
+    backgroundColor: '#e11d48'
   },
   onboardNextBtn: {
     backgroundColor: '#e11d48',
-    borderRadius: 20,
     paddingHorizontal: 18,
-    paddingVertical: 10
+    paddingVertical: 10,
+    borderRadius: 12
   },
   onboardNextBtnText: {
     color: '#ffffff',
     fontSize: 13,
-    fontWeight: '700'
+    fontWeight: '800'
   },
 
-  /* ========================================================
-     HOME VOICE HUD STYLES
-     ======================================================== */
-  homeVoiceScreen: {
+  // HOME SCREEN (SCROLLABLE COCKPIT)
+  homeScrollScreen: {
     flex: 1,
-    backgroundColor: '#07080c',
-    justifyContent: 'space-between',
-    paddingBottom: 68
+    backgroundColor: '#07080c'
   },
   hudTopHeader: {
-    height: 54,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.04)'
+    paddingTop: 14,
+    paddingBottom: 8
   },
   hudBrandLeft: {
-    gap: 2
+    flex: 1
   },
-  hudBrandName: {
-    color: '#ffffff',
-    fontSize: 13,
+  hudGreetingText: {
+    fontSize: 18,
     fontWeight: '800',
-    letterSpacing: 3
+    color: '#ffffff',
+    letterSpacing: 0.5
   },
   hudStatusDotRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6
+    gap: 6,
+    marginTop: 3
   },
   statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3
+    width: 7,
+    height: 7,
+    borderRadius: 3.5
   },
   statusDotText: {
-    color: '#64748b',
     fontSize: 11,
-    fontWeight: '500'
+    color: '#94a3b8',
+    fontWeight: '600'
   },
   hudAvatarBorder: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     borderWidth: 1.5,
-    borderColor: 'rgba(225, 29, 72, 0.6)',
+    borderColor: '#e11d48',
     overflow: 'hidden'
   },
   hudAvatarImg: {
@@ -1916,61 +2470,57 @@ const styles = StyleSheet.create({
   },
   homeStationaryStage: {
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 20
+    paddingVertical: 20
   },
   orbStageWrapper: {
-    width: 220,
-    height: 220,
+    width: 170,
+    height: 170,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative'
   },
   orbConcentricRingOuter: {
     position: 'absolute',
-    width: 210,
-    height: 210,
-    borderRadius: 105,
-    borderWidth: 1
+    width: 166,
+    height: 166,
+    borderRadius: 83,
+    borderWidth: 1.5
   },
   orbConcentricRingInner: {
     position: 'absolute',
-    width: 165,
-    height: 165,
-    borderRadius: 82.5,
-    borderWidth: 1.5
+    width: 144,
+    height: 144,
+    borderRadius: 72,
+    borderWidth: 1.8
   },
   crimsonEnergyOrb: {
-    width: 126,
-    height: 126,
-    borderRadius: 63,
-    backgroundColor: 'rgba(225, 29, 72, 0.15)',
-    borderWidth: 2,
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    overflow: 'hidden',
+    borderWidth: 2.2,
     borderColor: '#e11d48',
-    alignItems: 'center',
-    justifyContent: 'center',
+    elevation: 8,
     shadowColor: '#e11d48',
-    shadowOpacity: 0.7,
-    shadowRadius: 28,
-    elevation: 14,
-    overflow: 'hidden'
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 16
   },
   crimsonEnergyOrbListening: {
-    backgroundColor: 'rgba(225, 29, 72, 0.35)',
-    borderColor: '#ffffff',
-    transform: [{ scale: 1.1 }]
+    borderColor: '#ff1744',
+    shadowOpacity: 0.9,
+    shadowRadius: 24
   },
   modernVideoOrb: {
-    width: 126,
-    height: 126,
-    borderRadius: 63
+    width: '100%',
+    height: '100%'
   },
   orbTitleText: {
+    fontSize: 22,
+    fontWeight: '900',
     color: '#ffffff',
-    fontSize: 20,
-    fontWeight: '700',
-    marginTop: 18,
-    letterSpacing: -0.2
+    letterSpacing: 2,
+    marginTop: 14
   },
   orbReadyRow: {
     flexDirection: 'row',
@@ -1979,292 +2529,299 @@ const styles = StyleSheet.create({
     marginTop: 4
   },
   orbReadyText: {
-    color: '#64748b',
     fontSize: 12,
-    fontWeight: '500'
+    color: '#94a3b8',
+    fontWeight: '600'
   },
   orbSubtitlePromptRed: {
+    fontSize: 13,
+    fontWeight: '700',
     color: '#e11d48',
-    fontSize: 14,
-    fontWeight: '600',
-    marginTop: 10,
     textAlign: 'center',
-    maxWidth: 290,
-    lineHeight: 20
+    paddingHorizontal: 24,
+    marginTop: 10
   },
   aboutMeAudioPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(225, 29, 72, 0.15)',
+    backgroundColor: '#161922',
     borderWidth: 1,
-    borderColor: 'rgba(225, 29, 72, 0.4)',
-    borderRadius: 20,
+    borderColor: '#262935',
     paddingHorizontal: 14,
     paddingVertical: 7,
-    marginTop: 14
+    borderRadius: 16,
+    marginTop: 12,
+    gap: 6
   },
   aboutMeAudioPillIcon: {
     fontSize: 13
   },
   aboutMeAudioPillText: {
-    color: '#fda4af',
     fontSize: 12,
-    fontWeight: '600'
+    fontWeight: '700',
+    color: '#ffffff'
   },
-
-  /* IMAGE 2 RIGHT: LIVE AUDIO WAVEFORM VISUALIZER */
-  liveAudioWaveformBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    height: 100,
-    marginTop: 12,
-    paddingHorizontal: 20
-  },
-  liveWaveformBar: {
-    width: 4,
-    backgroundColor: '#e11d48',
-    borderRadius: 3,
-    shadowColor: '#e11d48',
-    shadowOpacity: 0.9,
-    shadowRadius: 10,
-    elevation: 8
-  },
-
-  /* IMAGE 2 LEFT: ORBITAL GLOW MIC BUTTON */
   homeMicAnchor: {
     alignItems: 'center',
-    marginBottom: 20
+    paddingVertical: 14
   },
   orbitalMicWrapper: {
-    width: 92,
-    height: 92,
+    width: 80,
+    height: 80,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative'
   },
   orbitalRingGlow: {
     position: 'absolute',
-    width: 90,
-    height: 90,
-    borderRadius: 45,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     borderWidth: 2,
     borderColor: '#e11d48',
-    borderTopColor: 'transparent',
-    borderBottomColor: '#f43f5e',
-    shadowColor: '#e11d48',
-    shadowOpacity: 0.95,
-    shadowRadius: 20,
-    elevation: 12
+    borderStyle: 'dashed'
   },
   floatingMicBtn: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    backgroundColor: '#0c0d12',
-    borderWidth: 2,
-    borderColor: 'rgba(225, 29, 72, 0.45)',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#13161f',
+    borderWidth: 1.5,
+    borderColor: '#262935',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#e11d48',
-    shadowOpacity: 0.5,
-    shadowRadius: 18,
-    elevation: 10
+    elevation: 6
   },
   floatingMicBtnActive: {
     backgroundColor: '#e11d48',
-    borderColor: '#ffffff',
-    shadowColor: '#e11d48',
-    shadowOpacity: 1,
-    shadowRadius: 28,
-    elevation: 16
+    borderColor: '#ff4d6d'
   },
   tapToSpeakLabel: {
-    color: '#94a3b8',
     fontSize: 12,
-    fontWeight: '600',
-    marginTop: 8
-  },
-
-  /* ========================================================
-     AGENT PROFILE & CONTROLS MODAL STYLES
-     ======================================================== */
-  profileModalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    justifyContent: 'flex-end'
-  },
-  profileModalSheet: {
-    height: height * 0.82,
-    backgroundColor: '#0c0d14',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    borderTopWidth: 1,
-    borderColor: 'rgba(225, 29, 72, 0.35)',
-    padding: 20
-  },
-  profileSheetTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16
-  },
-  profileSheetMainTitle: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '800',
-    letterSpacing: -0.2
-  },
-  profileCloseBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)',
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  profileCloseBtnText: {
     color: '#94a3b8',
-    fontSize: 15,
-    fontWeight: '700'
-  },
-  profileAvatarCenterBox: {
-    alignItems: 'center',
-    marginBottom: 20
-  },
-  profileAvatarHalo: {
-    width: 84,
-    height: 84,
-    borderRadius: 42,
-    borderWidth: 2,
-    borderColor: '#e11d48',
-    padding: 2,
-    shadowColor: '#e11d48',
-    shadowOpacity: 0.7,
-    shadowRadius: 16,
-    elevation: 8
-  },
-  profileAvatarImg: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 40
-  },
-  profileName: {
-    color: '#ffffff',
-    fontSize: 20,
-    fontWeight: '800',
-    letterSpacing: 2,
-    marginTop: 10
-  },
-  profileOnlineBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(16, 185, 129, 0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.3)',
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    marginTop: 6
-  },
-  profileOnlineBadgeText: {
-    color: '#10b981',
-    fontSize: 11,
-    fontWeight: '700'
-  },
-  profileRoleText: {
-    color: '#94a3b8',
-    fontSize: 12,
-    marginTop: 6
-  },
-  profileSectionCard: {
-    backgroundColor: 'rgba(16, 18, 26, 0.85)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 14
-  },
-  profileSectionTitle: {
-    color: '#64748b',
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 0.8,
-    marginBottom: 10
-  },
-  profileDetailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 6
-  },
-  profileDetailLabel: {
-    color: '#cbd5e1',
-    fontSize: 12
-  },
-  profileDetailVal: {
-    color: '#ffffff',
-    fontSize: 12,
+    marginTop: 8,
     fontWeight: '600'
   },
-  profileActionBtn: {
-    backgroundColor: '#e11d48',
-    borderRadius: 14,
-    paddingVertical: 13,
+  liveAudioWaveformBox: {
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    height: 50,
+    gap: 4,
+    marginTop: 12
+  },
+  liveWaveformBar: {
+    width: 4,
+    backgroundColor: '#e11d48',
+    borderRadius: 2
+  },
+
+  // HOME DASHBOARD SECTIONS
+  dashboardSection: {
+    paddingHorizontal: 18,
+    marginTop: 18
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     marginBottom: 10
   },
-  profileActionBtnText: {
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#ffffff',
+    letterSpacing: 0.5
+  },
+  sectionActionText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#e11d48'
+  },
+  agendaCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#12141c',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#202432',
+    padding: 12,
+    marginBottom: 8
+  },
+  agendaTimeBox: {
+    backgroundColor: 'rgba(225, 29, 72, 0.12)',
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(225, 29, 72, 0.3)'
+  },
+  agendaTimeText: {
+    color: '#e11d48',
+    fontSize: 11,
+    fontWeight: '800'
+  },
+  agendaMeta: {
+    flex: 1,
+    marginLeft: 12
+  },
+  agendaTitleText: {
     color: '#ffffff',
     fontSize: 13,
     fontWeight: '700'
   },
-
-  /* CHAT TAB SCREEN */
-  chatTabScreen: {
-    flex: 1,
-    backgroundColor: '#07080c',
-    paddingBottom: 68
-  },
-  chatTopBar: {
-    height: 56,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.05)'
-  },
-  chatTopTitle: {
-    color: '#ffffff',
-    fontSize: 15,
-    fontWeight: '700'
-  },
-  chatTopSub: {
-    color: '#64748b',
-    fontSize: 11
-  },
-  chatClearBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.04)'
-  },
-  chatClearText: {
+  agendaDescText: {
     color: '#94a3b8',
     fontSize: 11,
+    marginTop: 2
+  },
+  taskItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#12141c',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#202432',
+    padding: 12,
+    marginBottom: 6
+  },
+  taskCheckbox: {
+    width: 18,
+    height: 18,
+    borderRadius: 5,
+    borderWidth: 1.5,
+    borderColor: '#64748b',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10
+  },
+  taskCheckboxDone: {
+    backgroundColor: '#10b981',
+    borderColor: '#10b981'
+  },
+  taskTitleText: {
+    color: '#ffffff',
+    fontSize: 13,
     fontWeight: '600'
+  },
+  taskTitleDone: {
+    color: '#64748b',
+    textDecorationLine: 'line-through'
+  },
+  recentActivityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#161922'
+  },
+  activityDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 10
+  },
+  activityTitle: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '600'
+  },
+  activitySub: {
+    color: '#64748b',
+    fontSize: 10,
+    marginTop: 2
+  },
+  activitySuccessBadge: {
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6
+  },
+  activitySuccessText: {
+    color: '#10b981',
+    fontSize: 9,
+    fontWeight: '800'
+  },
+
+  // CHAT SCREEN (TELEGRAM @mikasa_360_bot STYLE)
+  chatTabScreen: {
+    flex: 1,
+    backgroundColor: '#07080c'
+  },
+  tgChatHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: '#0d0f15',
+    borderBottomWidth: 1,
+    borderBottomColor: '#1b1f2b'
+  },
+  tgAvatarBox: {
+    position: 'relative'
+  },
+  tgAvatarImg: {
+    width: 38,
+    height: 38,
+    borderRadius: 19
+  },
+  tgOnlineDot: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#10b981',
+    borderWidth: 1.5,
+    borderColor: '#0d0f15'
+  },
+  tgHeaderName: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '800'
+  },
+  tgHeaderStatus: {
+    color: '#10b981',
+    fontSize: 11,
+    fontWeight: '600'
+  },
+  tgSearchIconBtn: {
+    padding: 6
+  },
+  chatSearchInputBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#12141c',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#202432'
+  },
+  chatSearchInput: {
+    flex: 1,
+    color: '#ffffff',
+    fontSize: 13
+  },
+  tgMemoryBanner: {
+    backgroundColor: 'rgba(225, 29, 72, 0.08)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(225, 29, 72, 0.2)',
+    paddingVertical: 5,
+    paddingHorizontal: 14
+  },
+  tgMemoryBannerText: {
+    color: '#e11d48',
+    fontSize: 10,
+    fontWeight: '700',
+    textAlign: 'center'
   },
   chatMessageScroll: {
     flex: 1
   },
   chatBubbleRow: {
     flexDirection: 'row',
-    gap: 8,
-    marginVertical: 4
+    marginBottom: 6
   },
   chatBubbleRowUser: {
     justifyContent: 'flex-end'
@@ -2276,108 +2833,797 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
+    marginRight: 8,
     marginTop: 4
   },
   chatBubble: {
-    maxWidth: width * 0.78,
-    borderRadius: 18,
-    paddingHorizontal: 14,
-    paddingVertical: 10
+    maxWidth: width * 0.76,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 16
   },
   chatBubbleUser: {
-    backgroundColor: 'rgba(225, 29, 72, 0.2)',
-    borderWidth: 1,
-    borderColor: 'rgba(225, 29, 72, 0.4)',
+    backgroundColor: '#e11d48',
     borderBottomRightRadius: 4
   },
   chatBubbleMikasa: {
-    backgroundColor: 'rgba(16, 18, 26, 0.95)',
+    backgroundColor: '#141722',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
+    borderColor: '#222636',
     borderBottomLeftRadius: 4
   },
   chatToolBadge: {
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(56, 189, 248, 0.15)',
-    borderRadius: 8,
+    backgroundColor: 'rgba(225, 29, 72, 0.15)',
     paddingHorizontal: 6,
     paddingVertical: 2,
-    marginBottom: 4
+    borderRadius: 6,
+    marginBottom: 4,
+    alignSelf: 'flex-start'
   },
   chatToolBadgeText: {
-    color: '#38bdf8',
-    fontSize: 10,
-    fontWeight: '700'
+    color: '#e11d48',
+    fontSize: 9,
+    fontWeight: '800'
   },
   chatMessageText: {
-    color: '#f8fafc',
+    color: '#ffffff',
     fontSize: 13,
-    lineHeight: 19
+    lineHeight: 18
   },
-  chatTimeText: {
-    color: '#64748b',
-    fontSize: 9,
-    marginTop: 4,
-    alignSelf: 'flex-end'
-  },
-  chatInputDock: {
+  chatMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: 16,
-    marginVertical: 8,
-    backgroundColor: 'rgba(16, 18, 26, 0.95)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 26,
-    paddingHorizontal: 6,
-    paddingVertical: 4
+    justifyContent: 'flex-end',
+    gap: 4,
+    marginTop: 4
+  },
+  chatTimeText: {
+    fontSize: 9,
+    color: '#94a3b8'
+  },
+  chatCheckmarks: {
+    fontSize: 10,
+    color: '#ffffff',
+    fontWeight: 'bold'
+  },
+  tgInputDock: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    backgroundColor: '#0d0f15',
+    borderTopWidth: 1,
+    borderTopColor: '#1b1f2b',
+    gap: 6
+  },
+  tgAttachBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#161922',
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   chatInputField: {
     flex: 1,
-    height: 42,
+    backgroundColor: '#161922',
+    borderRadius: 20,
     paddingHorizontal: 14,
+    paddingVertical: 8,
     color: '#ffffff',
-    fontSize: 13
+    fontSize: 13,
+    borderWidth: 1,
+    borderColor: '#252936'
   },
   chatSendBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     backgroundColor: '#e11d48',
     alignItems: 'center',
     justifyContent: 'center'
   },
+  chatVoiceMicBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#1e2230',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
 
-  /* TOOL EXECUTION CARD (Screen 9) */
+  // ACTIONS CENTER TAB
+  subScreenContainer: {
+    flex: 1,
+    backgroundColor: '#07080c'
+  },
+  actionsTopHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6
+  },
+  toolsMainTitle: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#ffffff',
+    letterSpacing: 0.5
+  },
+  toolsMainSub: {
+    fontSize: 12,
+    color: '#94a3b8',
+    marginTop: 2
+  },
+  actionsRunningBadge: {
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8
+  },
+  actionsRunningText: {
+    color: '#10b981',
+    fontSize: 10,
+    fontWeight: '800'
+  },
+  actionSection: {
+    marginTop: 18
+  },
+  actionSectionHeader: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#e11d48',
+    letterSpacing: 1.5,
+    marginBottom: 10
+  },
+  approvalSection: {
+    marginTop: 10,
+    marginBottom: 14
+  },
+  approvalCard: {
+    backgroundColor: '#141620',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#e11d48',
+    padding: 14
+  },
+  approvalTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between'
+  },
+  approvalCardTitle: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '800'
+  },
+  approvalRiskPill: {
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6
+  },
+  approvalRiskText: {
+    color: '#f59e0b',
+    fontSize: 10,
+    fontWeight: '800'
+  },
+  approvalCardDesc: {
+    color: '#94a3b8',
+    fontSize: 12,
+    marginVertical: 8
+  },
+  approvalActionsRow: {
+    flexDirection: 'row',
+    gap: 10
+  },
+  approvalConfirmBtn: {
+    flex: 1,
+    backgroundColor: '#e11d48',
+    borderRadius: 10,
+    paddingVertical: 9,
+    alignItems: 'center'
+  },
+  approvalConfirmText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '800'
+  },
+  approvalRejectBtn: {
+    backgroundColor: '#222634',
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    alignItems: 'center'
+  },
+  approvalRejectText: {
+    color: '#94a3b8',
+    fontSize: 12,
+    fontWeight: '700'
+  },
+  deviceActionGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10
+  },
+  deviceActionTile: {
+    width: (width - 56) / 3,
+    backgroundColor: '#12141c',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#202432',
+    padding: 12,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  deviceActionTileName: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '700',
+    marginTop: 6
+  },
+  deviceActionTileSub: {
+    color: '#94a3b8',
+    fontSize: 10,
+    marginTop: 2
+  },
+  toolRowTile: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#12141c',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#202432',
+    padding: 14,
+    marginBottom: 8
+  },
+  toolTileIconBox: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  toolTileMeta: {
+    flex: 1,
+    marginLeft: 12
+  },
+  toolTileName: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '700'
+  },
+  toolTileDesc: {
+    color: '#94a3b8',
+    fontSize: 11,
+    marginTop: 2
+  },
+  scheduleItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#12141c',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#202432',
+    padding: 12,
+    marginBottom: 6
+  },
+  scheduleTimeBadge: {
+    backgroundColor: 'rgba(225, 29, 72, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(225, 29, 72, 0.25)',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 8
+  },
+  scheduleTimeText: {
+    color: '#e11d48',
+    fontSize: 10,
+    fontWeight: '800'
+  },
+  scheduleTitle: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '700'
+  },
+  scheduleSub: {
+    color: '#94a3b8',
+    fontSize: 10,
+    marginTop: 2
+  },
+  historyCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#12141c',
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 6
+  },
+  historyStatusIndicator: {
+    width: 4,
+    height: 24,
+    borderRadius: 2,
+    backgroundColor: '#10b981',
+    marginRight: 10
+  },
+  historyTitleText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '600'
+  },
+  historySourceText: {
+    color: '#64748b',
+    fontSize: 10,
+    marginTop: 2
+  },
+  historySuccessPill: {
+    color: '#10b981',
+    fontSize: 9,
+    fontWeight: '800'
+  },
+
+  // MEMORY VAULT TAB
+  addMemoryTriggerBtn: {
+    backgroundColor: '#e11d48',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8
+  },
+  addMemoryTriggerText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '800'
+  },
+  cleanSearchInput: {
+    backgroundColor: '#12141c',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#202432',
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    color: '#ffffff',
+    fontSize: 13,
+    marginTop: 10
+  },
+  cleanCatPill: {
+    backgroundColor: '#12141c',
+    borderWidth: 1,
+    borderColor: '#202432',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14
+  },
+  cleanCatPillActive: {
+    backgroundColor: 'rgba(225, 29, 72, 0.15)',
+    borderColor: '#e11d48'
+  },
+  cleanCatText: {
+    color: '#94a3b8',
+    fontSize: 11,
+    fontWeight: '600'
+  },
+  cleanCatTextActive: {
+    color: '#ffffff',
+    fontWeight: '800'
+  },
+  cleanMemCard: {
+    backgroundColor: '#12141c',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#202432',
+    padding: 14
+  },
+  cleanMemTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8
+  },
+  cleanMemTypeBadge: {
+    backgroundColor: 'rgba(225, 29, 72, 0.12)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6
+  },
+  cleanMemTypeText: {
+    color: '#e11d48',
+    fontSize: 9,
+    fontWeight: '800'
+  },
+  memDeleteBtn: {
+    padding: 4
+  },
+  memDeleteText: {
+    color: '#64748b',
+    fontSize: 14,
+    fontWeight: 'bold'
+  },
+  cleanMemContent: {
+    color: '#ffffff',
+    fontSize: 13,
+    lineHeight: 18
+  },
+
+  // ADD MEMORY MODAL
+  addMemorySheet: {
+    width: '90%',
+    backgroundColor: '#12141c',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#242838',
+    padding: 20
+  },
+  addMemoryTitle: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '800'
+  },
+  addMemorySub: {
+    color: '#94a3b8',
+    fontSize: 12,
+    marginTop: 2,
+    marginBottom: 14
+  },
+  addMemoryTextInput: {
+    backgroundColor: '#0a0b10',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#1e2230',
+    color: '#ffffff',
+    padding: 12,
+    fontSize: 13,
+    textAlignVertical: 'top'
+  },
+  addMemoryTypeRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginVertical: 12
+  },
+  addMemoryTypePill: {
+    flex: 1,
+    backgroundColor: '#181b26',
+    paddingVertical: 6,
+    borderRadius: 8,
+    alignItems: 'center'
+  },
+  addMemoryTypePillActive: {
+    backgroundColor: '#e11d48'
+  },
+  addMemoryTypeText: {
+    color: '#94a3b8',
+    fontSize: 10,
+    fontWeight: '700'
+  },
+  addMemoryTypeTextActive: {
+    color: '#ffffff'
+  },
+  addMemoryBtnRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 6
+  },
+  addMemoryCancelBtn: {
+    flex: 1,
+    backgroundColor: '#181b26',
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center'
+  },
+  addMemoryCancelText: {
+    color: '#94a3b8',
+    fontSize: 13,
+    fontWeight: '700'
+  },
+  addMemorySaveBtn: {
+    flex: 1,
+    backgroundColor: '#e11d48',
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center'
+  },
+  addMemorySaveText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '800'
+  },
+
+  // PROFILE TAB
+  profileHeaderCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#12141c',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#202432',
+    padding: 16,
+    marginBottom: 14
+  },
+  profileCardAvatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    borderWidth: 2,
+    borderColor: '#e11d48'
+  },
+  profileCardName: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '800'
+  },
+  profileCardSub: {
+    color: '#94a3b8',
+    fontSize: 11,
+    marginTop: 2
+  },
+  profileTagRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 8
+  },
+  profileTagBadge: {
+    backgroundColor: 'rgba(225, 29, 72, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6
+  },
+  profileTagText: {
+    color: '#e11d48',
+    fontSize: 10,
+    fontWeight: '700'
+  },
+  settingsGroupCard: {
+    backgroundColor: '#12141c',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#202432',
+    padding: 16,
+    marginBottom: 12
+  },
+  settingsGroupHeader: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#e11d48',
+    letterSpacing: 1.5,
+    marginBottom: 12
+  },
+  settingsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#181b26'
+  },
+  settingsLabel: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '600'
+  },
+  settingsVal: {
+    color: '#94a3b8',
+    fontSize: 12,
+    fontWeight: '600'
+  },
+  onboardReplayBtn: {
+    backgroundColor: '#12141c',
+    borderWidth: 1,
+    borderColor: '#242838',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginTop: 6
+  },
+  onboardReplayText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '700'
+  },
+
+  // BOTTOM NAVIGATION BAR (MATCHING IMAGE-1)
+  bottomNavBar: {
+    flexDirection: 'row',
+    backgroundColor: '#090a0f',
+    borderTopWidth: 1,
+    borderTopColor: '#1e2230',
+    paddingHorizontal: 8,
+    paddingTop: 8,
+    paddingBottom: Platform.OS === 'ios' ? 24 : 10,
+    gap: 6
+  },
+  bottomNavBtn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 9,
+    paddingHorizontal: 2,
+    borderRadius: 14,
+    backgroundColor: '#13161f',
+    borderWidth: 1,
+    borderColor: '#222634'
+  },
+  bottomNavBtnActive: {
+    backgroundColor: 'rgba(225, 29, 72, 0.08)',
+    borderColor: '#e11d48',
+    borderWidth: 1.2
+  },
+  bottomNavLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#94a3b8',
+    marginTop: 4
+  },
+  bottomNavLabelActive: {
+    color: '#ffffff',
+    fontWeight: '800'
+  },
+
+  // AGENT PROFILE MODAL
+  profileModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  profileModalSheet: {
+    width: '90%',
+    maxHeight: '80%',
+    backgroundColor: '#12141c',
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: '#242838',
+    padding: 20
+  },
+  profileSheetTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16
+  },
+  profileSheetMainTitle: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '800'
+  },
+  profileCloseBtn: {
+    padding: 6
+  },
+  profileCloseBtnText: {
+    color: '#94a3b8',
+    fontSize: 16
+  },
+  profileAvatarCenterBox: {
+    alignItems: 'center',
+    marginVertical: 10
+  },
+  profileAvatarHalo: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 2,
+    borderColor: '#e11d48',
+    overflow: 'hidden',
+    marginBottom: 10
+  },
+  profileAvatarImg: {
+    width: '100%',
+    height: '100%'
+  },
+  profileName: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '900',
+    letterSpacing: 2
+  },
+  profileOnlineBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 4
+  },
+  profileOnlineText: {
+    color: '#10b981',
+    fontSize: 11,
+    fontWeight: '700'
+  },
+  profileSectionBox: {
+    marginTop: 14
+  },
+  profileSecTitle: {
+    color: '#e11d48',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1.5,
+    marginBottom: 8
+  },
+  profilePlayBtn: {
+    backgroundColor: '#e11d48',
+    paddingVertical: 10,
+    borderRadius: 12,
+    alignItems: 'center'
+  },
+  profilePlayBtnText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '700'
+  },
+  profileGuideBtn: {
+    backgroundColor: '#181b26',
+    borderWidth: 1,
+    borderColor: '#242838',
+    paddingVertical: 10,
+    borderRadius: 12,
+    alignItems: 'center'
+  },
+  profileGuideBtnText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '700'
+  },
+
+  // HUD BELL & HOME VOICE STYLES
+  homeVoiceScreen: {
+    flex: 1,
+    backgroundColor: '#07080c',
+    justifyContent: 'space-between',
+    paddingBottom: 16
+  },
+  hudBrandName: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: '#ffffff',
+    letterSpacing: 4
+  },
+  hudBellBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#13161f',
+    borderWidth: 1,
+    borderColor: '#242838',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative'
+  },
+  hudBellBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 8,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: '#e11d48'
+  },
   executingCardOverlay: {
     position: 'absolute',
-    bottom: 90,
-    alignSelf: 'center',
-    width: width - 40,
-    backgroundColor: 'rgba(16, 18, 26, 0.95)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 18,
-    padding: 16
+    bottom: 80,
+    left: 20,
+    right: 20,
+    backgroundColor: 'rgba(15, 17, 26, 0.95)',
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: '#e11d48',
+    padding: 16,
+    zIndex: 100
   },
   execHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 12
+    marginBottom: 10
   },
   execIconSym: {
     color: '#e11d48',
-    fontSize: 16
+    fontSize: 16,
+    fontWeight: '900'
   },
   execCardTitle: {
     color: '#ffffff',
     fontSize: 14,
-    fontWeight: '700'
+    fontWeight: '800'
   },
   execStepsBox: {
-    gap: 6,
-    marginBottom: 14
+    gap: 6
   },
   execStepItem: {
     flexDirection: 'row',
@@ -2386,237 +3632,27 @@ const styles = StyleSheet.create({
   },
   execStepStatusIcon: {
     fontSize: 12,
-    color: '#64748b'
+    color: '#94a3b8'
   },
   execStepLabel: {
-    color: '#94a3b8',
+    color: '#cbd5e1',
     fontSize: 12
   },
   execStepDone: {
-    color: '#e2e8f0'
+    color: '#10b981',
+    textDecorationLine: 'line-through'
   },
   execCancelBtn: {
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    borderRadius: 12,
-    paddingVertical: 8,
-    alignItems: 'center'
+    marginTop: 10,
+    alignSelf: 'flex-end',
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    backgroundColor: '#202434'
   },
   execCancelText: {
     color: '#94a3b8',
-    fontSize: 12,
-    fontWeight: '600'
-  },
-
-  /* TOOLS & MEMORY & SETTINGS */
-  subScreenContainer: {
-    flex: 1,
-    backgroundColor: '#07080c'
-  },
-  toolsMainTitle: {
-    color: '#ffffff',
-    fontSize: 22,
-    fontWeight: '800'
-  },
-  toolsMainSub: {
-    color: '#64748b',
-    fontSize: 13,
-    marginTop: 2,
-    marginBottom: 16
-  },
-  toolCategoryRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 20
-  },
-  toolCatPill: {
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 6
-  },
-  toolCatPillActive: {
-    backgroundColor: '#e11d48'
-  },
-  toolCatText: {
-    color: '#94a3b8',
-    fontSize: 12,
-    fontWeight: '600'
-  },
-  toolCatTextActive: {
-    color: '#ffffff'
-  },
-  toolSection: {
-    marginBottom: 24
-  },
-  toolSectionTitle: {
-    color: '#64748b',
     fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0.8,
-    marginBottom: 10,
-    textTransform: 'uppercase'
-  },
-  toolRowTile: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    backgroundColor: 'rgba(16, 18, 26, 0.75)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 8
-  },
-  toolTileIconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  toolTileMeta: {
-    flex: 1
-  },
-  toolTileName: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '700'
-  },
-  toolTileDesc: {
-    color: '#64748b',
-    fontSize: 11,
-    marginTop: 2
-  },
-  cleanSearchInput: {
-    height: 40,
-    backgroundColor: 'rgba(16, 18, 26, 0.85)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    color: '#ffffff',
-    fontSize: 13
-  },
-  cleanCatPill: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 14,
-    backgroundColor: 'rgba(255, 255, 255, 0.03)'
-  },
-  cleanCatPillActive: {
-    backgroundColor: 'rgba(225, 29, 72, 0.2)',
-    borderWidth: 1,
-    borderColor: '#e11d48'
-  },
-  cleanCatPillText: {
-    color: '#64748b',
-    fontSize: 11,
-    fontWeight: '600'
-  },
-  cleanCatPillTextActive: {
-    color: '#fda4af'
-  },
-  cleanMemoryCard: {
-    backgroundColor: 'rgba(16, 18, 26, 0.75)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 10
-  },
-  memoryCardTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 6
-  },
-  memoryTypeBadge: {
-    color: '#e11d48',
-    fontSize: 9,
-    fontWeight: '800',
-    textTransform: 'uppercase'
-  },
-  memoryTimestamp: {
-    color: '#64748b',
-    fontSize: 10
-  },
-  memoryCardText: {
-    color: '#e2e8f0',
-    fontSize: 13,
-    lineHeight: 18
-  },
-  settingsGroupCard: {
-    backgroundColor: 'rgba(16, 18, 26, 0.75)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16
-  },
-  settingsGroupHeader: {
-    color: '#64748b',
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 0.8,
-    marginBottom: 12
-  },
-  settingsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 6
-  },
-  settingsLabel: {
-    color: '#cbd5e1',
-    fontSize: 13
-  },
-  settingsVal: {
-    color: '#64748b',
-    fontSize: 13,
-    fontWeight: '600'
-  },
-  onboardReplayBtn: {
-    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 14,
-    paddingVertical: 12,
-    alignItems: 'center',
-    marginTop: 8
-  },
-  onboardReplayText: {
-    color: '#cbd5e1',
-    fontSize: 13,
-    fontWeight: '600'
-  },
-
-  /* BOTTOM NAVIGATION BAR (5 Vector Tabs) */
-  bottomNavBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 64,
-    backgroundColor: 'rgba(7, 8, 12, 0.98)',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.06)',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around',
-    paddingBottom: 4
-  },
-  bottomNavBtn: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 52
-  },
-  bottomNavLabel: {
-    fontSize: 9.5,
-    fontWeight: '600',
-    color: '#94a3b8',
-    marginTop: 3
-  },
-  bottomNavLabelActive: {
-    color: '#e11d48',
     fontWeight: '700'
   }
 });

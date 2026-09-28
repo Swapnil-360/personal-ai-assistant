@@ -27,6 +27,7 @@ LogBox.ignoreLogs([
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import Svg, { Path, Rect, Circle, Line } from 'react-native-svg';
+import { Feather, Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import * as Speech from 'expo-speech';
 import { CameraView, Camera } from 'expo-camera';
@@ -463,7 +464,7 @@ export default function App() {
 
       if (!granted) {
         Alert.alert(
-          '🎙️ Microphone Access Required',
+          'Microphone Access Required',
           'Mikasa requires microphone permission to listen for the "Hey, Mikasa" wake word hands-free.',
           [
             { text: 'Cancel', style: 'cancel' },
@@ -891,10 +892,10 @@ export default function App() {
       for (const pa of phoneActions) {
         if (pa.type === 'SET_ALARM' || pa.type === 'alarm_set') {
           const t = pa.time ? new Date(pa.time) : null;
-          Alert.alert('⏰ Alarm Set', `"${pa.label || transcribedQuery}" at ${t ? t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Scheduled'}`, [{ text: 'OK' }]);
+          Alert.alert('Alarm Set', `"${pa.label || transcribedQuery}" at ${t ? t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Scheduled'}`, [{ text: 'OK' }]);
         }
         if (pa.type === 'SET_CALENDAR_EVENT' && pa.gcal_url) {
-          Alert.alert('📅 Add to Calendar', `Open Google Calendar for: "${pa.title || transcribedQuery}"?`, [
+          Alert.alert('Add to Calendar', `Open Google Calendar for: "${pa.title || transcribedQuery}"?`, [
             { text: 'Cancel', style: 'cancel' },
             { text: 'Open Calendar', onPress: () => Linking.openURL(pa.gcal_url) }
           ]);
@@ -959,7 +960,7 @@ export default function App() {
     }
     if (!granted) {
       Alert.alert(
-        '🎙️ Microphone Access Required',
+        'Microphone Access Required',
         'Mikasa needs microphone permission to listen to your voice commands.',
         [
           { text: 'Cancel', style: 'cancel' },
@@ -1066,14 +1067,14 @@ export default function App() {
         if (pa.type === 'SET_ALARM' || pa.type === 'alarm_set') {
           const t = pa.time ? new Date(pa.time) : null;
           Alert.alert(
-            '⏰ Alarm Locked In',
+            'Alarm Locked In',
             `"${pa.label || query}" — ${t ? t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Scheduled'}`,
             [{ text: 'OK' }]
           );
         }
         if (pa.type === 'SET_CALENDAR_EVENT' && pa.gcal_url) {
           Alert.alert(
-            '📅 Add to Calendar',
+            'Add to Calendar',
             `Open Google Calendar for: "${pa.title || query}"?`,
             [
               { text: 'Cancel', style: 'cancel' },
@@ -1145,7 +1146,7 @@ export default function App() {
       }
       if (!granted) {
         Alert.alert(
-          '🔦 Flashlight Permission Required',
+          'Flashlight Permission Required',
           'Camera access is required on Android to toggle the physical hardware flashlight.',
           [
             { text: 'Cancel', style: 'cancel' },
@@ -1405,15 +1406,15 @@ export default function App() {
                   {/* 3x2 Squircle Cards Grid matching mockup */}
                   <View style={styles.obAppGrid}>
                     {[
-                      { icon: '📞', label: 'Phone' },
-                      { icon: '⁝⁝⁝', label: 'Apps' },
-                      { icon: '📅', label: 'Calendar' },
-                      { icon: '💬', label: 'Messages' },
-                      { icon: '✈️', label: 'Telegram' },
-                      { icon: '🧠', label: 'Memory' }
+                      { id: 'phone', label: 'Phone', renderIcon: () => <Feather name="phone-call" size={24} color="#38bdf8" /> },
+                      { id: 'apps', label: 'Apps', renderIcon: () => <Feather name="grid" size={24} color="#a855f7" /> },
+                      { id: 'calendar', label: 'Calendar', renderIcon: () => <Feather name="calendar" size={24} color="#f59e0b" /> },
+                      { id: 'messages', label: 'Messages', renderIcon: () => <Feather name="message-square" size={24} color="#10b981" /> },
+                      { id: 'telegram', label: 'Telegram', renderIcon: () => <Feather name="send" size={24} color="#38bdf8" /> },
+                      { id: 'memory', label: 'Memory', renderIcon: () => <MaterialCommunityIcons name="brain" size={26} color="#e11d48" /> }
                     ].map(app => (
                       <View key={app.label} style={styles.obAppCard}>
-                        <Text style={styles.obAppCardIcon}>{app.icon}</Text>
+                        {app.renderIcon()}
                         <Text style={styles.obAppCardLabel}>{app.label}</Text>
                       </View>
                     ))}
@@ -1467,7 +1468,7 @@ export default function App() {
                   <View style={styles.obReadyWrapper}>
                     <View style={styles.obReadyPulseOuter} />
                     <View style={styles.obReadyPulseInner}>
-                      <Text style={{ fontSize: 36 }}>🎙️</Text>
+                      <Feather name="mic" size={32} color="#ffffff" />
                     </View>
                     <Text style={styles.obReadyNote}>Say "Hey Mikasa" or tap the mic anytime</Text>
                   </View>
@@ -1538,7 +1539,7 @@ export default function App() {
                       onPress={() => setSitrepModalVisible(true)}
                       activeOpacity={0.7}
                     >
-                      <Text style={{ fontSize: 18 }}>🔔</Text>
+                      <Feather name="bell" size={18} color="#cbd5e1" />
                       <View style={styles.hudBellBadge} />
                     </TouchableOpacity>
 
@@ -1621,7 +1622,7 @@ export default function App() {
                         onPress={playAboutMeAudio}
                         activeOpacity={0.75}
                       >
-                        <Text style={styles.aboutMeAudioPillIcon}>🎧</Text>
+                        <Feather name="headphones" size={14} color="#e11d48" style={{ marginRight: 6 }} />
                         <Text style={styles.aboutMeAudioPillText}>About Mikasa (Listen)</Text>
                       </TouchableOpacity>
                     </>
@@ -1666,23 +1667,30 @@ export default function App() {
                 {isExecuting && (
                   <View style={styles.executingCardOverlay}>
                     <View style={styles.execHeaderRow}>
-                      <Text style={styles.execIconSym}>⎋</Text>
+                      <Ionicons name="terminal-outline" size={18} color="#e11d48" />
                       <Text style={styles.execCardTitle}>{executingTitle}</Text>
                     </View>
                     <View style={styles.execStepsBox}>
                       {execSteps.map((step, idx) => (
                         <View key={idx} style={styles.execStepItem}>
-                          <Text style={[styles.execStepStatusIcon, step.status === 'done' && { color: '#10b981' }]}>
-                            {step.status === 'done' ? '✓' : step.status === 'active' ? '⭕' : '⚪'}
-                          </Text>
+                          {step.status === 'done' ? (
+                            <Feather name="check-circle" size={14} color="#10b981" style={{ marginRight: 8 }} />
+                          ) : step.status === 'active' ? (
+                            <Ionicons name="radio-button-on" size={14} color="#e11d48" style={{ marginRight: 8 }} />
+                          ) : (
+                            <Ionicons name="ellipse-outline" size={14} color="#64748b" style={{ marginRight: 8 }} />
+                          )}
                           <Text style={[styles.execStepLabel, step.status === 'done' && styles.execStepDone]}>
                             {step.label}
                           </Text>
                         </View>
                       ))}
                     </View>
-                    <TouchableOpacity style={styles.execCancelBtn} onPress={() => setIsExecuting(false)}>
-                      <Text style={styles.execCancelText}>✕ Cancel</Text>
+                    <TouchableOpacity style={styles.execCancelBtn} onPress={() => setIsExecuting(false)} activeOpacity={0.7}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                        <Feather name="x" size={13} color="#f43f5e" style={{ marginRight: 4 }} />
+                        <Text style={styles.execCancelText}>Cancel</Text>
+                      </View>
                     </TouchableOpacity>
                   </View>
                 )}
@@ -1706,28 +1714,31 @@ export default function App() {
                   </View>
 
                   <View style={{ flex: 1, marginLeft: 10 }}>
-                    <Text style={styles.tgHeaderName}>Mikasa Ackerman 🧣</Text>
+                    <Text style={styles.tgHeaderName}>Mikasa Ackerman</Text>
                     <Text style={styles.tgHeaderStatus}>online • loyal companion</Text>
                   </View>
 
                   <TouchableOpacity
                     style={styles.tgSearchIconBtn}
                     onPress={() => setIsChatSearchOpen(v => !v)}
+                    activeOpacity={0.7}
                   >
-                    <Text style={{ fontSize: 18, color: '#94a3b8' }}>🔍</Text>
+                    <Feather name="search" size={18} color="#cbd5e1" />
                   </TouchableOpacity>
 
                   <TouchableOpacity
                     style={[styles.tgSearchIconBtn, { marginLeft: 8 }]}
                     onPress={() => setChatMessages([])}
+                    activeOpacity={0.7}
                   >
-                    <Text style={{ fontSize: 13, color: '#e11d48', fontWeight: 'bold' }}>Clear</Text>
+                    <Feather name="trash-2" size={17} color="#f43f5e" />
                   </TouchableOpacity>
                 </View>
 
                 {/* Conversation Search Bar */}
                 {isChatSearchOpen && (
                   <View style={styles.chatSearchInputBox}>
+                    <Feather name="search" size={15} color="#64748b" style={{ marginRight: 8 }} />
                     <TextInput
                       style={styles.chatSearchInput}
                       placeholder="Search conversation..."
@@ -1737,8 +1748,8 @@ export default function App() {
                       autoFocus
                     />
                     {chatSearch.length > 0 && (
-                      <TouchableOpacity onPress={() => setChatSearch('')}>
-                        <Text style={{ color: '#94a3b8', fontSize: 14 }}>✕</Text>
+                      <TouchableOpacity onPress={() => setChatSearch('')} activeOpacity={0.7}>
+                        <Feather name="x" size={15} color="#94a3b8" />
                       </TouchableOpacity>
                     )}
                   </View>
@@ -1746,8 +1757,9 @@ export default function App() {
 
                 {/* Active Memory Context Banner */}
                 <View style={styles.tgMemoryBanner}>
+                  <MaterialCommunityIcons name="brain" size={14} color="#e11d48" style={{ marginRight: 6 }} />
                   <Text style={styles.tgMemoryBannerText}>
-                    🧠 123+ Long-Term Memories Active (CurricuRAG, Stark-OS, BUBT CSE 51st)
+                    123+ Long-Term Memories Active (CurricuRAG, Stark-OS, BUBT CSE 51st)
                   </Text>
                 </View>
 
@@ -1777,14 +1789,15 @@ export default function App() {
                       >
                         {msg.toolUsed && (
                           <View style={styles.chatToolBadge}>
-                            <Text style={styles.chatToolBadgeText}>⚡ Tool: {msg.toolUsed}</Text>
+                            <Ionicons name="flash" size={11} color="#f59e0b" style={{ marginRight: 4 }} />
+                            <Text style={styles.chatToolBadgeText}>Tool: {msg.toolUsed}</Text>
                           </View>
                         )}
                         <Text style={styles.chatMessageText}>{msg.text}</Text>
                         <View style={styles.chatMetaRow}>
                           <Text style={styles.chatTimeText}>{msg.timestamp}</Text>
                           {msg.sender === 'user' && (
-                            <Text style={styles.chatCheckmarks}>✓✓</Text>
+                            <Ionicons name="checkmark-done" size={14} color="#38bdf8" />
                           )}
                         </View>
                       </View>
@@ -1801,8 +1814,9 @@ export default function App() {
                       executeCommand('Analyze current camera view and describe surroundings', 'chat');
                       speakAsMikasa('Commander, analyzing visual feed.');
                     }}
+                    activeOpacity={0.7}
                   >
-                    <Text style={{ fontSize: 18 }}>📷</Text>
+                    <Feather name="camera" size={18} color="#cbd5e1" />
                   </TouchableOpacity>
 
                   {/* File Attachment Button */}
@@ -1811,8 +1825,9 @@ export default function App() {
                     onPress={() => {
                       executeCommand('Review research papers and project files', 'chat');
                     }}
+                    activeOpacity={0.7}
                   >
-                    <Text style={{ fontSize: 18 }}>📎</Text>
+                    <Feather name="paperclip" size={18} color="#cbd5e1" />
                   </TouchableOpacity>
 
                   <TextInput
@@ -1898,8 +1913,10 @@ export default function App() {
                               speakAsMikasa('Approved. Deploying to production, Commander.');
                               Alert.alert('Action Executed', `${appr.title} has been authorized and dispatched.`);
                             }}
+                            activeOpacity={0.8}
                           >
-                            <Text style={styles.approvalConfirmText}>✓ Approve Action</Text>
+                            <Feather name="check" size={14} color="#ffffff" style={{ marginRight: 6 }} />
+                            <Text style={styles.approvalConfirmText}>Approve Action</Text>
                           </TouchableOpacity>
                           <TouchableOpacity
                             style={styles.approvalRejectBtn}
@@ -1907,8 +1924,10 @@ export default function App() {
                               setPendingApprovals([]);
                               speakAsMikasa('Action canceled, Commander.');
                             }}
+                            activeOpacity={0.8}
                           >
-                            <Text style={styles.approvalRejectText}>✕ Reject</Text>
+                            <Feather name="x" size={14} color="#94a3b8" style={{ marginRight: 6 }} />
+                            <Text style={styles.approvalRejectText}>Reject</Text>
                           </TouchableOpacity>
                         </View>
                       </View>
@@ -1926,8 +1945,11 @@ export default function App() {
                       <TouchableOpacity
                         style={styles.deviceActionTile}
                         onPress={() => triggerDeviceAction('lock')}
+                        activeOpacity={0.7}
                       >
-                        <Text style={{ fontSize: 24 }}>🔒</Text>
+                        <View style={[styles.deviceActionIconBox, { backgroundColor: 'rgba(225, 29, 72, 0.15)' }]}>
+                          <Feather name="lock" size={20} color="#e11d48" />
+                        </View>
                         <Text style={styles.deviceActionTileName}>Lock PC</Text>
                         <Text style={styles.deviceActionTileSub}>Win + L</Text>
                       </TouchableOpacity>
@@ -1935,8 +1957,11 @@ export default function App() {
                       <TouchableOpacity
                         style={styles.deviceActionTile}
                         onPress={() => triggerDeviceAction('vol_up')}
+                        activeOpacity={0.7}
                       >
-                        <Text style={{ fontSize: 24 }}>🔊</Text>
+                        <View style={[styles.deviceActionIconBox, { backgroundColor: 'rgba(56, 189, 248, 0.15)' }]}>
+                          <Feather name="volume-2" size={20} color="#38bdf8" />
+                        </View>
                         <Text style={styles.deviceActionTileName}>Vol Up</Text>
                         <Text style={styles.deviceActionTileSub}>+5 Steps</Text>
                       </TouchableOpacity>
@@ -1944,8 +1969,11 @@ export default function App() {
                       <TouchableOpacity
                         style={styles.deviceActionTile}
                         onPress={() => triggerDeviceAction('vol_down')}
+                        activeOpacity={0.7}
                       >
-                        <Text style={{ fontSize: 24 }}>🔉</Text>
+                        <View style={[styles.deviceActionIconBox, { backgroundColor: 'rgba(56, 189, 248, 0.15)' }]}>
+                          <Feather name="volume-1" size={20} color="#38bdf8" />
+                        </View>
                         <Text style={styles.deviceActionTileName}>Vol Down</Text>
                         <Text style={styles.deviceActionTileSub}>-5 Steps</Text>
                       </TouchableOpacity>
@@ -1953,8 +1981,11 @@ export default function App() {
                       <TouchableOpacity
                         style={styles.deviceActionTile}
                         onPress={() => triggerDeviceAction('mute')}
+                        activeOpacity={0.7}
                       >
-                        <Text style={{ fontSize: 24 }}>🔇</Text>
+                        <View style={[styles.deviceActionIconBox, { backgroundColor: 'rgba(244, 63, 94, 0.15)' }]}>
+                          <Feather name="volume-x" size={20} color="#f43f5e" />
+                        </View>
                         <Text style={styles.deviceActionTileName}>Mute</Text>
                         <Text style={styles.deviceActionTileSub}>Toggle</Text>
                       </TouchableOpacity>
@@ -1962,8 +1993,11 @@ export default function App() {
                       <TouchableOpacity
                         style={styles.deviceActionTile}
                         onPress={() => triggerDeviceAction('torch')}
+                        activeOpacity={0.7}
                       >
-                        <Text style={{ fontSize: 24 }}>🔦</Text>
+                        <View style={[styles.deviceActionIconBox, { backgroundColor: isFlashlightOn ? 'rgba(16, 185, 129, 0.2)' : 'rgba(148, 163, 184, 0.1)' }]}>
+                          <MaterialCommunityIcons name="flashlight" size={21} color={isFlashlightOn ? '#10b981' : '#94a3b8'} />
+                        </View>
                         <Text style={styles.deviceActionTileName}>Flashlight</Text>
                         <Text style={[styles.deviceActionTileSub, isFlashlightOn && { color: '#10b981' }]}>
                           {isFlashlightOn ? 'ON' : 'OFF'}
@@ -1975,8 +2009,11 @@ export default function App() {
                         onPress={() => {
                           speakAsMikasa(`Battery level is ${batteryLevel} percent, connected and operating normally.`);
                         }}
+                        activeOpacity={0.7}
                       >
-                        <Text style={{ fontSize: 24 }}>🔋</Text>
+                        <View style={[styles.deviceActionIconBox, { backgroundColor: 'rgba(16, 185, 129, 0.15)' }]}>
+                          <Ionicons name="battery-charging-outline" size={22} color="#10b981" />
+                        </View>
                         <Text style={styles.deviceActionTileName}>Battery</Text>
                         <Text style={styles.deviceActionTileSub}>{batteryLevel}% Charging</Text>
                       </TouchableOpacity>
@@ -2013,7 +2050,7 @@ export default function App() {
                           }}
                         >
                           <View style={[styles.taskCheckbox, task.done && styles.taskCheckboxDone]}>
-                            {task.done && <Text style={{ color: '#fff', fontSize: 11, fontWeight: 'bold' }}>✓</Text>}
+                            {task.done && <Feather name="check" size={11} color="#ffffff" />}
                           </View>
                           <Text style={[styles.taskTitleText, task.done && styles.taskTitleDone]}>
                             {task.title}
@@ -2035,14 +2072,16 @@ export default function App() {
                         setNavTab('chat');
                         executeCommand('Give me a full morning sitrep briefing and PC status', 'chat');
                       }}
+                      activeOpacity={0.7}
                     >
                       <View style={[styles.toolTileIconBox, { backgroundColor: '#e11d48' }]}>
-                        <Text style={{ color: '#fff', fontSize: 16 }}>🌅</Text>
+                        <Feather name="sun" size={18} color="#ffffff" />
                       </View>
                       <View style={styles.toolTileMeta}>
                         <Text style={styles.toolTileName}>Morning Sitrep Briefing</Text>
                         <Text style={styles.toolTileDesc}>Weather, PC hardware, CurricuRAG status & agenda</Text>
                       </View>
+                      <Feather name="chevron-right" size={16} color="#64748b" />
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -2051,14 +2090,16 @@ export default function App() {
                         setNavTab('chat');
                         executeCommand('Check latest commits on stark-os-portfolio repo', 'chat');
                       }}
+                      activeOpacity={0.7}
                     >
                       <View style={[styles.toolTileIconBox, { backgroundColor: '#2563eb' }]}>
-                        <Text style={{ color: '#fff', fontSize: 16 }}>🐙</Text>
+                        <Feather name="git-commit" size={18} color="#ffffff" />
                       </View>
                       <View style={styles.toolTileMeta}>
                         <Text style={styles.toolTileName}>GitHub Commit Radar</Text>
                         <Text style={styles.toolTileDesc}>Inspect stark-os-portfolio and CurricuRAG branches</Text>
                       </View>
+                      <Feather name="chevron-right" size={16} color="#64748b" />
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -2067,14 +2108,16 @@ export default function App() {
                         setNavTab('chat');
                         executeCommand('Generate LinkedIn job radar for AI and full-stack positions', 'chat');
                       }}
+                      activeOpacity={0.7}
                     >
                       <View style={[styles.toolTileIconBox, { backgroundColor: '#0284c7' }]}>
-                        <Text style={{ color: '#fff', fontSize: 16 }}>💼</Text>
+                        <Feather name="briefcase" size={18} color="#ffffff" />
                       </View>
                       <View style={styles.toolTileMeta}>
                         <Text style={styles.toolTileName}>LinkedIn Job Radar</Text>
                         <Text style={styles.toolTileDesc}>Scan remote fullstack and AI engineer openings</Text>
                       </View>
+                      <Feather name="chevron-right" size={16} color="#64748b" />
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -2083,14 +2126,16 @@ export default function App() {
                         setNavTab('chat');
                         executeCommand('Check Edu51Portal server health and latency', 'chat');
                       }}
+                      activeOpacity={0.7}
                     >
                       <View style={[styles.toolTileIconBox, { backgroundColor: '#10b981' }]}>
-                        <Text style={{ color: '#fff', fontSize: 16 }}>🛡️</Text>
+                        <Feather name="shield" size={18} color="#ffffff" />
                       </View>
                       <View style={styles.toolTileMeta}>
                         <Text style={styles.toolTileName}>Edu51Portal Health Monitor</Text>
                         <Text style={styles.toolTileDesc}>Sub-second latency checks for BUBT CSE 51st students</Text>
                       </View>
+                      <Feather name="chevron-right" size={16} color="#64748b" />
                     </TouchableOpacity>
                   </View>
                 )}
@@ -2167,18 +2212,28 @@ export default function App() {
                     <TouchableOpacity
                       style={styles.addMemoryTriggerBtn}
                       onPress={() => setIsAddMemoryModal(true)}
+                      activeOpacity={0.8}
                     >
-                      <Text style={styles.addMemoryTriggerText}>+ Add</Text>
+                      <Feather name="plus" size={13} color="#ffffff" style={{ marginRight: 4 }} />
+                      <Text style={styles.addMemoryTriggerText}>Add</Text>
                     </TouchableOpacity>
                   </View>
 
-                  <TextInput
-                    style={styles.cleanSearchInput}
-                    placeholder="Search facts, projects, goals..."
-                    placeholderTextColor="#64748b"
-                    value={memSearch}
-                    onChangeText={setMemSearch}
-                  />
+                  <View style={styles.cleanSearchInputBox}>
+                    <Feather name="search" size={15} color="#64748b" style={{ marginRight: 8 }} />
+                    <TextInput
+                      style={styles.cleanSearchInput}
+                      placeholder="Search facts, projects, goals..."
+                      placeholderTextColor="#64748b"
+                      value={memSearch}
+                      onChangeText={setMemSearch}
+                    />
+                    {memSearch.length > 0 && (
+                      <TouchableOpacity onPress={() => setMemSearch('')} activeOpacity={0.7}>
+                        <Feather name="x" size={15} color="#94a3b8" />
+                      </TouchableOpacity>
+                    )}
+                  </View>
 
                   {/* Filter Pills */}
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, marginVertical: 10 }}>
@@ -2210,8 +2265,9 @@ export default function App() {
                         <TouchableOpacity
                           style={styles.memDeleteBtn}
                           onPress={() => handleDeleteMemory(mem.id)}
+                          activeOpacity={0.7}
                         >
-                          <Text style={styles.memDeleteText}>✕</Text>
+                          <Feather name="trash-2" size={13} color="#94a3b8" />
                         </TouchableOpacity>
                       </View>
                       <Text style={styles.cleanMemContent}>{mem.content}</Text>
@@ -2266,9 +2322,12 @@ export default function App() {
                   <View style={styles.settingsRow}>
                     <View>
                       <Text style={styles.settingsLabel}>Wake Word ("Hey Mikasa")</Text>
-                      <Text style={{ fontSize: 11, color: isWakeWordListening ? '#10b981' : '#64748b' }}>
-                        {isWakeWordListening ? '🟢 Standby listening active' : '⚪ Tap switch to enable'}
-                      </Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                        <View style={[styles.statusDot, { backgroundColor: isWakeWordListening ? '#10b981' : '#64748b' }]} />
+                        <Text style={{ fontSize: 11, color: isWakeWordListening ? '#10b981' : '#64748b' }}>
+                          {isWakeWordListening ? 'Standby listening active' : 'Tap switch to enable'}
+                        </Text>
+                      </View>
                     </View>
                     <Switch
                       value={isWakeWordEnabled}
@@ -2288,9 +2347,14 @@ export default function App() {
                     activeOpacity={0.7}
                     onPress={requestMicPermission}
                   >
-                    <Text style={styles.settingsLabel}>🎙️ Microphone Access</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                      <View style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: 'rgba(225, 29, 72, 0.15)', alignItems: 'center', justifyContent: 'center' }}>
+                        <Feather name="mic" size={14} color="#e11d48" />
+                      </View>
+                      <Text style={styles.settingsLabel}>Microphone Access</Text>
+                    </View>
                     <Text style={[styles.settingsVal, { color: micPermissionGranted ? '#10b981' : '#e11d48' }]}>
-                      {micPermissionGranted ? 'Granted ✓' : 'Tap to Grant ⚠️'}
+                      {micPermissionGranted ? 'Granted' : 'Tap to Grant'}
                     </Text>
                   </TouchableOpacity>
 
@@ -2299,9 +2363,14 @@ export default function App() {
                     activeOpacity={0.7}
                     onPress={requestCameraPermission}
                   >
-                    <Text style={styles.settingsLabel}>🔦 Camera / Flashlight</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                      <View style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: 'rgba(56, 189, 248, 0.15)', alignItems: 'center', justifyContent: 'center' }}>
+                        <Feather name="camera" size={14} color="#38bdf8" />
+                      </View>
+                      <Text style={styles.settingsLabel}>Camera / Flashlight</Text>
+                    </View>
                     <Text style={[styles.settingsVal, { color: cameraPermissionGranted ? '#10b981' : '#e11d48' }]}>
-                      {cameraPermissionGranted ? 'Granted ✓' : 'Tap to Grant ⚠️'}
+                      {cameraPermissionGranted ? 'Granted' : 'Tap to Grant'}
                     </Text>
                   </TouchableOpacity>
 
@@ -2310,9 +2379,14 @@ export default function App() {
                     activeOpacity={0.7}
                     onPress={requestLocationPermission}
                   >
-                    <Text style={styles.settingsLabel}>📍 Geolocation Service</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                      <View style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: 'rgba(16, 185, 129, 0.15)', alignItems: 'center', justifyContent: 'center' }}>
+                        <Feather name="map-pin" size={14} color="#10b981" />
+                      </View>
+                      <Text style={styles.settingsLabel}>Geolocation Service</Text>
+                    </View>
                     <Text style={[styles.settingsVal, { color: locationPermissionGranted ? '#10b981' : '#f59e0b' }]}>
-                      {locationPermissionGranted ? 'Granted ✓' : 'Optional (Grant)'}
+                      {locationPermissionGranted ? 'Granted' : 'Optional (Grant)'}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -2342,25 +2416,45 @@ export default function App() {
                   <Text style={styles.settingsGroupHeader}>CONNECTED SERVICES</Text>
 
                   <View style={styles.settingsRow}>
-                    <Text style={styles.settingsLabel}>Telegram Bridge</Text>
-                    <Text style={[styles.settingsVal, { color: '#10b981' }]}>@mikasa_360_bot (Active ✓)</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                      <View style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: 'rgba(56, 189, 248, 0.15)', alignItems: 'center', justifyContent: 'center' }}>
+                        <Feather name="send" size={13} color="#38bdf8" />
+                      </View>
+                      <Text style={styles.settingsLabel}>Telegram Bridge</Text>
+                    </View>
+                    <Text style={[styles.settingsVal, { color: '#10b981' }]}>@mikasa_360_bot (Active)</Text>
                   </View>
 
                   <View style={styles.settingsRow}>
-                    <Text style={styles.settingsLabel}>Workstation PC</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                      <View style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: 'rgba(16, 185, 129, 0.15)', alignItems: 'center', justifyContent: 'center' }}>
+                        <Feather name="monitor" size={13} color="#10b981" />
+                      </View>
+                      <Text style={styles.settingsLabel}>Workstation PC</Text>
+                    </View>
                     <Text style={[styles.settingsVal, { color: pcOnline ? '#10b981' : '#f59e0b' }]}>
                       {pcOnline ? 'Swapnil-PC (192.168.10.130)' : 'Standby'}
                     </Text>
                   </View>
 
                   <View style={styles.settingsRow}>
-                    <Text style={styles.settingsLabel}>Supabase DB</Text>
-                    <Text style={[styles.settingsVal, { color: '#10b981' }]}>123+ Memories Loaded ✓</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                      <View style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: 'rgba(225, 29, 72, 0.15)', alignItems: 'center', justifyContent: 'center' }}>
+                        <MaterialCommunityIcons name="brain" size={14} color="#e11d48" />
+                      </View>
+                      <Text style={styles.settingsLabel}>Supabase DB</Text>
+                    </View>
+                    <Text style={[styles.settingsVal, { color: '#10b981' }]}>123+ Memories Loaded</Text>
                   </View>
 
                   <View style={styles.settingsRow}>
-                    <Text style={styles.settingsLabel}>GitHub Repository</Text>
-                    <Text style={styles.settingsVal}>Swapnil-360 ✓</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                      <View style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: 'rgba(168, 85, 247, 0.15)', alignItems: 'center', justifyContent: 'center' }}>
+                        <Feather name="git-branch" size={13} color="#a855f7" />
+                      </View>
+                      <Text style={styles.settingsLabel}>GitHub Repository</Text>
+                    </View>
+                    <Text style={styles.settingsVal}>Swapnil-360</Text>
                   </View>
                 </View>
 
@@ -2538,8 +2632,9 @@ export default function App() {
                 <TouchableOpacity
                   style={styles.profileCloseBtn}
                   onPress={() => setProfileModalVisible(false)}
+                  activeOpacity={0.7}
                 >
-                  <Text style={styles.profileCloseBtnText}>✕</Text>
+                  <Feather name="x" size={16} color="#cbd5e1" />
                 </TouchableOpacity>
               </View>
 
@@ -2563,8 +2658,12 @@ export default function App() {
                       setProfileModalVisible(false);
                       playAboutMeAudio();
                     }}
+                    activeOpacity={0.8}
                   >
-                    <Text style={styles.profilePlayBtnText}>🎧 Play "About Mikasa" Audio</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                      <Feather name="headphones" size={16} color="#ffffff" style={{ marginRight: 8 }} />
+                      <Text style={styles.profilePlayBtnText}>Play "About Mikasa" Audio</Text>
+                    </View>
                   </TouchableOpacity>
                 </View>
 
@@ -2577,8 +2676,12 @@ export default function App() {
                       setOnboardingStep(1);
                       setAppFlow('onboarding');
                     }}
+                    activeOpacity={0.8}
                   >
-                    <Text style={styles.profileGuideBtnText}>📖 Replay Onboarding Guide</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                      <Feather name="book-open" size={16} color="#ffffff" style={{ marginRight: 8 }} />
+                      <Text style={styles.profileGuideBtnText}>Replay Onboarding Guide</Text>
+                    </View>
                   </TouchableOpacity>
                 </View>
               </ScrollView>
@@ -2599,15 +2702,21 @@ export default function App() {
           <View style={styles.profileModalBackdrop}>
             <View style={styles.profileModalSheet}>
               <View style={styles.profileSheetTop}>
-                <View>
-                  <Text style={styles.profileSheetMainTitle}>Commander Sitrep</Text>
-                  <Text style={{ color: '#94a3b8', fontSize: 11, marginTop: 2 }}>Daily Agenda, Tasks & Live Logs</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(225, 29, 72, 0.15)', alignItems: 'center', justifyContent: 'center' }}>
+                    <Feather name="bell" size={17} color="#e11d48" />
+                  </View>
+                  <View>
+                    <Text style={styles.profileSheetMainTitle}>Commander Sitrep</Text>
+                    <Text style={{ color: '#94a3b8', fontSize: 11, marginTop: 2 }}>Daily Agenda, Tasks & Live Logs</Text>
+                  </View>
                 </View>
                 <TouchableOpacity
                   style={styles.profileCloseBtn}
                   onPress={() => setSitrepModalVisible(false)}
+                  activeOpacity={0.7}
                 >
-                  <Text style={styles.profileCloseBtnText}>✕</Text>
+                  <Feather name="x" size={16} color="#cbd5e1" />
                 </TouchableOpacity>
               </View>
 
@@ -2651,7 +2760,7 @@ export default function App() {
                       }}
                     >
                       <View style={[styles.taskCheckbox, task.done && styles.taskCheckboxDone]}>
-                        {task.done && <Text style={{ color: '#fff', fontSize: 11, fontWeight: 'bold' }}>✓</Text>}
+                        {task.done && <Feather name="check" size={11} color="#ffffff" />}
                       </View>
                       <Text style={[styles.taskTitleText, task.done && styles.taskTitleDone]}>
                         {task.title}
@@ -3550,14 +3659,16 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(225, 29, 72, 0.08)',
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(225, 29, 72, 0.2)',
-    paddingVertical: 5,
-    paddingHorizontal: 14
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   tgMemoryBannerText: {
     color: '#e11d48',
     fontSize: 10,
-    fontWeight: '700',
-    textAlign: 'center'
+    fontWeight: '700'
   },
   chatMessageScroll: {
     flex: 1
@@ -3596,16 +3707,20 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 4
   },
   chatToolBadge: {
-    backgroundColor: 'rgba(225, 29, 72, 0.15)',
-    paddingHorizontal: 6,
+    backgroundColor: 'rgba(245, 158, 11, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.25)',
+    paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 6,
     marginBottom: 4,
-    alignSelf: 'flex-start'
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center'
   },
   chatToolBadgeText: {
-    color: '#e11d48',
-    fontSize: 9,
+    color: '#f59e0b',
+    fontSize: 10,
     fontWeight: '800'
   },
   chatMessageText: {
@@ -3766,7 +3881,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#e11d48',
     borderRadius: 10,
     paddingVertical: 9,
-    alignItems: 'center'
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   approvalConfirmText: {
     color: '#ffffff',
@@ -3778,7 +3895,9 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 16,
     paddingVertical: 9,
-    alignItems: 'center'
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   approvalRejectText: {
     color: '#94a3b8',
@@ -3800,11 +3919,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center'
   },
+  deviceActionIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.06)'
+  },
   deviceActionTileName: {
     color: '#ffffff',
     fontSize: 12,
     fontWeight: '700',
-    marginTop: 6
+    marginTop: 2
   },
   deviceActionTileSub: {
     color: '#94a3b8',
@@ -3911,23 +4040,30 @@ const styles = StyleSheet.create({
     backgroundColor: '#e11d48',
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 8
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center'
   },
   addMemoryTriggerText: {
     color: '#ffffff',
     fontSize: 12,
     fontWeight: '800'
   },
-  cleanSearchInput: {
+  cleanSearchInputBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#12141c',
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#202432',
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    color: '#ffffff',
-    fontSize: 13,
+    paddingHorizontal: 12,
+    paddingVertical: Platform.OS === 'ios' ? 9 : 4,
     marginTop: 10
+  },
+  cleanSearchInput: {
+    flex: 1,
+    color: '#ffffff',
+    fontSize: 13
   },
   cleanCatPill: {
     backgroundColor: '#12141c',
@@ -4229,7 +4365,14 @@ const styles = StyleSheet.create({
     fontWeight: '800'
   },
   profileCloseBtn: {
-    padding: 6
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#161925',
+    borderWidth: 1,
+    borderColor: '#24283b',
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   profileCloseBtnText: {
     color: '#94a3b8',

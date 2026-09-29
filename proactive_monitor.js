@@ -11,11 +11,26 @@ let lastBatteryAlertAt = 0;
 let lastMorningBriefingDate = '';
 let lastLateNightAlertDate = '';
 
-function getDhakaTime() {
-    const now = new Date();
-    // Dhaka is UTC+6
-    const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
-    return new Date(utc + (3600000 * 6));
+// Reliable time and date extraction in Asia/Dhaka (UTC+6) across any host timezone (Windows local, Linux cloud, etc.)
+function getDhakaDateAndParts() {
+    const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Asia/Dhaka',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: 'numeric',
+        minute: 'numeric',
+        second: 'numeric',
+        hour12: false
+    });
+    const parts = formatter.formatToParts(new Date());
+    const map = {};
+    for (const p of parts) map[p.type] = p.value;
+    const dateStr = `${map.year}-${map.month}-${map.day}`;
+    let hour = parseInt(map.hour, 10);
+    if (hour === 24) hour = 0;
+    const minute = parseInt(map.minute, 10);
+    return { dateStr, hour, minute };
 }
 
 function resolveChatIds(input) {
@@ -95,10 +110,8 @@ async function runMorningBriefing(commanderChatIds, sendTelegramMessage, force =
     const chatIds = resolveChatIds(commanderChatIds);
     if (chatIds.length === 0) return;
 
-    const dhakaNow = getDhakaTime();
-    const todayStr = dhakaNow.toISOString().slice(0, 10);
-    const hour = dhakaNow.getHours();
-    const minute = dhakaNow.getMinutes();
+    const { dateStr, hour, minute } = getDhakaDateAndParts();
+    const todayStr = dateStr;
 
     // Trigger daily between 8:30 AM and 8:45 AM or if explicitly requested (force = true)
     if (force || (hour === 8 && minute >= 30 && minute <= 45 && lastMorningBriefingDate !== todayStr)) {
@@ -182,10 +195,8 @@ async function runLateNightCheck(commanderChatIds, sendTelegramMessage, sendTele
     const chatIds = resolveChatIds(commanderChatIds);
     if (chatIds.length === 0) return;
 
-    const dhakaNow = getDhakaTime();
-    const todayStr = dhakaNow.toISOString().slice(0, 10);
-    const hour = dhakaNow.getHours();
-    const minute = dhakaNow.getMinutes();
+    const { dateStr, hour, minute } = getDhakaDateAndParts();
+    const todayStr = dateStr;
 
     // Trigger at 2:00 AM once per night, or if forced
     if (force || (hour === 2 && minute >= 0 && minute <= 15 && lastLateNightAlertDate !== todayStr)) {

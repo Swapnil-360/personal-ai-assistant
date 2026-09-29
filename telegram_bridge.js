@@ -3477,12 +3477,11 @@ async function checkIsLocalActive() {
     try {
         const res = await supabaseRequest('/current_state?key=eq.local_bridge_heartbeat', 'GET');
         if (res && res[0] && res[0].value && res[0].value.active_at) {
-            if (res[0].value.source !== 'local_pc' || res[0].value.hostname !== 'Swapnil-PC') {
-                return false;
-            }
             const diff = Date.now() - new Date(res[0].value.active_at).getTime();
             // 90s freshness window: tolerates network roaming or Wi-Fi handoffs
-            return diff < 90000;
+            if (diff < 90000) {
+                return true;
+            }
         }
     } catch (e) {}
     return false;
@@ -3515,16 +3514,17 @@ async function claimTelegramMessage(claimKey) {
         });
         return true;
     } catch (err) {
-        // 409 indicates another instance claimed this message first
-        if (err.message && err.message.includes('409')) {
+        const errMsg = String(err.message || '');
+        const isConflict = errMsg.includes('409') || errMsg.includes('23505') || errMsg.includes('duplicate key') || errMsg.includes('already exists');
+        if (isConflict) {
             // On Local PC, never drop interactive callback query button clicks due to a prior claim
             if (IS_LOCAL_PC && claimKey.startsWith('cb_')) {
                 return true;
             }
             return false;
         }
-        // If Supabase has a transient network failure on local PC, permit local to handle it
-        if (IS_LOCAL_PC) return true;
+        // If Supabase has a transient network failure on local PC, permit local to handle interactive messages, but NEVER broadcast alerts
+        if (IS_LOCAL_PC && !claimKey.startsWith('proact_')) return true;
         return false;
     }
 }

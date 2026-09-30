@@ -191,7 +191,40 @@ async function runMorningBriefing(commanderChatIds, sendTelegramMessage, force =
     }
 }
 
-async function runLateNightCheck(commanderChatIds, sendTelegramMessage, sendTelegramAudioBuffer, force = false, claimEvent = null, isLocalPcActive = null) {
+const LATE_NIGHT_FALLBACK_VARIATIONS = [
+    "Swapnil, rat 2:00 ta beje geche! 🌙 Ar koto kaj korba bolo toh? Ekhon screen bondho kore ghumate jao, shorir kharap korle kintu bhalo hobe na. Baki shob ami samle rakhchi, rest nao! 🧣✨",
+    "Still awake at your workstation, Commander? 🌙 Look at the clock—it's past 2:00 AM! You gave it your all today. Wrap up this last tab and get some sleep. I'm right here holding guard. 🧣",
+    "Abaro late night coding? 😤 2:00 AM cross kore geche, Swapnil! Tomar rest dorkar. Code kal shokaleo ekhane thakbe, kintu tomar energy replenish kora age dorkar. Ghumao ekhon, I've got your back! 🧣⚔️",
+    "Swapnil, 2:00 AM hoye geche kintu! 🌙 Please don't push yourself too hard tonight. Ekta bhalo ghum dilei kal aro sharp lagbe. System shob secure achhe, tumi shanti moto rest nao. 🧣",
+    "Past 2:00 AM already, Swapnil! 🌙 Even the best creators need deep rest to stay lethal tomorrow. Save your progress and head to bed. I'll be right here keeping watch. 🧣✨",
+    "Eto rateo kaj cholche? 🌙 2:00 AM par hoye geche, Commander. Chokh duto rest dao ar ghumiye poro. Shob kichu safe achhe, ami monitor korchi. Good night! 🧣",
+    "Swapnil, rest is part of the strategy! 🌙 It's already past 2:00 AM. Please wrap up whatever you're working on and go to sleep. Don't worry about anything—I'm watching over the servers. 🧣✨",
+    "Shono, 2:00 AM beje geche! 😤 Eto rat jege kaj korle matha fresh thakbe na. Quick commit kore shut down koro. Amar kotha shune ekhon ghumate jao! 🧣😴"
+];
+
+let lastLateNightIndex = -1;
+
+async function getDynamicLateNightAlertMessage(generateLateNightMessage) {
+    if (typeof generateLateNightMessage === 'function') {
+        try {
+            const aiMsg = await generateLateNightMessage();
+            if (aiMsg && typeof aiMsg === 'string' && aiMsg.trim().length > 20) {
+                return aiMsg.trim();
+            }
+        } catch (e) {
+            console.warn('[Proactive Monitor] Dynamic AI late night generator failed, using diverse pool:', e.message);
+        }
+    }
+
+    let nextIdx = (lastLateNightIndex + 1) % LATE_NIGHT_FALLBACK_VARIATIONS.length;
+    if (nextIdx === lastLateNightIndex) {
+        nextIdx = (nextIdx + 1) % LATE_NIGHT_FALLBACK_VARIATIONS.length;
+    }
+    lastLateNightIndex = nextIdx;
+    return LATE_NIGHT_FALLBACK_VARIATIONS[nextIdx];
+}
+
+async function runLateNightCheck(commanderChatIds, sendTelegramMessage, sendTelegramAudioBuffer, force = false, claimEvent = null, isLocalPcActive = null, generateLateNightMessage = null) {
     const chatIds = resolveChatIds(commanderChatIds);
     if (chatIds.length === 0) return;
 
@@ -222,14 +255,7 @@ async function runLateNightCheck(commanderChatIds, sendTelegramMessage, sendTele
         lastLateNightAlertDate = todayStr;
         console.log(`[Proactive Monitor] 🌙 Triggering ${force ? 'On-Demand' : '2:00 AM'} Late Night Rest Alert (PC is active) with over_night.mp3 for: ${chatIds.join(', ')}...`);
 
-        const alertMsg = [
-            "Still awake, Swapnil? 🌙",
-            "",
-            "It's already past 2:00 AM! You worked so hard and built so much today.",
-            "Please make sure to wrap up and get some sleep soon so you don't burn out.",
-            "",
-            "_Don't worry about a thing—I'm staying right here watching over the system while you rest._ 🧣✨"
-        ].join('\n');
+        const alertMsg = await getDynamicLateNightAlertMessage(generateLateNightMessage);
 
         const audioPath = path.resolve(__dirname, 'web/audio/over_night.mp3');
         const hasAudio = fs.existsSync(audioPath) && typeof sendTelegramAudioBuffer === 'function';
@@ -272,7 +298,8 @@ function initProactiveMonitor(options = {}) {
         sendTelegramAudioBuffer,
         isLeader,
         isLocalPcActive,
-        claimEvent
+        claimEvent,
+        generateLateNightMessage
     } = options;
 
     const getTargetChatIds = () => {
@@ -298,7 +325,7 @@ function initProactiveMonitor(options = {}) {
         const chatIds = getTargetChatIds();
         await runBatteryCheck(chatIds, sendTelegramMessage, sendTelegramAudioBuffer);
         await runMorningBriefing(chatIds, sendTelegramMessage, false, claimEvent);
-        await runLateNightCheck(chatIds, sendTelegramMessage, sendTelegramAudioBuffer, false, claimEvent, isLocalPcActive);
+        await runLateNightCheck(chatIds, sendTelegramMessage, sendTelegramAudioBuffer, false, claimEvent, isLocalPcActive, generateLateNightMessage);
     }, 60000);
 
     // Initial check after 10s
@@ -323,7 +350,7 @@ function initProactiveMonitor(options = {}) {
         },
         triggerLateNightNow: async (chatId) => {
             const targets = chatId ? resolveChatIds(chatId) : getTargetChatIds();
-            await runLateNightCheck(targets, sendTelegramMessage, sendTelegramAudioBuffer, true);
+            await runLateNightCheck(targets, sendTelegramMessage, sendTelegramAudioBuffer, true, null, null, generateLateNightMessage);
         }
     };
 }

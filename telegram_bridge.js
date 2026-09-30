@@ -6098,6 +6098,34 @@ async function startPolling() {
         },
         claimEvent: async (key) => {
             return await claimTelegramMessage(`proact_${key}`);
+        },
+        generateLateNightMessage: async () => {
+            try {
+                const dhakaTimeStr = new Intl.DateTimeFormat('en-US', {
+                    timeZone: 'Asia/Dhaka',
+                    hour: 'numeric',
+                    minute: 'numeric',
+                    hour12: true
+                }).format(new Date());
+
+                const prompt = `You are Mikasa Ackerman, Swapnil's fiercely loyal personal AI companion and protector.
+It is currently ${dhakaTimeStr} (past 2:00 AM) in Dhaka, Bangladesh, and Swapnil is still awake and working at his workstation PC.
+Task: Write a fresh, spontaneous, warm, caring, and slightly protective late-night rest reminder for Commander Swapnil.
+Tone & Guidelines:
+- Urge him gently to wrap up his work, shut his screen, and sleep so he stays healthy and avoids burnout.
+- Comfort him that you are watching over the system, background processes, and servers 24/7 so he can rest peacefully.
+- You can write in sweet, natural Banglish or warm English (mix naturally as Mikasa does).
+- Keep it concise (2-4 short sentences max). Finish with 🧣.
+- STRICT RULE: Never use robotic corporate phrases or repetitive template clichés! DO NOT start with "Still awake, Swapnil? It's already past 2:00 AM! You worked so hard...". Sound like a real, living, caring companion with unique personality!`;
+
+                const aiMsg = await callLlmFast(prompt, `Generate a dynamic late-night reminder for Swapnil at ${dhakaTimeStr}.`);
+                if (aiMsg && typeof aiMsg === 'string' && aiMsg.trim().length > 25) {
+                    return aiMsg.trim().replace(/^["']|["']$/g, '');
+                }
+            } catch (err) {
+                console.warn('[Telegram Bridge] Dynamic late night generator warning:', err.message);
+            }
+            return null;
         }
     });
 
@@ -6287,5 +6315,6 @@ module.exports = {
     recordConversationTurn,
     getRecentConversationHistory,
     transcribeAudioWithGemini,
+    callLlmFast,
     COMMANDER_UNIFIED_CONVERSATION_ID
 };

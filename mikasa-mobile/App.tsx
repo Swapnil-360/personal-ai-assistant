@@ -481,9 +481,9 @@ export default function App() {
   const [micPermissionGranted, setMicPermissionGranted] = useState<boolean | null>(null);
   const [cameraPermissionGranted, setCameraPermissionGranted] = useState<boolean | null>(null);
   const [locationPermissionGranted, setLocationPermissionGranted] = useState<boolean | null>(null);
-  const [isWakeWordEnabled, setIsWakeWordEnabled] = useState(false);
+  const [isWakeWordEnabled, setIsWakeWordEnabled] = useState(true);
   const [isWakeWordListening, setIsWakeWordListening] = useState(false);
-  const isWakeWordEnabledRef = useRef(false);
+  const isWakeWordEnabledRef = useRef(true);
   const executeCommandRef = useRef<(cmd: string) => void>(() => {});
 
   const listeningTimerRef = useRef<any>(null);
@@ -513,10 +513,26 @@ export default function App() {
       try {
         const mic = await getRecordingPermissionsAsync();
         setMicPermissionGranted(mic.granted);
+        if (mic.granted && isWakeWordEnabledRef.current) {
+          setIsWakeWordListening(true);
+          setTimeout(() => {
+            if (isWakeWordEnabledRef.current && !isSpeakingRef.current && !isRecordingAudioRef.current) {
+              runAmbientListeningCycle();
+            }
+          }, 2000);
+        }
       } catch (e) {
         try {
           const mic = await Camera.getMicrophonePermissionsAsync();
           setMicPermissionGranted(mic.granted);
+          if (mic.granted && isWakeWordEnabledRef.current) {
+            setIsWakeWordListening(true);
+            setTimeout(() => {
+              if (isWakeWordEnabledRef.current && !isSpeakingRef.current && !isRecordingAudioRef.current) {
+                runAmbientListeningCycle();
+              }
+            }, 2000);
+          }
         } catch (e2) {
           setMicPermissionGranted(false);
         }
@@ -672,20 +688,26 @@ export default function App() {
       }
 
       let metering = -160;
+      let hasValidMetering = false;
       try {
         const st = audioRecorder.getStatus();
-        if (st && typeof st.metering === 'number') {
+        if (st && typeof st.metering === 'number' && !isNaN(st.metering)) {
           metering = st.metering;
+          hasValidMetering = true;
         }
       } catch (e) {}
 
       const now = Date.now();
       const elapsed = now - cycleStartTime;
 
-      if (metering > -35) {
+      // Realistic speech threshold: normal speech close to phone is -50dB to -35dB in Android MediaRecorder/iOS
+      const isVoiceLevel = hasValidMetering ? (metering > -50) : false;
+
+      if (isVoiceLevel) {
         if (!voiceDetected) {
           voiceDetected = true;
           voiceStartTime = now;
+          setSubStatusText('"Hearing voice..."');
         }
         lastLoudTime = now;
       }
@@ -700,7 +722,7 @@ export default function App() {
           return;
         }
       } else {
-        if (elapsed >= 3200) {
+        if (hasValidMetering && elapsed >= 3200) {
           clearInterval(ambientVadIntervalRef.current);
           try {
             await audioRecorder.stop();
@@ -711,6 +733,11 @@ export default function App() {
           if (isWakeWordEnabledRef.current && !isManualRecordingRef.current && !isSpeakingRef.current) {
             runAmbientListeningCycle();
           }
+          return;
+        } else if (!hasValidMetering && elapsed >= 2600) {
+          // Fallback if device driver doesn't report metering amplitude
+          clearInterval(ambientVadIntervalRef.current);
+          await processAmbientVoiceSnippet();
           return;
         }
       }
@@ -756,6 +783,7 @@ export default function App() {
       const transcribedQuery = (data.transcription || '').trim();
 
       if (!transcribedQuery) {
+        setSubStatusText('"Say \'Hey Mikasa\' or \'Mikasa\'"');
         if (isWakeWordEnabledRef.current) runAmbientListeningCycle();
         return;
       }
@@ -782,6 +810,7 @@ export default function App() {
           });
         }
       } else {
+        setSubStatusText('"Say \'Hey Mikasa\' or \'Mikasa\'"');
         if (isWakeWordEnabledRef.current) {
           setTimeout(runAmbientListeningCycle, 200);
         }
@@ -820,18 +849,23 @@ export default function App() {
         }
 
         let metering = -160;
+        let hasMetering = false;
         try {
           const st = audioRecorder.getStatus();
-          if (st && typeof st.metering === 'number') metering = st.metering;
+          if (st && typeof st.metering === 'number' && !isNaN(st.metering)) {
+            metering = st.metering;
+            hasMetering = true;
+          }
         } catch (e) {}
 
         const now = Date.now();
-        if (metering > -35) {
+        const totalElapsed = now - cmdStartTime;
+
+        if (hasMetering ? (metering > -50) : (totalElapsed >= 1500)) {
           cmdVoiceDetected = true;
           cmdLastVoiceTime = now;
         }
 
-        const totalElapsed = now - cmdStartTime;
         const silenceAfterVoice = now - cmdLastVoiceTime;
 
         if ((cmdVoiceDetected && silenceAfterVoice >= 1200) || (cmdVoiceDetected && totalElapsed >= 8000)) {
@@ -899,9 +933,14 @@ export default function App() {
                 const nowGranted = await requestMicPermission();
                 if (nowGranted) {
                   setIsWakeWordEnabled(true);
-                  await startAmbientWakeWordListener();
+                  isWakeWordEnabledRef.current = true;
+                  setIsWakeWordListening(true);
                   Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                  speakAsMikasa('Wake word activated. Standing by for Hey Mikasa or Mikasa, Commander.');
+                  isSpeakingRef.current = true;
+                  speakAsMikasa('Wake word activated. Standing by for Hey Mikasa or Mikasa, Commander.', () => {
+                    isSpeakingRef.current = false;
+                    setTimeout(runAmbientListeningCycle, 400);
+                  });
                 }
               }
             }
@@ -913,9 +952,14 @@ export default function App() {
       }
 
       setIsWakeWordEnabled(true);
-      await startAmbientWakeWordListener();
+      isWakeWordEnabledRef.current = true;
+      setIsWakeWordListening(true);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      speakAsMikasa('Wake word activated. Standing by for Hey Mikasa or Mikasa, Commander.');
+      isSpeakingRef.current = true;
+      speakAsMikasa('Wake word activated. Standing by for Hey Mikasa or Mikasa, Commander.', () => {
+        isSpeakingRef.current = false;
+        setTimeout(runAmbientListeningCycle, 400);
+      });
     } else {
       setIsWakeWordEnabled(false);
       stopAmbientWakeWordListener();
@@ -2182,6 +2226,30 @@ export default function App() {
                     <View style={[styles.statusDot, { backgroundColor: '#10b981' }]} />
                     <Text style={styles.orbReadyText}>{statusText}</Text>
                   </View>
+
+                  {/* Quick Wake-Word Ambient Toggle & Live Status Badge */}
+                  <TouchableOpacity
+                    onPress={() => handleToggleWakeWord(!isWakeWordEnabled)}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 6,
+                      backgroundColor: isWakeWordListening ? 'rgba(16, 185, 129, 0.15)' : 'rgba(100, 116, 139, 0.15)',
+                      paddingHorizontal: 12,
+                      paddingVertical: 5,
+                      borderRadius: 16,
+                      borderWidth: 1,
+                      borderColor: isWakeWordListening ? '#10b981' : '#475569',
+                      marginTop: 6,
+                      marginBottom: 8
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <View style={[styles.statusDot, { backgroundColor: isWakeWordListening ? '#10b981' : '#64748b' }]} />
+                    <Text style={{ fontSize: 11, fontWeight: '700', color: isWakeWordListening ? '#10b981' : '#94a3b8' }}>
+                      {isWakeWordListening ? '🎙️ WAKE WORD ACTIVE ("Hey Mikasa")' : '🎙️ WAKE WORD OFF (Tap to enable)'}
+                    </Text>
+                  </TouchableOpacity>
 
                   {/* Undulating Crimson Waveform while listening */}
                   {assistantState === 'LISTENING' ? (

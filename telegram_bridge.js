@@ -464,6 +464,17 @@ async function recordConversationTurn(conversationId, userText, assistantText, m
         if (rows.length > 0) {
             await ensureConversationExists(conversationId, userText || 'Telegram Chat');
             await supabaseRequest('/messages', 'POST', rows);
+
+            // Asynchronous background extraction into Episodic Relational Memory Graph (Zero chat latency guarantee)
+            if (userText && userText.trim().length > 15) {
+                try {
+                    const { extractFromRecentTurnsAsync } = require('./memory_graph_engine');
+                    const snippet = `Swapnil: ${userText}\nMikasa: ${replyText || ''}`;
+                    extractFromRecentTurnsAsync(conversationId, snippet);
+                } catch (gErr) {
+                    // Non-critical background failure protection
+                }
+            }
         }
     } catch (e) {
         console.warn('[Conversation Save Warning]:', e.message);

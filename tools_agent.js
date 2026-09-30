@@ -173,6 +173,24 @@ const MIKASA_TOOL_DECLARATIONS = [
             properties: {},
             required: []
         }
+    },
+    {
+        name: 'query_memory_graph',
+        description: 'Query the episodic relational memory graph to retrieve multi-hop relationships, past decisions, project architectures, personal preferences, and connected context for Commander Swapnil.',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                query: {
+                    type: 'STRING',
+                    description: 'The entity, topic, or keyword to query (e.g. "swapnil", "edu51portal", "barcelona", "decisions", "curricurag", "tailwind").'
+                },
+                max_depth: {
+                    type: 'NUMBER',
+                    description: 'Maximum hops to traverse (default 2, up to 3).'
+                }
+            },
+            required: ['query']
+        }
     }
 ];
 
@@ -356,6 +374,48 @@ async function executeLocalTool(toolName, args = {}, userContext = {}) {
                 return {
                     checked_at: new Date().toISOString(),
                     services: monitors
+                };
+            }
+
+            case 'query_memory_graph': {
+                const { traverseGraph, getAllGraphData, slugify } = require('./memory_graph_engine');
+                const rawQ = (args.query || 'swapnil').trim();
+                const targetSlug = slugify(rawQ);
+                const maxDepth = Math.min(Math.max(1, args.max_depth || 2), 3);
+                
+                let traversal = await traverseGraph(targetSlug, maxDepth);
+                if (!traversal.root) {
+                    const { raw_nodes } = await getAllGraphData();
+                    const cleanQ = rawQ.toLowerCase();
+                    const match = raw_nodes.find(n => n.name.toLowerCase().includes(cleanQ) || n.slug.includes(cleanQ));
+                    if (match) {
+                        traversal = await traverseGraph(match.slug, maxDepth);
+                    }
+                }
+
+                if (!traversal.root) {
+                    return {
+                        found: false,
+                        message: `No relational memory node found matching "${rawQ}".`
+                    };
+                }
+
+                const edgesSummary = traversal.edges.map(e => {
+                    const src = traversal.nodes.find(n => n.id === e.source_id)?.name || e.source_slug || 'Entity';
+                    const tgt = traversal.nodes.find(n => n.id === e.target_id)?.name || e.target_slug || 'Entity';
+                    return `• ${src} -[${e.relation}]-> ${tgt}${e.context ? ` (${e.context})` : ''}`;
+                });
+
+                return {
+                    found: true,
+                    root: {
+                        name: traversal.root.name,
+                        label: traversal.root.label,
+                        properties: traversal.root.properties
+                    },
+                    total_connected_entities: traversal.nodes.length,
+                    connected_entities: traversal.nodes.map(n => `[${n.label}] ${n.name}`),
+                    relationships: edgesSummary
                 };
             }
 

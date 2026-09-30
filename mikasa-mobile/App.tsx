@@ -638,10 +638,21 @@ export default function App() {
     return base64Audio;
   };
 
+  const isAmbientStartingRef = useRef(false);
+
+  const safeResetAudioRecorder = async () => {
+    try {
+      await audioRecorder.stop();
+    } catch (e) {}
+    isRecordingAudioRef.current = false;
+    isAmbientListeningRef.current = false;
+  };
+
   // Continuous Native Mobile Ambient Voice & Wake-Word Engine
   const runAmbientListeningCycle = async () => {
     if (!isWakeWordEnabledRef.current) return;
     if (isManualRecordingRef.current) return;
+    if (isAmbientListeningRef.current || isRecordingAudioRef.current || isAmbientStartingRef.current) return;
     if (isSpeakingRef.current) {
       clearTimeout(ambientCycleTimerRef.current);
       ambientCycleTimerRef.current = setTimeout(runAmbientListeningCycle, 400);
@@ -653,7 +664,12 @@ export default function App() {
       return;
     }
 
+    isAmbientStartingRef.current = true;
     try {
+      // Ensure any previously active or lingering session is completely stopped & released
+      await safeResetAudioRecorder();
+      await new Promise(r => setTimeout(r, 60));
+
       await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
       await audioRecorder.prepareToRecordAsync({
         ...RecordingPresets.HIGH_QUALITY,
@@ -664,11 +680,12 @@ export default function App() {
       isAmbientListeningRef.current = true;
     } catch (err: any) {
       console.warn('[Ambient Record Start Error]:', err?.message || err);
-      isRecordingAudioRef.current = false;
-      isAmbientListeningRef.current = false;
+      await safeResetAudioRecorder();
       clearTimeout(ambientCycleTimerRef.current);
       ambientCycleTimerRef.current = setTimeout(runAmbientListeningCycle, 1000);
       return;
+    } finally {
+      isAmbientStartingRef.current = false;
     }
 
     const cycleStartTime = Date.now();
@@ -731,7 +748,7 @@ export default function App() {
           isAmbientListeningRef.current = false;
 
           if (isWakeWordEnabledRef.current && !isManualRecordingRef.current && !isSpeakingRef.current) {
-            runAmbientListeningCycle();
+            setTimeout(runAmbientListeningCycle, 150);
           }
           return;
         } else if (!hasValidMetering && elapsed >= 2600) {
@@ -758,13 +775,13 @@ export default function App() {
     } catch (e) {}
 
     if (!audioUri) {
-      if (isWakeWordEnabledRef.current) runAmbientListeningCycle();
+      if (isWakeWordEnabledRef.current) setTimeout(runAmbientListeningCycle, 150);
       return;
     }
 
     const base64Audio = await getBase64FromUri(audioUri);
     if (!base64Audio) {
-      if (isWakeWordEnabledRef.current) runAmbientListeningCycle();
+      if (isWakeWordEnabledRef.current) setTimeout(runAmbientListeningCycle, 150);
       return;
     }
 
@@ -784,7 +801,7 @@ export default function App() {
 
       if (!transcribedQuery) {
         setSubStatusText('"Say \'Hey Mikasa\' or \'Mikasa\'"');
-        if (isWakeWordEnabledRef.current) runAmbientListeningCycle();
+        if (isWakeWordEnabledRef.current) setTimeout(runAmbientListeningCycle, 150);
         return;
       }
 
@@ -826,6 +843,8 @@ export default function App() {
   const startHandsFreeCommandCapture = async () => {
     if (!isWakeWordEnabledRef.current) return;
     try {
+      await safeResetAudioRecorder();
+      await new Promise(r => setTimeout(r, 60));
       await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
       await audioRecorder.prepareToRecordAsync({
         ...RecordingPresets.HIGH_QUALITY,
@@ -1435,6 +1454,9 @@ export default function App() {
       } catch (e) {}
     }
     Speech.stop();
+
+    await safeResetAudioRecorder();
+    await new Promise(r => setTimeout(r, 60));
 
     try {
       // Set audio mode for recording

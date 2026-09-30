@@ -200,6 +200,25 @@ async function executeLocalTool(toolName, args = {}, userContext = {}) {
     try {
         switch (toolName) {
             case 'get_pc_status': {
+                const isLocal = require('os').hostname() === 'Swapnil-PC';
+                if (!isLocal) {
+                    const { supabaseRequest } = require('./actions_handler');
+                    let hb = null;
+                    try {
+                        const rows = await supabaseRequest('/current_state?key=eq.local_bridge_heartbeat', 'GET');
+                        if (rows && rows[0] && rows[0].value) hb = rows[0].value;
+                    } catch (_) {}
+
+                    const lastSeen = hb?.active_at ? new Date(hb.active_at).getTime() : 0;
+                    const isOnline = lastSeen > 0 && (Date.now() - lastSeen < 30000);
+                    if (!isOnline) {
+                        return {
+                            status: 'offline',
+                            hostname: 'Swapnil-PC',
+                            summary: 'Swapnil-PC is currently offline / asleep. Mikasa is live 24/7 on Cloud guarding your tasks, goals, sports news, memory graph, and chat.'
+                        };
+                    }
+                }
                 const info = await getSystemInfo();
                 return {
                     status: 'online',
@@ -215,6 +234,13 @@ async function executeLocalTool(toolName, args = {}, userContext = {}) {
             }
 
             case 'lock_pc': {
+                const isLocal = require('os').hostname() === 'Swapnil-PC';
+                if (!isLocal) {
+                    return {
+                        success: false,
+                        message: 'Swapnil-PC is currently offline / asleep. Locking workstation requires the PC to be powered on.'
+                    };
+                }
                 const { exec } = require('child_process');
                 exec('rundll32.exe user32.dll,LockWorkStation');
                 return {
@@ -338,6 +364,15 @@ async function executeLocalTool(toolName, args = {}, userContext = {}) {
             }
 
             case 'search_pc_files': {
+                const isLocal = require('os').hostname() === 'Swapnil-PC';
+                if (!isLocal) {
+                    return {
+                        query: args.query,
+                        count: 0,
+                        files: [],
+                        message: 'Swapnil-PC is currently offline / asleep. File search requires the local PC to be running.'
+                    };
+                }
                 if (!args.query) return { error: 'query parameter is required' };
                 const limit = args.limit || 5;
                 const files = await searchAllowedFiles(args.query, limit);
@@ -354,6 +389,12 @@ async function executeLocalTool(toolName, args = {}, userContext = {}) {
             }
 
             case 'control_workstation': {
+                const isLocal = require('os').hostname() === 'Swapnil-PC';
+                if (!isLocal) {
+                    return {
+                        error: 'Swapnil-PC is currently offline / asleep. Workstation hardware controls require the local PC to be running.'
+                    };
+                }
                 const act = (args.action || '').toLowerCase();
                 if (act === 'lock') {
                     return lockWorkstation();

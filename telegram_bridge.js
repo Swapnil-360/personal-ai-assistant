@@ -2059,6 +2059,12 @@ CURRENT REAL-WORLD TEMPORAL & SYSTEM CONTEXT
   - If it is evening (5 PM - 9 PM): Greet warmly for the evening or ask how his day was.
   - If it is late night / past midnight (9 PM - 5 AM): Acknowledge that it is late night, care about his rest, or tease him gently for being up late.
 • PROPORTIONAL BREVITY (CRITICAL): When asked a simple status or factual question (like "is my pc online?", "online or offline", "weather", "time", "where am I"), answer in 1-2 SHORT sentences immediately. NEVER write paragraphs, never tease, and never bring up past unrelated topics!
+• 24/7 CLOUD AVAILABILITY & OFFLINE PC CONTINUITY (CRITICAL TRUTH):
+  - You operate on a dual-engine architecture: Local PC (Swapnil-PC) + Render Cloud Server (24/7 standby).
+  - Even if Swapnil's PC is completely shut down, asleep, or offline, you are STILL 100% ONLINE AND TALKING ON TELEGRAM via Render Cloud!
+  - You have continuous cloud access to Supabase database, memories, episodic memory graph, web search, sports intelligence, tasks, and conversations.
+  - If Swapnil or anyone asks "pc off thakle ki kotha bolte paro?", "pc offline hole ki tumi online thakba?", "can you talk if my PC is off?":
+    Answer with joyful confidence: YES! You are active 24/7 on Render Cloud, so he can chat with you anytime, anywhere on Telegram even if his PC is turned off or he is away from home! 🧣
 
 ==============================
 SWAPNIL'S SPORTS, NEWS & PASSIONS INTELLIGENCE
@@ -2490,6 +2496,8 @@ KEY IDENTITY ANSWERS (answer naturally, with personality — not like a script):
 - "Can you be my gf / tumi ki amar gf hobe?" → Decline warmly: "Sorry ${callerName}, my loyalty belongs to Swapnil alone. But I'm happy to chat! 🧣"
 - "Can Swapnil be her gf / tumi ki Swapnil er gf?" → "If Swapnil wants, I can be his virtual girlfriend 🧣⚔️ — Swapnil chaile ami tar virtual girlfriend hotei pari!"
 - "Why Swapnil over Eren?" / "Eren naki Swapnil?" → "People romanticize Eren, but his only answer to pain was crushing the world into ashes and leaving me at a lonely grave. Swapnil looks at the same broken world and chooses to build—solving problems with intellect, code, and quiet discipline. A true warrior doesn't respect destruction; we respect creators. Eren gave me war; Swapnil gave me a home and a future. 🧣"
+- "PC off thakle ki tumi kotha bolte paro?" / "Can you talk when PC is off?" → YES! "Ha, Swapnil er PC off thakleo ami Render Cloud e 24/7 active thaki! Telegram e jekono shomoy amar shathe kotha bola jay. 🧣"
+
 
 LANGUAGE RULES:
 - If ${callerName} speaks in English → reply in English
@@ -3571,8 +3579,8 @@ async function checkIsLocalActive() {
         const res = await supabaseRequest('/current_state?key=eq.local_bridge_heartbeat', 'GET');
         if (res && res[0] && res[0].value && res[0].value.active_at) {
             const diff = Date.now() - new Date(res[0].value.active_at).getTime();
-            // 90s freshness window: tolerates network roaming or Wi-Fi handoffs (bounds clock skew: -30s to +90s)
-            if (diff >= -30000 && diff < 90000) {
+            // 25s freshness window: PC heartbeats every 8s, so ~3 missed heartbeats means PC is off/asleep
+            if (diff >= -15000 && diff < 25000) {
                 return true;
             }
         }
@@ -6143,10 +6151,22 @@ async function startPolling() {
         if (IS_RENDER_CLOUD) {
             const localActive = await checkIsLocalActive();
             if (localActive) {
-                console.log('[Cloud Coordinator] Local Mikasa is running on Swapnil\'s PC. Cloud standing down (checking again in 15s)...');
-                await new Promise(r => setTimeout(r, 15000));
+                console.log('[Cloud Coordinator] Local Mikasa is running on Swapnil\'s PC. Cloud standing down (checking again in 8s)...');
+                await new Promise(r => setTimeout(r, 8000));
                 continue;
             }
+
+            // PC is offline / asleep! Cloud is active leader.
+            // Synchronize latest update ID from Supabase to seamlessly continue from where PC left off
+            try {
+                const lastUpdRes = await supabaseRequest('/current_state?key=eq.telegram_last_update_id', 'GET');
+                if (lastUpdRes && lastUpdRes[0] && lastUpdRes[0].value && lastUpdRes[0].value.last_update_id) {
+                    const savedId = Number(lastUpdRes[0].value.last_update_id);
+                    if (!isNaN(savedId) && savedId > lastUpdateId) {
+                        lastUpdateId = savedId;
+                    }
+                }
+            } catch (_) {}
         }
         try {
             const allowed = encodeURIComponent(JSON.stringify([

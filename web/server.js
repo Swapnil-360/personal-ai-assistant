@@ -1271,12 +1271,27 @@ const server = http.createServer(async (req, res) => {
                     let mime = body.mime_type || 'audio/mp4';
                     if (mime === 'audio/m4a' || mime === 'audio/x-m4a') mime = 'audio/mp4';
                     userQuery = await transcribeAudioWithGemini(audioBuffer, mime);
+                    if (userQuery && (userQuery.toLowerCase() === 'nothing' || userQuery.toLowerCase() === 'nothing.' || /^(please provide|no speech|\[?silence\]?|unintelligible|there is no (speech|audio)|i cannot hear|no audio)/i.test(userQuery))) {
+                        userQuery = '';
+                    }
                 } catch (audioErr) {
                     console.warn('[Voice Process Audio Transcription Error]:', audioErr.message);
                 }
             }
 
             if (!userQuery) {
+                // If audio was sent from ambient listening or voice recording, an empty transcription represents silence or background noise.
+                // Returning 200 OK prevents client error penalties, logs, or crash loops.
+                if (body.audio_base64) {
+                    return sendJson(res, 200, {
+                        success: true,
+                        transcription: '',
+                        isWakeWordOnly: false,
+                        reply: '',
+                        spokenText: '',
+                        action: 'silence_detected'
+                    });
+                }
                 return sendJson(res, 400, { error: 'No voice audio or query text provided' });
             }
 

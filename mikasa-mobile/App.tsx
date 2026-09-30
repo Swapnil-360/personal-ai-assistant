@@ -790,7 +790,7 @@ export default function App() {
 
       const wakeMatch = matchWakeWord(transcribedQuery);
 
-      if (wakeMatch.matched) {
+      if (wakeMatch.matched || data.isWakeWordOnly) {
         try {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         } catch (e) {}

@@ -11,8 +11,8 @@ export interface WakeWordResult {
 
 // Canonical wake triggers supported
 const WAKE_PATTERNS = [
-  { trigger: 'hey mikasa', regex: /^(?:hey|ay|ai|ei|hi)\s*[,.-]?\s*mikasa\b/i },
-  { trigger: 'mikasa', regex: /^mikasa\b/i }
+  { trigger: 'hey mikasa', regex: /^(?:(?:uh|um|oh|yo)\s+)?(?:hey|ay|ai|ei|hi|hello)\s*[,.-]?\s*mikasa\b/i },
+  { trigger: 'mikasa', regex: /^(?:(?:uh|um|oh|yo)\s+)?(?:ok\s+|okay\s+)?mikasa\b/i }
 ];
 
 export function normalizeSpeechText(text: string): string {

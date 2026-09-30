@@ -1,5 +1,175 @@
 [
   {
+    "timestamp": "2026-09-30T21:01:39.952Z",
+    "user_request": "barcelonar match kobe ache",
+    "agent_decision": "Learned new [preference] memory; superseded 0 outdated memories",
+    "tool_used": "Supabase /memories",
+    "action_performed": "store_memory",
+    "data_affected": "72938ab1-c33f-4959-9c56-ebd504641c7b",
+    "result": "Swapnil is a fan of FC Barcelona and tracks their match schedules.",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-30T21:00:32.517Z",
+    "user_request": "say ekti ghonta insted of ekti ganta",
+    "agent_decision": "Learned new [preference] memory; superseded 0 outdated memories",
+    "tool_used": "Supabase /memories",
+    "action_performed": "store_memory",
+    "data_affected": "d10e88b0-fed9-4aad-a782-82e3608f6244",
+    "result": "Swapnil prefers to use 'ekti ghonta' instead of 'ekti ganta'.",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-30T20:58:47.344Z",
+    "user_request": "can you send me or remind me namaz time ?",
+    "agent_decision": "Learned new [preference] memory; superseded 0 outdated memories",
+    "tool_used": "Supabase /memories",
+    "action_performed": "store_memory",
+    "data_affected": "56657285-f987-4199-9a85-7d1de02cf4c3",
+    "result": "Swapnil requested reminders or information regarding Namaz (prayer) times.",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-30T20:29:14.176Z",
+    "user_request": "barcelonar match kobe ache",
+    "agent_decision": "Learned new [preference] memory; superseded 0 outdated memories",
+    "tool_used": "Supabase /memories",
+    "action_performed": "store_memory",
+    "data_affected": "fef22f1a-d084-4cd3-9b36-8d2db8cc0d99",
+    "result": "Swapnil is a fan of FC Barcelona and tracks their match schedules.",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-30T20:28:32.834Z",
+    "user_request": "barcelonar match kobe ache",
+    "agent_decision": "Learned new [preference] memory; superseded 0 outdated memories",
+    "tool_used": "Supabase /memories",
+    "action_performed": "store_memory",
+    "data_affected": "ed50502f-9345-4f61-b44c-ff35e63ea283",
+    "result": "Swapnil is interested in FC Barcelona and wants to track their match schedules.",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-30T20:01:04.587Z",
+    "user_request": "",
+    "agent_decision": "",
+    "tool_used": "",
+    "action_performed": "",
+    "data_affected": null,
+    "result": "Success",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-30T20:01:02.161Z",
+    "user_request": "",
+    "agent_decision": "",
+    "tool_used": "",
+    "action_performed": "",
+    "data_affected": null,
+    "result": "Success",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-30T16:39:25.493Z",
+    "user_request": "Update portfolio with new project/build: \"Swapnil is currently not working\"",
+    "agent_decision": "Create task in Personal Portfolio",
+    "tool_used": "Supabase /tasks",
+    "action_performed": "insert",
+    "data_affected": "a364f759-9bde-4e8b-984d-8448aeef411a",
+    "result": "Task \"Update portfolio with new project/build: \"Swapnil is currently not working\"\" registered",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-30T16:39:24.754Z",
+    "user_request": "na kono project niye boshe nei, ami tomakei update korsi aro advanced level a",
+    "agent_decision": "Learned new [fact] memory; superseded 0 outdated memories",
+    "tool_used": "Supabase /memories",
+    "action_performed": "store_memory",
+    "data_affected": "ea507010-cb38-42cd-842b-5ced949135c5",
+    "result": "Swapnil is currently not working on any other project and is focusing on upgrading PATHS to a more advanced level.",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-30T16:37:04.483Z",
+    "user_request": "ha akhon theke ekshathe match score predict korbo amra matchday te okay ? remind me before every barca match",
+    "agent_decision": "Learned new [preference] memory; superseded 0 outdated memories",
+    "tool_used": "Supabase /memories",
+    "action_performed": "store_memory",
+    "data_affected": "b96fc8a3-e5c7-4bd8-86b6-068217c21033",
+    "result": "Swapnil wants to predict match scores together on matchdays and likes to be reminded before every FC Barcelona match.",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-30T16:32:27.525Z",
+    "user_request": "akhon bolo, tumi kon team support korbe ?",
+    "agent_decision": "Learned new [preference] memory; superseded 0 outdated memories",
+    "tool_used": "Supabase /memories",
+    "action_performed": "store_memory",
+    "data_affected": "3f79a6d6-c7aa-4fad-9050-e4b20c312097",
+    "result": "Swapnil supports FC Barcelona in football.",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-30T16:28:10.806Z",
+    "user_request": "I missed that PSG vs Barca ucl match, that comeback and the barca neymar",
+    "agent_decision": "Learned new [preference] memory; superseded 0 outdated memories",
+    "tool_used": "Supabase /memories",
+    "action_performed": "store_memory",
+    "data_affected": "ba9c4440-7168-4e12-9370-4712abe5a8c0",
+    "result": "Swapnil is a football fan who follows the UEFA Champions League and remembers iconic matches like Barcelona's 6-1 comeback against PSG in 2017 ('La Remontada'), specifically noting Neymar's performance.",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-30T16:26:16.253Z",
+    "user_request": "The trio of MSN I love that MSN era",
+    "agent_decision": "Learned new [preference] memory; superseded 0 outdated memories",
+    "tool_used": "Supabase /memories",
+    "action_performed": "store_memory",
+    "data_affected": "ca3f295a-0e67-42d2-b408-f1d225660751",
+    "result": "Swapnil loves the MSN (Messi, Suarez, Neymar) football era.",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-30T16:25:56.010Z",
+    "user_request": "I'm a big fan of Barcelona",
+    "agent_decision": "Learned new [preference] memory; superseded 0 outdated memories",
+    "tool_used": "Supabase /memories",
+    "action_performed": "store_memory",
+    "data_affected": "bd926278-2f2a-4ff8-b991-c67349a912f1",
+    "result": "Swapnil is a big fan of FC Barcelona.",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-30T16:24:39.054Z",
+    "user_request": "boloto football a ami kon club support korte pari ?",
+    "agent_decision": "Learned new [fact] memory; superseded 0 outdated memories",
+    "tool_used": "Supabase /memories",
+    "action_performed": "store_memory",
+    "data_affected": "a8d6d80d-50a7-4f63-a623-91d18ec39e6b",
+    "result": "Swapnil is looking for a football club to support that matches his personality traits of being a perfectionist and analytical.",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-30T16:16:48.298Z",
+    "user_request": "You forget to say good morning today",
+    "agent_decision": "Learned new [fact] memory; superseded 0 outdated memories",
+    "tool_used": "Supabase /memories",
+    "action_performed": "store_memory",
+    "data_affected": "98c25b09-dcfd-4007-9e32-9fe993d75018",
+    "result": "Swapnil tends to stay up late at night, resulting in him feeling sleepy in the morning.",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-09-30T16:16:46.731Z",
+    "user_request": "You forget to say good morning today",
+    "agent_decision": "Learned new [preference] memory; superseded 0 outdated memories",
+    "tool_used": "Supabase /memories",
+    "action_performed": "store_memory",
+    "data_affected": "f245e738-f37e-4176-9390-885b8bf47ffc",
+    "result": "Swapnil expects a good morning greeting as part of his daily interaction routine with his AI assistant.",
+    "verification_status": "verified"
+  },
+  {
     "timestamp": "2026-09-29T20:00:52.353Z",
     "user_request": "",
     "agent_decision": "",

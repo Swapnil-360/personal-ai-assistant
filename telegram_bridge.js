@@ -840,7 +840,7 @@ function callSingleGeminiTranscription(model, audioBuffer, cleanMime, apiKey) {
                         }
                     },
                     {
-                        text: 'Listen to this voice message from Commander Swapnil. Transcribe what he said verbatim. If he speaks in Bengali or Banglish, transcribe it accurately in Banglish or Bengali as spoken. Return ONLY the transcribed text with no explanations, conversational filler, or formatting.'
+                        text: 'Listen to this voice message from Commander Swapnil. Transcribe what he said verbatim. If he speaks in Bengali or Banglish, transcribe it accurately in Banglish or Bengali as spoken. If there is no speech, silence, background noise, or unintelligible audio, respond with NOTHING (an empty string). Return ONLY the transcribed speech verbatim with no explanations, notes, conversational filler, or formatting.'
                     }
                 ]
             }
@@ -871,7 +871,10 @@ function callSingleGeminiTranscription(model, audioBuffer, cleanMime, apiKey) {
                         const errMsg = json.error.message || `HTTP ${res.statusCode}`;
                         return reject(new Error(errMsg));
                     }
-                    const transcript = json.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+                    let transcript = json.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+                    if (!transcript || transcript.toLowerCase() === 'nothing' || transcript.toLowerCase() === 'nothing.' || /^(please provide|no speech|\[?silence\]?|unintelligible|there is no (speech|audio)|i cannot hear|no audio)/i.test(transcript)) {
+                        transcript = '';
+                    }
                     resolve(transcript);
                 } catch (e) {
                     reject(e);
@@ -897,12 +900,12 @@ async function transcribeAudioWithGemini(audioBuffer, mimeType = 'audio/ogg') {
         cleanMime = 'audio/mp4';
     }
 
-    const preferredModel = getEnv('GEMINI_MODEL') || 'gemini-3.5-transcribe';
+    const preferredModel = getEnv('GEMINI_MODEL') || 'gemini-flash-lite-latest';
     const modelsToTry = [
-        'gemini-3.5-transcribe',
         'gemini-flash-lite-latest',
         'gemini-3.1-flash-lite',
         'gemini-3.5-flash',
+        'gemini-3.5-flash-lite',
         preferredModel
     ].filter((m, i, arr) => arr.indexOf(m) === i);
 

@@ -1564,9 +1564,11 @@ async function buildMikasaSystemPrompt(userContext, conversationId) {
     let decisionsStr = '';
     let memoriesStr = '';
     let recentMsgsStr = '';
+    let stateRes = null;
 
     try {
-        const [profRes, stateRes, goalsRes, projRes, decRes, memRes] = await Promise.allSettled([
+        let profRes, goalsRes, projRes, decRes, memRes;
+        [profRes, stateRes, goalsRes, projRes, decRes, memRes] = await Promise.allSettled([
             supabaseRequest('/rpc/get_profile', 'POST'),
             supabaseRequest('/rpc/get_current_state', 'POST'),
             supabaseRequest('/rpc/get_active_goals', 'POST'),
@@ -1650,7 +1652,7 @@ async function buildMikasaSystemPrompt(userContext, conversationId) {
     }
 
     let liveLocationStr = 'Dhaka, Bangladesh';
-    if (stateRes.status === 'fulfilled' && Array.isArray(stateRes.value)) {
+    if (stateRes && stateRes.status === 'fulfilled' && Array.isArray(stateRes.value)) {
         const locEntry = stateRes.value.find(s => s.key === 'swapnil_current_location');
         if (locEntry && locEntry.value) {
             const v = locEntry.value;

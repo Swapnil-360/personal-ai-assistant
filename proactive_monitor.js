@@ -191,7 +191,7 @@ async function runMorningBriefing(commanderChatIds, sendTelegramMessage, force =
     }
 }
 
-async function runLateNightCheck(commanderChatIds, sendTelegramMessage, sendTelegramAudioBuffer, force = false, claimEvent = null) {
+async function runLateNightCheck(commanderChatIds, sendTelegramMessage, sendTelegramAudioBuffer, force = false, claimEvent = null, isLocalPcActive = null) {
     const chatIds = resolveChatIds(commanderChatIds);
     if (chatIds.length === 0) return;
 
@@ -200,6 +200,17 @@ async function runLateNightCheck(commanderChatIds, sendTelegramMessage, sendTele
 
     // Trigger at 2:00 AM once per night, or if forced
     if (force || (hour === 2 && minute >= 0 && minute <= 15 && lastLateNightAlertDate !== todayStr)) {
+        // Strict requirement: Late Night Voice Watch ONLY triggers if Swapnil's PC is ACTUALLY ON after 2:00 AM!
+        // If the PC is offline/shut down, Swapnil is not at his workstation — do not disturb or send late night alert.
+        if (!force && typeof isLocalPcActive === 'function') {
+            const pcOnline = await isLocalPcActive();
+            if (!pcOnline) {
+                console.log(`[Proactive Monitor] 🌙 Late night check for ${todayStr} skipped: Swapnil's PC is offline/asleep.`);
+                lastLateNightAlertDate = todayStr;
+                return;
+            }
+        }
+
         if (!force && typeof claimEvent === 'function') {
             const claimed = await claimEvent(`late_night_watch_${todayStr}`);
             if (!claimed) {
@@ -208,8 +219,8 @@ async function runLateNightCheck(commanderChatIds, sendTelegramMessage, sendTele
                 return;
             }
         }
-        if (!force) lastLateNightAlertDate = todayStr;
-        console.log(`[Proactive Monitor] 🌙 Triggering ${force ? 'On-Demand' : '2:00 AM'} Late Night Rest Alert with over_night.mp3 for: ${chatIds.join(', ')}...`);
+        lastLateNightAlertDate = todayStr;
+        console.log(`[Proactive Monitor] 🌙 Triggering ${force ? 'On-Demand' : '2:00 AM'} Late Night Rest Alert (PC is active) with over_night.mp3 for: ${chatIds.join(', ')}...`);
 
         const alertMsg = [
             "Still awake, Swapnil? 🌙",
@@ -260,6 +271,7 @@ function initProactiveMonitor(options = {}) {
         sendTelegramMessage,
         sendTelegramAudioBuffer,
         isLeader,
+        isLocalPcActive,
         claimEvent
     } = options;
 
@@ -286,7 +298,7 @@ function initProactiveMonitor(options = {}) {
         const chatIds = getTargetChatIds();
         await runBatteryCheck(chatIds, sendTelegramMessage, sendTelegramAudioBuffer);
         await runMorningBriefing(chatIds, sendTelegramMessage, false, claimEvent);
-        await runLateNightCheck(chatIds, sendTelegramMessage, sendTelegramAudioBuffer, false, claimEvent);
+        await runLateNightCheck(chatIds, sendTelegramMessage, sendTelegramAudioBuffer, false, claimEvent, isLocalPcActive);
     }, 60000);
 
     // Initial check after 10s

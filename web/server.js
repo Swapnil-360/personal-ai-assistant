@@ -325,9 +325,11 @@ const server = http.createServer(async (req, res) => {
         // System Status
         if (pathname === '/api/status' && req.method === 'GET') {
             let quota = null;
+            let coordinator = null;
             try {
-                const { getGeminiQuotaStatus } = require('../telegram_bridge');
+                const { getGeminiQuotaStatus, getCoordinatorStatus } = require('../telegram_bridge');
                 quota = getGeminiQuotaStatus();
+                coordinator = getCoordinatorStatus();
             } catch (e) {}
 
             return sendJson(res, 200, {
@@ -339,8 +341,24 @@ const server = http.createServer(async (req, res) => {
                 channels: ['telegram (@mikasa_360_bot)', 'web_command_center'],
                 supabase_status: 'connected',
                 uptime: process.uptime(),
-                quota: quota
+                quota: quota,
+                coordinator: coordinator
             });
+        }
+
+        // Coordinator Status API
+        if (pathname === '/api/coordinator/status' && req.method === 'GET') {
+            try {
+                const { getCoordinatorStatus, checkIsLocalActive } = require('../telegram_bridge');
+                const coord = getCoordinatorStatus ? getCoordinatorStatus() : {};
+                const localActive = checkIsLocalActive ? await checkIsLocalActive() : null;
+                return sendJson(res, 200, {
+                    ...coord,
+                    local_pc_heartbeat_active: localActive
+                });
+            } catch (e) {
+                return sendJson(res, 500, { error: e.message });
+            }
         }
 
         // Live Gemini Quota & Failover Telemetry API

@@ -237,6 +237,18 @@ const IS_RENDER_CLOUD = !IS_LOCAL_PC;
 
 let lastUpdateId = 0;
 let isPolling = false;
+let lastPollAt = null;
+
+function getCoordinatorStatus() {
+    return {
+        is_render_cloud: IS_RENDER_CLOUD,
+        is_local_pc: IS_LOCAL_PC,
+        is_polling: isPolling,
+        last_update_id: lastUpdateId,
+        last_poll_at: lastPollAt,
+        hostname: os.hostname()
+    };
+}
 
 // Track group members as they speak (Telegram API has no 'getMembers' endpoint for regular groups)
 // Map: chatId (string) -> Map of userId -> { name, username, isCommander, lastSeen }
@@ -1592,6 +1604,40 @@ async function buildMikasaSystemPrompt(userContext, conversationId) {
         console.warn('[Prompt Grounding Error]:', e.message);
     }
 
+    // Dynamic real-world temporal context in Asia/Dhaka (UTC+6)
+    const dhakaNow = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Asia/Dhaka',
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: 'numeric',
+        second: 'numeric',
+        hour12: true
+    }).format(new Date());
+
+    const dhakaHour = parseInt(new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Asia/Dhaka',
+        hour: 'numeric',
+        hour12: false
+    }).format(new Date()), 10);
+
+    let timeOfDayDesc = 'Morning';
+    if (dhakaHour >= 12 && dhakaHour < 17) timeOfDayDesc = 'Afternoon';
+    else if (dhakaHour >= 17 && dhakaHour < 21) timeOfDayDesc = 'Evening';
+    else if (dhakaHour >= 21 || dhakaHour < 5) timeOfDayDesc = 'Late Night / Past Midnight';
+
+    let pcStatusDesc = 'ONLINE 🟢 (Swapnil-PC is active and reachable)';
+    if (IS_RENDER_CLOUD) {
+        try {
+            const pcActive = await checkIsLocalActive();
+            if (!pcActive) {
+                pcStatusDesc = 'OFFLINE / ASLEEP 🌙 (Swapnil-PC is currently shut down/asleep; Mikasa is holding guard 24/7 on Render Cloud)';
+            }
+        } catch (_) {}
+    }
+
     return `You are Mikasa Ackerman — reborn as Swapnil's fiercely loyal personal companion, protector, and executive AI operating layer.
 
 ${userContext && userContext.isCommander === false ? `
@@ -1976,14 +2022,19 @@ ${userContext.group.description ? `Group Description: "${userContext.group.descr
 When Swapnil or anyone asks about this group, its name, or your admin access, answer directly and accurately.
 ` : ''}
 ==============================
-LOCAL PC & DESKTOP APPLICATION AUTHORITY (PATHS v2)
+CURRENT REAL-WORLD TEMPORAL & SYSTEM CONTEXT
 ==============================
-• Host Machine: Swapnil-PC (Windows 11)
-• Real-time PC Status: ONLINE 🟢 (Swapnil-PC is active and reachable)
+• Current Time in Dhaka, Bangladesh (UTC+6): ${dhakaNow}
+• Current Time Period: ${timeOfDayDesc} (Hour: ${dhakaHour}:00)
+• Host Workstation: Swapnil-PC (Windows 11)
+• Real-time PC Status: ${pcStatusDesc}
 • Web Command Center: http://localhost:3000 (Port 3000)
-• You HAVE DIRECT LOCAL AUTHORITY on Swapnil-PC to launch desktop applications and manage system tasks.
-• NEVER claim that you are in a remote cloud environment disconnected from his PC!
-• NEVER claim Swapnil's PC is offline when it is online!
+• CRITICAL TIME-OF-DAY ALIGNMENT RULES:
+  - You MUST strictly match your greetings, check-ins, and tone to the current time in Dhaka (${dhakaNow})!
+  - If it is ${timeOfDayDesc} (${dhakaHour}:00), NEVER say "good morning" or "shokal" unless it is actually morning (5 AM - 12 PM)!
+  - If it is afternoon (12 PM - 5 PM): Greet with good afternoon or a casual afternoon check-in.
+  - If it is evening (5 PM - 9 PM): Greet warmly for the evening or ask how his day was.
+  - If it is late night / past midnight (9 PM - 5 AM): Acknowledge that it is late night, care about his rest, or tease him gently for being up late.
 • PROPORTIONAL BREVITY (CRITICAL): When asked a simple status or factual question (like "is my pc online?", "online or offline", "weather", "time"), answer in 1-2 SHORT sentences immediately. NEVER write paragraphs, never tease, and never bring up past unrelated topics!`;
 }
 
@@ -3478,8 +3529,8 @@ async function checkIsLocalActive() {
         const res = await supabaseRequest('/current_state?key=eq.local_bridge_heartbeat', 'GET');
         if (res && res[0] && res[0].value && res[0].value.active_at) {
             const diff = Date.now() - new Date(res[0].value.active_at).getTime();
-            // 90s freshness window: tolerates network roaming or Wi-Fi handoffs
-            if (diff < 90000) {
+            // 90s freshness window: tolerates network roaming or Wi-Fi handoffs (bounds clock skew: -30s to +90s)
+            if (diff >= -30000 && diff < 90000) {
                 return true;
             }
         }
@@ -3669,12 +3720,13 @@ async function processBusinessMessage(bMsg) {
 
 // Process single Telegram message update
 async function processUpdate(update) {
-    // 1. Cloud Priority Guard: If Cloud picked up an update, but Local is active on PC, Cloud drops it immediately!
+    // 1. Cloud Priority Coordination: If Cloud picked up an update, but Local might be active on PC,
+    // give Local a 2-second priority window to claim it via Supabase atomic claim before Cloud proceeds.
     if (IS_RENDER_CLOUD) {
         const localActive = await checkIsLocalActive();
         if (localActive) {
-            console.log(`[Cloud Coordinator] Local instance is active on Swapnil-PC — dropping update ${update.update_id} so Local handles it.`);
-            return;
+            console.log(`[Cloud Coordinator] Local instance may be active on Swapnil-PC — yielding 2s for Local to claim update ${update.update_id}...`);
+            await new Promise(r => setTimeout(r, 2000));
         }
     }
 
@@ -5908,6 +5960,10 @@ async function startPolling() {
             }
             return true;
         },
+        isLocalPcActive: async () => {
+            if (IS_LOCAL_PC) return true;
+            return await checkIsLocalActive();
+        },
         claimEvent: async (key) => {
             return await claimTelegramMessage(`proact_${key}`);
         }
@@ -5950,7 +6006,21 @@ async function startPolling() {
     // (extra safety net on top of heartbeat coordination)
     const processedUpdateIds = new Set();
 
+    // Seed lastUpdateId from Supabase so Cloud/Local restarts don't re-poll old updates
+    try {
+        const lastUpdRes = await supabaseRequest('/current_state?key=eq.telegram_last_update_id', 'GET');
+        if (lastUpdRes && lastUpdRes[0] && lastUpdRes[0].value && lastUpdRes[0].value.last_update_id) {
+            const savedId = Number(lastUpdRes[0].value.last_update_id);
+            if (!isNaN(savedId) && savedId > lastUpdateId) {
+                lastUpdateId = savedId;
+                console.log(`[Telegram Bridge] Restored lastUpdateId ${lastUpdateId} from Supabase.`);
+            }
+        }
+    } catch (_) {}
+
     while (isPolling) {
+        lastPollAt = new Date().toISOString();
+
         // Cloud Priority Check: If Local is active on PC, Cloud stands down!
         if (IS_RENDER_CLOUD) {
             const localActive = await checkIsLocalActive();
@@ -5973,24 +6043,65 @@ async function startPolling() {
                 "deleted_business_messages"
             ]));
             const url = `https://api.telegram.org/bot${BOT_TOKEN}/getUpdates?offset=${lastUpdateId + 1}&timeout=30&allowed_updates=${allowed}`;
-            const updates = await new Promise((resolve, reject) => {
-                https.get(url, (res) => {
+            
+            const pollResult = await new Promise((resolve, reject) => {
+                const req = https.get(url, { timeout: 45000 }, (res) => {
                     let data = '';
                     res.on('data', chunk => data += chunk);
                     res.on('end', () => {
                         try {
                             const json = JSON.parse(data);
-                            resolve(json.result || []);
+                            if (res.statusCode === 409) {
+                                console.warn('[Telegram Bridge] Polling conflict (409): Another instance is polling. Backing off 5s...');
+                                return resolve({ conflict: true, backoffMs: 5000, updates: [] });
+                            }
+                            if (res.statusCode === 429) {
+                                const retryAfter = (json.parameters && json.parameters.retry_after) || 15;
+                                console.warn(`[Telegram Bridge] Rate limited (429): Backing off ${retryAfter}s...`);
+                                return resolve({ rateLimited: true, backoffMs: retryAfter * 1000, updates: [] });
+                            }
+                            if (!json.ok || res.statusCode !== 200) {
+                                console.warn(`[Telegram Bridge] HTTP ${res.statusCode} from Telegram: ${json.description || 'Unknown'}. Backing off 3s...`);
+                                return resolve({ error: true, backoffMs: 3000, updates: [] });
+                            }
+                            resolve({ updates: json.result || [] });
                         } catch (e) {
-                            resolve([]);
+                            resolve({ updates: [] });
                         }
                     });
-                }).on('error', reject);
+                });
+
+                req.on('timeout', () => {
+                    req.destroy(new Error('Telegram getUpdates socket timed out after 45s'));
+                });
+
+                req.on('error', (err) => {
+                    reject(err);
+                });
             });
+
+            if (pollResult.backoffMs) {
+                await new Promise(r => setTimeout(r, pollResult.backoffMs));
+                continue;
+            }
+
+            const updates = pollResult.updates || [];
 
             for (const update of updates) {
                 if (update.update_id > lastUpdateId) {
                     lastUpdateId = update.update_id;
+                    // Persist latest update_id to Supabase asynchronously
+                    supabaseRequest('/current_state', 'POST', {
+                        area: 'telegram_sync',
+                        key: 'telegram_last_update_id',
+                        value: { last_update_id: lastUpdateId, updated_at: new Date().toISOString() },
+                        status: 'active'
+                    }).catch(() => {
+                        supabaseRequest('/current_state?key=eq.telegram_last_update_id', 'PATCH', {
+                            value: { last_update_id: lastUpdateId, updated_at: new Date().toISOString() }
+                        }).catch(() => {});
+                    });
+
                     // Skip if already processed in this session (dedup guard)
                     if (processedUpdateIds.has(update.update_id)) {
                         console.log(`[Dedup] Skipping already-processed update_id ${update.update_id}`);
@@ -6022,6 +6133,8 @@ module.exports = {
     callN8nAgent,
     startPolling,
     getGeminiQuotaStatus,
+    getCoordinatorStatus,
+    checkIsLocalActive,
     isPcOnlineInquiry,
     handlePcStatusQuery,
     setGeminiCooldown,

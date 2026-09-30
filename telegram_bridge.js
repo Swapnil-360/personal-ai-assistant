@@ -827,14 +827,7 @@ function downloadTelegramFile(fileId) {
 }
 
 // Transcribe audio using Gemini Multimodal Audio
-function transcribeAudioWithGemini(audioBuffer, mimeType = 'audio/ogg') {
-    const apiKey = getEnv('GEMINI_API_KEY');
-    if (!apiKey) return Promise.reject(new Error('GEMINI_API_KEY not configured'));
-
-    let cleanMime = (mimeType || 'audio/ogg').split(';')[0].trim();
-    if (cleanMime === 'audio/m4a' || cleanMime === 'audio/x-m4a') {
-        cleanMime = 'audio/mp4';
-    }
+function callSingleGeminiTranscription(model, audioBuffer, cleanMime, apiKey) {
     const payload = JSON.stringify({
         contents: [
             {
@@ -859,7 +852,6 @@ function transcribeAudioWithGemini(audioBuffer, mimeType = 'audio/ogg') {
     });
 
     return new Promise((resolve, reject) => {
-        const model = getEnv('GEMINI_MODEL') || 'gemini-3.5-flash-lite';
         const req = https.request({
             hostname: 'generativelanguage.googleapis.com',
             path: `/v1beta/models/${model}:generateContent?key=${apiKey}`,
@@ -868,14 +860,17 @@ function transcribeAudioWithGemini(audioBuffer, mimeType = 'audio/ogg') {
                 'Content-Type': 'application/json',
                 'Content-Length': Buffer.byteLength(payload)
             },
-            timeout: 25000
+            timeout: 15000
         }, (res) => {
             let data = '';
             res.on('data', chunk => data += chunk);
             res.on('end', () => {
                 try {
                     const json = JSON.parse(data);
-                    if (json.error) return reject(new Error(json.error.message || 'Gemini audio transcription error'));
+                    if (json.error) {
+                        const errMsg = json.error.message || `HTTP ${res.statusCode}`;
+                        return reject(new Error(errMsg));
+                    }
                     const transcript = json.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
                     resolve(transcript);
                 } catch (e) {
@@ -886,11 +881,43 @@ function transcribeAudioWithGemini(audioBuffer, mimeType = 'audio/ogg') {
         req.on('error', reject);
         req.on('timeout', () => {
             req.destroy();
-            reject(new Error('Audio transcription timed out'));
+            reject(new Error(`Transcription timeout on ${model}`));
         });
         req.write(payload);
         req.end();
     });
+}
+
+async function transcribeAudioWithGemini(audioBuffer, mimeType = 'audio/ogg') {
+    const apiKey = getEnv('GEMINI_API_KEY');
+    if (!apiKey) return Promise.reject(new Error('GEMINI_API_KEY not configured'));
+
+    let cleanMime = (mimeType || 'audio/ogg').split(';')[0].trim();
+    if (cleanMime === 'audio/m4a' || cleanMime === 'audio/x-m4a') {
+        cleanMime = 'audio/mp4';
+    }
+
+    const preferredModel = getEnv('GEMINI_MODEL') || 'gemini-3.5-transcribe';
+    const modelsToTry = [
+        'gemini-3.5-transcribe',
+        'gemini-flash-lite-latest',
+        'gemini-3.1-flash-lite',
+        'gemini-3.5-flash',
+        preferredModel
+    ].filter((m, i, arr) => arr.indexOf(m) === i);
+
+    let lastError = null;
+    for (const model of modelsToTry) {
+        try {
+            const transcript = await callSingleGeminiTranscription(model, audioBuffer, cleanMime, apiKey);
+            return transcript;
+        } catch (err) {
+            console.warn(`[Transcription Fallback]: Model ${model} failed (${err.message}). Trying next model...`);
+            lastError = err;
+        }
+    }
+
+    throw lastError || new Error('All audio transcription models failed');
 }
 
 // Sends voice note buffer to Telegram chat via multipart/form-data

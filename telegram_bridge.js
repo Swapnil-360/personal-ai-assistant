@@ -2778,6 +2778,12 @@ Output strictly raw JSON array. No markdown code blocks, no backticks, no extra 
             req.end();
         } catch (e) {}
     }
+
+    // 3. Episodic Relational Memory Graph Extraction (Autonomous Background Learning)
+    try {
+        const { extractFromRecentTurnsAsync } = require('./memory_graph_engine');
+        extractFromRecentTurnsAsync(conversationId, `User: ${userMessage}\nMikasa: ${assistantReply || ''}`);
+    } catch (_) {}
 }
 
 // In-memory cache for recent post drafts to support approval / regeneration

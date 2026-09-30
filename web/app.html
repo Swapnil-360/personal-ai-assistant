@@ -19,6 +19,7 @@
     <meta property="og:image" content="https://mikasa.mrswapnil.me/Mikasa.jpeg">
     <meta property="og:url" content="https://mikasa.mrswapnil.me">
     <link rel="stylesheet" href="/styles.css">
+    <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
 </head>
 <body>
 
@@ -195,6 +196,9 @@
                 </button>
                 <button class="sector-tab-btn" data-sector="sector-memory" id="tab-btn-memory">
                     <span>🧠</span> Neural Memory Vault
+                </button>
+                <button class="sector-tab-btn" data-sector="sector-graph" id="tab-btn-graph">
+                    <span>🕸️</span> Episodic Memory Graph
                 </button>
             </nav>
 
@@ -1018,6 +1022,76 @@
                     </div>
                 </div>
 
+            </div>
+
+            <!-- ==========================================================================
+                 SECTOR 5: EPISODIC RELATIONAL MEMORY GRAPH
+                 ========================================================================== -->
+            <div class="sector-panel" id="sector-graph">
+                <div class="hud-glass-card graph-hud-card">
+                    <div class="card-hud-header">
+                        <div class="card-hud-title">
+                            <span class="hud-icon">🕸️</span> Episodic Relational Memory Graph Explorer
+                        </div>
+                        <div class="card-hud-subtitle">
+                            Multi-Hop Relational Knowledge Mesh & Temporal Entity Lineage
+                        </div>
+                    </div>
+
+                    <!-- Graph Controls & Quick Actions -->
+                    <div class="graph-explorer-controls">
+                        <!-- Stats Bar -->
+                        <div class="memory-stats-banner">
+                            <div class="memory-stat-pill">🕸️ Total Nodes: <b id="graph-stat-nodes">0</b></div>
+                            <div class="memory-stat-pill">🔗 Total Edges: <b id="graph-stat-edges">0</b></div>
+                            <div class="memory-stat-pill"><span style="color:#06b6d4">●</span> Person: <b id="graph-stat-person">0</b></div>
+                            <div class="memory-stat-pill"><span style="color:#f59e0b">●</span> Project: <b id="graph-stat-project">0</b></div>
+                            <div class="memory-stat-pill"><span style="color:#8b5cf6">●</span> Decision: <b id="graph-stat-decision">0</b></div>
+                            <div class="memory-stat-pill"><span style="color:#ec4899">●</span> Preference: <b id="graph-stat-pref">0</b></div>
+                            <div class="memory-stat-pill"><span style="color:#3b82f6">●</span> Technology: <b id="graph-stat-tech">0</b></div>
+                        </div>
+
+                        <!-- Filters, Search & Action Buttons -->
+                        <div class="graph-filter-row" style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between; margin-top: 12px;">
+                            <div class="memory-filter-pills" id="graph-filter-pills">
+                                <button class="mem-pill-btn active" data-label="All">All Nodes</button>
+                                <button class="mem-pill-btn" data-label="Person">👤 Person</button>
+                                <button class="mem-pill-btn" data-label="Project">🚀 Project</button>
+                                <button class="mem-pill-btn" data-label="Decision">💡 Decision</button>
+                                <button class="mem-pill-btn" data-label="Preference">❤️ Preference</button>
+                                <button class="mem-pill-btn" data-label="Technology">⚙️ Technology</button>
+                            </div>
+
+                            <div style="display: flex; gap: 8px; align-items: center; flex: 1; justify-content: flex-end; min-width: 280px;">
+                                <div class="memory-search-bar" style="max-width: 260px; margin: 0; min-width: 180px;">
+                                    <span>🔍</span>
+                                    <input type="text" id="graph-search-input" class="memory-search-input" placeholder="Search node (e.g. Barcelona, Edu51)...">
+                                </div>
+                                <button class="btn-header-action" id="btn-graph-reset-view" title="Reset Camera">🎯 Center</button>
+                                <button class="btn-header-action" id="btn-graph-trigger-extract" title="Extract knowledge from recent chat">⚡ Extract</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Graph Canvas & Inspector Split Layout -->
+                    <div class="graph-canvas-wrapper" style="position: relative; width: 100%; height: 580px; margin-top: 14px; border-radius: var(--radius-md, 12px); overflow: hidden; border: 1px solid var(--border-subtle, rgba(255,255,255,0.08)); background: #080c14;">
+                        <div id="memory-graph-network" style="width: 100%; height: 100%;"></div>
+                        
+                        <!-- Slide-out Node Inspector Drawer -->
+                        <div class="graph-inspector-drawer" id="graph-inspector-drawer" style="display: none;">
+                            <div class="drawer-header">
+                                <div class="drawer-title-group">
+                                    <span class="drawer-badge" id="drawer-node-label">Entity</span>
+                                    <h4 class="drawer-node-name" id="drawer-node-name">Select a node</h4>
+                                </div>
+                                <button class="btn-close-drawer" id="btn-close-drawer">✕</button>
+                            </div>
+                            <div class="drawer-body" id="drawer-body">
+                                <p class="drawer-hint">Click any node on the graph to inspect its connected decisions, relationships, and metadata.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
         </section>

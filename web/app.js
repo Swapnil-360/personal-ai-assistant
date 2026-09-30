@@ -2237,3 +2237,325 @@ document.addEventListener('click', (e) => {
     }
 });
 
+// ============================================================================
+// EPISODIC RELATIONAL MEMORY GRAPH CONTROLLER
+// ============================================================================
+
+let memoryGraphNetwork = null;
+let graphNodesDataSet = null;
+let graphEdgesDataSet = null;
+let allRawGraphData = null;
+let currentLabelFilter = 'All';
+
+async function initMemoryGraph() {
+    const container = document.getElementById('memory-graph-network');
+    if (!container) return;
+
+    await loadGraphStats();
+    await loadGraphData();
+    setupGraphEventListeners();
+}
+
+async function loadGraphStats() {
+    try {
+        const res = await fetch('/api/graph/stats');
+        if (!res.ok) return;
+        const stats = await res.json();
+        
+        const setEl = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = val !== undefined ? val : 0;
+        };
+
+        setEl('graph-stat-nodes', stats.total_nodes);
+        setEl('graph-stat-edges', stats.total_edges);
+        
+        const breakdown = stats.label_breakdown || {};
+        setEl('graph-stat-person', breakdown['Person'] || 0);
+        setEl('graph-stat-project', breakdown['Project'] || 0);
+        setEl('graph-stat-decision', breakdown['Decision'] || 0);
+        setEl('graph-stat-pref', breakdown['Preference'] || 0);
+        setEl('graph-stat-tech', breakdown['Technology'] || 0);
+    } catch (e) {
+        console.warn('[Graph Stats Error]:', e);
+    }
+}
+
+async function loadGraphData(rootSlug = null) {
+    const container = document.getElementById('memory-graph-network');
+    if (!container) return;
+
+    try {
+        let url = '/api/graph/data';
+        if (rootSlug) {
+            url += `?root=${encodeURIComponent(rootSlug)}&depth=2`;
+        }
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        allRawGraphData = data;
+
+        // If Vis is not yet loaded, wait 300ms
+        if (typeof vis === 'undefined') {
+            setTimeout(() => loadGraphData(rootSlug), 300);
+            return;
+        }
+
+        const nodesArray = data.nodes || [];
+        const edgesArray = data.edges || [];
+
+        // Apply label filter if set
+        const filteredNodes = (currentLabelFilter && currentLabelFilter !== 'All')
+            ? nodesArray.filter(n => n.group === currentLabelFilter)
+            : nodesArray;
+
+        const visibleNodeIds = new Set(filteredNodes.map(n => n.id));
+        const filteredEdges = edgesArray.filter(e => visibleNodeIds.has(e.from) && visibleNodeIds.has(e.to));
+
+        graphNodesDataSet = new vis.DataSet(filteredNodes);
+        graphEdgesDataSet = new vis.DataSet(filteredEdges);
+
+        const options = {
+            nodes: {
+                shape: 'box',
+                margin: { top: 10, bottom: 10, left: 14, right: 14 },
+                borderWidth: 1.5,
+                shadow: { enabled: true, color: 'rgba(0,0,0,0.6)', size: 6, x: 2, y: 2 },
+                font: { face: 'Outfit, Inter, sans-serif', size: 14, color: '#f3f5fa', bold: { color: '#ffffff' } }
+            },
+            edges: {
+                arrows: { to: { enabled: true, scaleFactor: 0.75 } },
+                font: { face: 'JetBrains Mono, monospace', size: 10, color: '#94a3b8', strokeWidth: 0, align: 'middle' },
+                color: { color: '#334155', highlight: '#06b6d4', hover: '#38bdf8' },
+                smooth: { type: 'curvedCW', roundness: 0.15 },
+                selectionWidth: 2.5
+            },
+            physics: {
+                solver: 'forceAtlas2Based',
+                forceAtlas2Based: {
+                    gravitationalConstant: -36,
+                    centralGravity: 0.008,
+                    springLength: 140,
+                    springConstant: 0.06,
+                    damping: 0.95
+                },
+                stabilization: { iterations: 100, updateInterval: 25 }
+            },
+            interaction: {
+                hover: true,
+                tooltipDelay: 150,
+                hideEdgesOnDrag: false,
+                navigationButtons: false,
+                keyboard: false
+            }
+        };
+
+        if (memoryGraphNetwork) {
+            memoryGraphNetwork.destroy();
+        }
+
+        memoryGraphNetwork = new vis.Network(container, { nodes: graphNodesDataSet, edges: graphEdgesDataSet }, options);
+
+        // Network click listener
+        memoryGraphNetwork.on('click', (params) => {
+            if (params.nodes && params.nodes.length > 0) {
+                const nodeId = params.nodes[0];
+                inspectNode(nodeId);
+            }
+        });
+
+    } catch (e) {
+        console.error('[Memory Graph Load Error]:', e);
+        if (container) {
+            container.innerHTML = `<div style="padding: 20px; color: #f87171; text-align: center;">Error rendering memory graph: ${escapeHtml(e.message)}</div>`;
+        }
+    }
+}
+
+function inspectNode(nodeId) {
+    if (!allRawGraphData || !allRawGraphData.nodes) return;
+    const node = allRawGraphData.nodes.find(n => n.id === nodeId);
+    if (!node) return;
+
+    const drawer = document.getElementById('graph-inspector-drawer');
+    const labelEl = document.getElementById('drawer-node-label');
+    const nameEl = document.getElementById('drawer-node-name');
+    const bodyEl = document.getElementById('drawer-body');
+    if (!drawer || !bodyEl) return;
+
+    if (labelEl) labelEl.textContent = node.group || 'Entity';
+    if (nameEl) nameEl.textContent = node.label || node.name || 'Unnamed';
+
+    const connectedEdges = (allRawGraphData.edges || []).filter(e => e.from === nodeId || e.to === nodeId);
+
+    let html = `
+        <div class="drawer-section">
+            <div class="drawer-section-title">METADATA & ATTRIBUTES</div>
+            <div class="drawer-props-grid">
+                <div class="prop-item"><span class="prop-k">Slug:</span> <span class="prop-v">${escapeHtml(node.slug || 'n/a')}</span></div>
+                <div class="prop-item"><span class="prop-k">Category:</span> <span class="prop-v">${escapeHtml(node.group || 'General')}</span></div>
+            </div>
+    `;
+
+    const props = node.properties || {};
+    if (Object.keys(props).length > 0) {
+        html += `<div class="drawer-props-list">`;
+        for (const [k, v] of Object.entries(props)) {
+            const valStr = typeof v === 'object' ? JSON.stringify(v) : String(v);
+            html += `<div class="prop-row"><strong>${escapeHtml(k)}:</strong> <span>${escapeHtml(valStr)}</span></div>`;
+        }
+        html += `</div>`;
+    }
+    html += `</div>`;
+
+    html += `
+        <div class="drawer-section">
+            <div class="drawer-section-title">RELATIONAL CONNECTIONS (${connectedEdges.length})</div>
+            <div class="drawer-edges-list">
+    `;
+
+    if (connectedEdges.length === 0) {
+        html += `<div style="color: #64748b; font-size: 0.8rem;">No active direct connections found.</div>`;
+    } else {
+        connectedEdges.forEach(e => {
+            const isOutgoing = e.from === nodeId;
+            const otherId = isOutgoing ? e.to : e.from;
+            const otherNode = allRawGraphData.nodes.find(n => n.id === otherId);
+            const otherName = otherNode ? otherNode.label : otherId;
+
+            html += `
+                <div class="edge-item">
+                    <span class="edge-dir">${isOutgoing ? '➔' : '⬅'}</span>
+                    <span class="edge-relation">${escapeHtml(e.label || 'CONNECTED_TO')}</span>
+                    <strong class="edge-target">${escapeHtml(otherName)}</strong>
+                    ${e.title && e.title !== e.label ? `<div class="edge-context">${escapeHtml(e.title)}</div>` : ''}
+                </div>
+            `;
+        });
+    }
+
+    html += `
+            </div>
+        </div>
+        <div class="drawer-actions" style="margin-top: 14px; display: flex; gap: 8px;">
+            <button class="btn-drawer-action" onclick="focusSubgraph('${escapeHtml(node.slug || '')}')">🎯 Focus Neighborhood</button>
+            <button class="btn-drawer-action secondary" onclick="loadGraphData()">🌐 Reset All</button>
+        </div>
+    `;
+
+    bodyEl.innerHTML = html;
+    drawer.style.display = 'block';
+}
+
+window.focusSubgraph = function(slug) {
+    if (!slug) return;
+    loadGraphData(slug);
+};
+
+window.loadGraphData = loadGraphData;
+
+function setupGraphEventListeners() {
+    const filterBtns = document.querySelectorAll('#graph-filter-pills .mem-pill-btn');
+    filterBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            filterBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentLabelFilter = btn.getAttribute('data-label') || 'All';
+            loadGraphData();
+        });
+    });
+
+    const btnCloseDrawer = document.getElementById('btn-close-drawer');
+    if (btnCloseDrawer) {
+        btnCloseDrawer.addEventListener('click', () => {
+            const drawer = document.getElementById('graph-inspector-drawer');
+            if (drawer) drawer.style.display = 'none';
+        });
+    }
+
+    const btnResetView = document.getElementById('btn-graph-reset-view');
+    if (btnResetView) {
+        btnResetView.addEventListener('click', () => {
+            if (memoryGraphNetwork) {
+                memoryGraphNetwork.fit({ animation: { duration: 600, easingFunction: 'easeInOutQuad' } });
+            }
+        });
+    }
+
+    const btnExtract = document.getElementById('btn-graph-trigger-extract');
+    if (btnExtract) {
+        btnExtract.addEventListener('click', async () => {
+            btnExtract.disabled = true;
+            btnExtract.textContent = '⏳ Extracting...';
+            try {
+                const res = await fetch('/api/graph/extract', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showEphemeralToast(`✨ Extracted ${data.extracted_nodes} nodes and ${data.extracted_edges} relations!`);
+                    await loadGraphStats();
+                    await loadGraphData();
+                } else {
+                    showEphemeralToast(`Extraction note: ${data.error || 'No new entities found.'}`);
+                }
+            } catch (err) {
+                showEphemeralToast(`Extraction failed: ${err.message}`);
+            } finally {
+                btnExtract.disabled = false;
+                btnExtract.textContent = '⚡ Extract';
+            }
+        });
+    }
+
+    const searchInput = document.getElementById('graph-search-input');
+    if (searchInput) {
+        let debounceTimer = null;
+        searchInput.addEventListener('input', (e) => {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                const query = e.target.value.trim().toLowerCase();
+                if (!query) {
+                    loadGraphData();
+                    return;
+                }
+                if (allRawGraphData && allRawGraphData.nodes && memoryGraphNetwork) {
+                    const match = allRawGraphData.nodes.find(n => (n.label && n.label.toLowerCase().includes(query)) || (n.slug && n.slug.includes(query)));
+                    if (match) {
+                        memoryGraphNetwork.focus(match.id, {
+                            scale: 1.2,
+                            animation: { duration: 600, easingFunction: 'easeInOutQuad' }
+                        });
+                        memoryGraphNetwork.selectNodes([match.id]);
+                        inspectNode(match.id);
+                    }
+                }
+            }, 300);
+        });
+    }
+}
+
+// When sector tab changes to graph, resize and fit
+document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.sector-tab-btn');
+    if (btn && btn.getAttribute('data-sector') === 'sector-graph') {
+        setTimeout(() => {
+            if (!memoryGraphNetwork) {
+                initMemoryGraph();
+            } else {
+                memoryGraphNetwork.redraw();
+                memoryGraphNetwork.fit();
+            }
+        }, 150);
+    }
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    if (document.getElementById('memory-graph-network')) {
+        initMemoryGraph();
+    }
+});
+
+

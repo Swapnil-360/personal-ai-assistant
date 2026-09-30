@@ -2793,3 +2793,242 @@ body {
         justify-content: center;
     }
 }
+
+/* ==========================================================================
+   EPISODIC RELATIONAL MEMORY GRAPH EXPLORER (HUD STYLING)
+   ========================================================================== */
+
+.graph-hud-card {
+    border-color: rgba(6, 182, 212, 0.35) !important;
+    background: linear-gradient(135deg, rgba(6, 182, 212, 0.04) 0%, rgba(8, 12, 20, 0.95) 100%) !important;
+}
+
+.graph-explorer-controls {
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.graph-canvas-wrapper {
+    position: relative;
+    width: 100%;
+    height: 600px;
+    background: radial-gradient(circle at 50% 50%, #0d1527 0%, #060911 100%);
+    border-radius: 12px;
+    border: 1px solid rgba(0, 229, 255, 0.2);
+    box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.8), 0 8px 32px rgba(0, 0, 0, 0.6);
+    overflow: hidden;
+}
+
+.memory-graph-network {
+    width: 100%;
+    height: 100%;
+    outline: none;
+}
+
+/* Floating Cyberpunk Node Inspector Drawer */
+.graph-inspector-drawer {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 320px;
+    max-height: calc(100% - 32px);
+    overflow-y: auto;
+    background: rgba(11, 17, 30, 0.88);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(0, 229, 255, 0.3);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7), 0 0 20px rgba(0, 229, 255, 0.15);
+    border-radius: 12px;
+    padding: 16px;
+    z-index: 100;
+    animation: drawerSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes drawerSlideIn {
+    from {
+        opacity: 0;
+        transform: translateX(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.drawer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.drawer-title-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.drawer-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: rgba(6, 182, 212, 0.18);
+    color: #22d3ee;
+    border: 1px solid rgba(6, 182, 212, 0.3);
+    width: fit-content;
+}
+
+.drawer-node-name {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #ffffff;
+    margin: 0;
+}
+
+.btn-close-drawer {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #94a3b8;
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    transition: all 0.2s ease;
+}
+
+.btn-close-drawer:hover {
+    color: #ffffff;
+    background: rgba(239, 68, 68, 0.25);
+    border-color: rgba(239, 68, 68, 0.4);
+}
+
+.drawer-body {
+    padding-top: 14px;
+}
+
+.drawer-section {
+    margin-bottom: 14px;
+}
+
+.drawer-section-title {
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    color: #64748b;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+}
+
+.drawer-props-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    font-size: 0.78rem;
+    background: rgba(4, 8, 16, 0.5);
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.drawer-props-grid .prop-k {
+    color: #94a3b8;
+}
+
+.drawer-props-grid .prop-v {
+    color: #f1f5f9;
+    font-weight: 600;
+}
+
+.drawer-props-list {
+    margin-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.78rem;
+}
+
+.drawer-props-list .prop-row {
+    background: rgba(4, 8, 16, 0.4);
+    padding: 6px 8px;
+    border-radius: 4px;
+    color: #cbd5e1;
+    word-break: break-word;
+}
+
+.drawer-edges-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.edge-item {
+    background: rgba(14, 22, 38, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 0.78rem;
+}
+
+.edge-dir {
+    color: #06b6d4;
+    margin-right: 4px;
+    font-weight: 700;
+}
+
+.edge-relation {
+    color: #a78bfa;
+    font-weight: 700;
+    font-family: var(--font-mono);
+    margin-right: 6px;
+}
+
+.edge-target {
+    color: #ffffff;
+}
+
+.edge-context {
+    font-size: 0.72rem;
+    color: #94a3b8;
+    margin-top: 4px;
+    font-style: italic;
+}
+
+.btn-drawer-action {
+    flex: 1;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 1px solid rgba(0, 229, 255, 0.35);
+    background: rgba(0, 229, 255, 0.12);
+    color: #00e5ff;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-drawer-action:hover {
+    background: rgba(0, 229, 255, 0.25);
+    border-color: #00e5ff;
+}
+
+.btn-drawer-action.secondary {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: #94a3b8;
+}
+
+.btn-drawer-action.secondary:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+}

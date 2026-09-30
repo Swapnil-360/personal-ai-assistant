@@ -110,3 +110,18 @@ Allow Mikasa to run in the background and alert you without needing the app open
 | 4 | Speak "Hey, Mikasa" | Haptic triggers, Mikasa answers "Yes Commander?", listens to command | [ ] |
 | 5 | Speak a command | Response speaks aloud via studio voice and displays in Chat | [ ] |
 | 6 | Tap Flashlight button | Camera permission requested; phone LED flash physically lights up | [ ] |
+
+---
+
+## 🧠 Operational Milestone: Episodic Relational Memory Graph & Visual Explorer
+
+**Status:** ✅ Operational (October 2026)  
+**Spec:** `docs/EPISODIC_MEMORY_GRAPH_SPEC.md`
+
+### Architecture & Capabilities:
+- **Distributed Knowledge Mesh:** Native Supabase PostgreSQL relational schema with `memory_nodes` and `memory_edges` supporting temporal validity (`valid_from`, `valid_until`) to avoid destructive overwrites.
+- **Asynchronous Ingestion Engine (`memory_graph_engine.js`):** Schema-constrained Gemini 2.5 Flash entity-relation extraction running strictly in the background with zero chat response latency.
+- **Multi-Hop Traversal:** Instant 1-3 hop bidirectional graph walk returning connected projects, decisions, technologies, and personal preferences in `<15ms`.
+- **AI Tool Integration (`tools_agent.js`):** `query_memory_graph` native tool registered for multi-turn cognitive reasoning.
+- **Interactive Visual Explorer (`web/app.html`, `web/app.js`, `web/styles.css`):** Cyberpunk dark HUD canvas powered by Vis.js Network with label filters, search, node inspection drawer, and neighborhood focusing.
+

@@ -72,6 +72,24 @@ const MIKASA_TOOL_DECLARATIONS = [
         }
     },
     {
+        name: 'get_sports_and_news',
+        description: 'Fetch real-time match scores, fixtures, and news for Swapnil\'s favorite teams (FC Barcelona, Brazil national football team), cricket, or breaking news.',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                category: {
+                    type: 'STRING',
+                    description: 'Category to search: "barcelona", "brazil", "football", "cricket", or "news"'
+                },
+                query: {
+                    type: 'STRING',
+                    description: 'Optional query or specific match (e.g. "Barcelona next game", "Brazil vs Argentina", "Bangladesh cricket live")'
+                }
+            },
+            required: ['category']
+        }
+    },
+    {
         name: 'manage_reminders',
         description: 'Set, list, or check reminders for Swapnil.',
         parameters: {
@@ -213,6 +231,28 @@ async function executeLocalTool(toolName, args = {}, userContext = {}) {
                 const results = await searchWeb(args.query, 4);
                 return {
                     query: args.query,
+                    results: results.map(r => ({
+                        title: r.title,
+                        snippet: r.snippet,
+                        url: r.url
+                    }))
+                };
+            }
+
+            case 'get_sports_and_news': {
+                let q = args.query;
+                const cat = (args.category || '').toLowerCase();
+                if (!q) {
+                    if (cat.includes('barca') || cat.includes('barcelona')) q = 'FC Barcelona latest match score fixtures news';
+                    else if (cat.includes('brazil')) q = 'Brazil national football team latest match score fixtures news';
+                    else if (cat.includes('cricket')) q = 'cricket live score Bangladesh latest match update';
+                    else if (cat.includes('football')) q = 'football latest match scores news fixtures';
+                    else q = 'latest breaking news world Bangladesh';
+                }
+                const results = await searchWeb(q, 4);
+                return {
+                    category: args.category,
+                    query: q,
                     results: results.map(r => ({
                         title: r.title,
                         snippet: r.snippet,

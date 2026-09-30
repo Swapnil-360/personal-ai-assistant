@@ -361,6 +361,66 @@ const server = http.createServer(async (req, res) => {
             }
         }
 
+        // Live Geolocation Synchronization API
+        if (pathname === '/api/location' && req.method === 'POST') {
+            const body = await parseBody(req);
+            const lat = Number(body.latitude);
+            const lon = Number(body.longitude);
+            let city = body.city || '';
+            let country = body.country || '';
+
+            if ((!city || !country) && !isNaN(lat) && !isNaN(lon)) {
+                try {
+                    const revUrl = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`;
+                    const revRes = await new Promise((resolve) => {
+                        https.get(revUrl, { headers: { 'User-Agent': 'Mikasa/2.0' }, timeout: 4000 }, (r) => {
+                            let d = '';
+                            r.on('data', c => d += c);
+                            r.on('end', () => {
+                                try { resolve(JSON.parse(d)); } catch (_) { resolve(null); }
+                            });
+                        }).on('error', () => resolve(null));
+                    });
+                    if (revRes) {
+                        city = revRes.city || revRes.locality || revRes.principalSubdivision || 'Dhaka';
+                        country = revRes.countryName || 'Bangladesh';
+                    }
+                } catch (_) {}
+            }
+
+            const locData = {
+                city: city || 'Dhaka',
+                country: country || 'Bangladesh',
+                latitude: !isNaN(lat) ? lat : 23.8103,
+                longitude: !isNaN(lon) ? lon : 90.4125,
+                source: 'web_geolocation',
+                updated_at: new Date().toISOString()
+            };
+
+            await supabaseRequest('/current_state', 'POST', {
+                area: 'location',
+                key: 'swapnil_current_location',
+                value: locData,
+                status: 'active'
+            }).catch(async () => {
+                await supabaseRequest('/current_state?key=eq.swapnil_current_location', 'PATCH', {
+                    value: locData
+                }).catch(() => {});
+            });
+
+            return sendJson(res, 200, { success: true, location: locData });
+        }
+
+        if (pathname === '/api/location' && req.method === 'GET') {
+            try {
+                const resDb = await supabaseRequest('/current_state?key=eq.swapnil_current_location', 'GET');
+                if (resDb && resDb[0] && resDb[0].value) {
+                    return sendJson(res, 200, resDb[0].value);
+                }
+            } catch (_) {}
+            return sendJson(res, 200, { city: 'Dhaka', country: 'Bangladesh', latitude: 23.8103, longitude: 90.4125 });
+        }
+
         // Live Gemini Quota & Failover Telemetry API
         if (pathname === '/api/quota' && req.method === 'GET') {
             try {

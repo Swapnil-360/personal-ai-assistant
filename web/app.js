@@ -98,6 +98,24 @@ function applyCommanderMode() {
 
     // Re-render tasks so checkboxes are interactive
     renderTasks();
+    syncLiveGeolocation();
+}
+
+function syncLiveGeolocation() {
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+            try {
+                await authFetch('/api/location', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        latitude: pos.coords.latitude,
+                        longitude: pos.coords.longitude
+                    })
+                });
+            } catch (_) {}
+        }, () => {}, { timeout: 10000, maximumAge: 300000 });
+    }
 }
 
 function applyObserverMode() {

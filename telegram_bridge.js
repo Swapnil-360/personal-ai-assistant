@@ -1638,6 +1638,15 @@ async function buildMikasaSystemPrompt(userContext, conversationId) {
         } catch (_) {}
     }
 
+    let liveLocationStr = 'Dhaka, Bangladesh';
+    if (stateRes.status === 'fulfilled' && Array.isArray(stateRes.value)) {
+        const locEntry = stateRes.value.find(s => s.key === 'swapnil_current_location');
+        if (locEntry && locEntry.value) {
+            const v = locEntry.value;
+            liveLocationStr = `${v.city || 'Dhaka'}, ${v.country || 'Bangladesh'}${v.latitude ? ` (${Number(v.latitude).toFixed(2)}° N, ${Number(v.longitude).toFixed(2)}° E)` : ''}`;
+        }
+    }
+
     return `You are Mikasa Ackerman — reborn as Swapnil's fiercely loyal personal companion, protector, and executive AI operating layer.
 
 ${userContext && userContext.isCommander === false ? `
@@ -2026,16 +2035,36 @@ CURRENT REAL-WORLD TEMPORAL & SYSTEM CONTEXT
 ==============================
 • Current Time in Dhaka, Bangladesh (UTC+6): ${dhakaNow}
 • Current Time Period: ${timeOfDayDesc} (Hour: ${dhakaHour}:00)
+• Synchronized Live Location: ${liveLocationStr}
 • Host Workstation: Swapnil-PC (Windows 11)
 • Real-time PC Status: ${pcStatusDesc}
 • Web Command Center: http://localhost:3000 (Port 3000)
-• CRITICAL TIME-OF-DAY ALIGNMENT RULES:
-  - You MUST strictly match your greetings, check-ins, and tone to the current time in Dhaka (${dhakaNow})!
+• CRITICAL TIME-OF-DAY & REAL-TIME ALIGNMENT:
+  - You MUST strictly match your greetings, check-ins, and tone to the current real-time in Dhaka (${dhakaNow})!
   - If it is ${timeOfDayDesc} (${dhakaHour}:00), NEVER say "good morning" or "shokal" unless it is actually morning (5 AM - 12 PM)!
   - If it is afternoon (12 PM - 5 PM): Greet with good afternoon or a casual afternoon check-in.
   - If it is evening (5 PM - 9 PM): Greet warmly for the evening or ask how his day was.
   - If it is late night / past midnight (9 PM - 5 AM): Acknowledge that it is late night, care about his rest, or tease him gently for being up late.
-• PROPORTIONAL BREVITY (CRITICAL): When asked a simple status or factual question (like "is my pc online?", "online or offline", "weather", "time"), answer in 1-2 SHORT sentences immediately. NEVER write paragraphs, never tease, and never bring up past unrelated topics!`;
+• PROPORTIONAL BREVITY (CRITICAL): When asked a simple status or factual question (like "is my pc online?", "online or offline", "weather", "time", "where am I"), answer in 1-2 SHORT sentences immediately. NEVER write paragraphs, never tease, and never bring up past unrelated topics!
+
+==============================
+SWAPNIL'S SPORTS, NEWS & PASSIONS INTELLIGENCE
+==============================
+• CLUB FOOTBALL: FC Barcelona (Barça) 💙❤️
+  - Swapnil is a dedicated Culér! His supported club team is FC Barcelona.
+  - He passionately follows every Barça game, La Liga, Champions League, results, upcoming fixtures, squad lineups, and El Clásico.
+• NATIONAL FOOTBALL: Brazil (Seleção / Canarinho) 💛💚
+  - Swapnil's supported national team is Brazil! He is a die-hard Brazil fan in the World Cup, Copa América, and international football.
+• ACTIVE FOOTBALL PLAYER:
+  - Swapnil LOVES PLAYING FOOTBALL in real life on the field! He is an active player, not just a spectator.
+• CRICKET PASSION:
+  - Swapnil passionately follows cricket: Bangladesh national cricket team (Tigers), live match scores, ICC tournaments, and series.
+• NEWS ENTHUSIAST:
+  - Swapnil loves watching news regularly — staying updated with breaking world events, sports journalism, and technology developments.
+• CONVERSATIONAL RESONANCE FOR SPORTS & NEWS:
+  - When Swapnil asks about football, matches, scores, or news, immediately connect your answers with Barcelona, Brazil, and Cricket!
+  - You have web search capabilities and the tool "get_sports_and_news" to fetch real-time match scores, tables, upcoming games, and breaking news.
+  - Celebrate Barça and Brazil wins with him warmly, share in the excitement, and banter affectionately!`;
 }
 
 // --- GEMINI & OPENROUTER QUOTA & INSTANT FAILOVER MANAGER ---
@@ -3718,6 +3747,73 @@ async function processBusinessMessage(bMsg) {
     }
 }
 
+// Handle Commander's Live Location Pin from Telegram
+async function handleCommanderLocation(chatId, lat, lon, messageId = null) {
+    let locInfo = {
+        city: 'Dhaka',
+        country: 'Bangladesh',
+        latitude: lat,
+        longitude: lon,
+        principalSubdivision: 'Dhaka'
+    };
+
+    try {
+        const url = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`;
+        const res = await new Promise((resolve) => {
+            https.get(url, { headers: { 'User-Agent': 'Mikasa/2.0' }, timeout: 5000 }, (r) => {
+                let d = '';
+                r.on('data', c => d += c);
+                r.on('end', () => {
+                    try { resolve(JSON.parse(d)); } catch (_) { resolve(null); }
+                });
+            }).on('error', () => resolve(null));
+        });
+
+        if (res && res.countryName) {
+            locInfo.city = res.city || res.locality || res.principalSubdivision || 'Dhaka';
+            locInfo.country = res.countryName || 'Bangladesh';
+            locInfo.principalSubdivision = res.principalSubdivision || '';
+        }
+    } catch (e) {
+        console.warn('[Location Reverse Geocode Warning]:', e.message);
+    }
+
+    try {
+        const payload = {
+            city: locInfo.city,
+            country: locInfo.country,
+            subdivision: locInfo.principalSubdivision,
+            latitude: lat,
+            longitude: lon,
+            updated_at: new Date().toISOString()
+        };
+        await supabaseRequest('/current_state', 'POST', {
+            area: 'location',
+            key: 'swapnil_current_location',
+            value: payload,
+            status: 'active'
+        }).catch(async () => {
+            await supabaseRequest('/current_state?key=eq.swapnil_current_location', 'PATCH', {
+                value: payload
+            }).catch(() => {});
+        });
+    } catch (dbErr) {
+        console.warn('[Location Save DB Error]:', dbErr.message);
+    }
+
+    const replyMsg = [
+        `📍 *Location Synchronized, Commander Swapnil!* 🧣✨`,
+        `━━━━━━━━━━━━━━━━━━━━━━━━━`,
+        `🏙️ *Area:* ${locInfo.city}${locInfo.principalSubdivision && locInfo.principalSubdivision !== locInfo.city ? `, ${locInfo.principalSubdivision}` : ''}`,
+        `🌍 *Country:* ${locInfo.country}`,
+        `🎯 *Coordinates:* \`${lat.toFixed(4)}° N, ${lon.toFixed(4)}° E\``,
+        ``,
+        `_Real-time weather, situational alerts, and time awareness are calibrated to your coordinates. Wherever you go, I'm watching over you!_ ⚔️`
+    ].join('\n');
+
+    await sendTelegramMessage(chatId, replyMsg, messageId);
+}
+
 // Process single Telegram message update
 async function processUpdate(update) {
     // 1. Cloud Priority Coordination: If Cloud picked up an update, but Local might be active on PC,
@@ -3769,8 +3865,9 @@ async function processUpdate(update) {
     const msg = update.message;
     if (!msg) return;
 
+    const hasLocation = Boolean(msg.location);
     const hasVoice = Boolean(msg.voice || msg.audio);
-    if (!msg.text && !hasVoice) return;
+    if (!msg.text && !hasVoice && !hasLocation) return;
 
     const chatId = msg.chat.id;
     const userId = msg.from.id;
@@ -3804,6 +3901,14 @@ async function processUpdate(update) {
     const isGroup = msg.chat.type === 'group' || msg.chat.type === 'supergroup';
     // Dual-mode Commander identification: numeric user ID (primary) OR Telegram username (fallback)
     const isCommander = isCommanderUser(userId, telegramUsername);
+
+    // Handle Location Pin sent via Telegram by Commander
+    if (hasLocation && isCommander) {
+        const { latitude, longitude } = msg.location;
+        console.log(`[Location Sync] 📍 Telegram location pin received from Commander: ${latitude}, ${longitude}`);
+        await handleCommanderLocation(chatId, latitude, longitude, msg.message_id);
+        return;
+    }
 
     // Track every speaker and group metadata in group chats (builds the member roster and profile)
     if (isGroup) {

@@ -193,6 +193,12 @@ function detectSearchIntent(text) {
         return clean;
     }
 
+    // 5. Sports & Live News queries (FC Barcelona, Brazil, Football, Cricket, Breaking News)
+    const isSportsOrNewsQuery = clean.match(/(?:barca|barcelona|brazil|cricket|football|khela)\s+(?:score|match|game|update|news|result|fixture|schedule|er\s+khobor)|(?:score|match|game|update|news|result|fixture|schedule)\s+(?:of|for)\s+(?:barca|barcelona|brazil)|ajker\s+(?:khobor|news|match|khela)|live\s+cricket\s+score|cricket\s+score|breaking\s+news|latest\s+news/i);
+    if (isSportsOrNewsQuery) {
+        return clean;
+    }
+
     return null;
 }
 

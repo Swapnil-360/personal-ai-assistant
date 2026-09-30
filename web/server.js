@@ -88,6 +88,15 @@ const {
     synthesizeGeminiVoice
 } = require('../voice_synthesizer');
 
+const {
+    getAllGraphData,
+    traverseGraph,
+    getGraphStats,
+    extractEntitiesAndRelations,
+    extractFromRecentTurnsAsync,
+    slugify
+} = require('../memory_graph_engine');
+
 // Verify if the incoming HTTP request is authenticated as Commander
 async function verifyCommanderRequest(req) {
     // 0. Auto-authenticate requests originating on localhost / loopback
@@ -686,6 +695,84 @@ const server = http.createServer(async (req, res) => {
             const memoryId = pathname.replace('/api/memories/', '');
             const delRes = await deleteMemory(memoryId);
             return sendJson(res, 200, { success: true, result: delRes });
+        }
+
+        // Episodic Relational Memory Graph APIs
+        if (pathname === '/api/graph/data' && req.method === 'GET') {
+            const root = parsedUrl.searchParams.get('root');
+            const depth = parseInt(parsedUrl.searchParams.get('depth') || '2', 10);
+            const labelFilter = parsedUrl.searchParams.get('label');
+            const searchFilter = parsedUrl.searchParams.get('search');
+
+            if (root) {
+                const subgraph = await traverseGraph(root, depth);
+                return sendJson(res, 200, subgraph);
+            }
+
+            const graphData = await getAllGraphData();
+            let nodes = graphData.nodes;
+            let edges = graphData.edges;
+
+            if (labelFilter && labelFilter !== 'All') {
+                nodes = nodes.filter(n => n.group === labelFilter);
+                const nodeIds = new Set(nodes.map(n => n.id));
+                edges = edges.filter(e => nodeIds.has(e.from) && nodeIds.has(e.to));
+            }
+
+            if (searchFilter) {
+                const s = searchFilter.toLowerCase();
+                const matchedNodes = nodes.filter(n => (n.label && n.label.toLowerCase().includes(s)) || (n.slug && n.slug.toLowerCase().includes(s)));
+                const matchedIds = new Set(matchedNodes.map(n => n.id));
+                const extendedIds = new Set(matchedIds);
+                edges.forEach(e => {
+                    if (matchedIds.has(e.from)) extendedIds.add(e.to);
+                    if (matchedIds.has(e.to)) extendedIds.add(e.from);
+                });
+                nodes = graphData.nodes.filter(n => extendedIds.has(n.id));
+                const finalIds = new Set(nodes.map(n => n.id));
+                edges = graphData.edges.filter(e => finalIds.has(e.from) && finalIds.has(e.to));
+            }
+
+            return sendJson(res, 200, {
+                nodes: nodes,
+                edges: edges,
+                total_nodes: nodes.length,
+                total_edges: edges.length
+            });
+        }
+
+        if (pathname === '/api/graph/stats' && req.method === 'GET') {
+            const stats = await getGraphStats();
+            return sendJson(res, 200, stats);
+        }
+
+        if (pathname === '/api/graph/extract' && req.method === 'POST') {
+            if (!await requireCommander()) return;
+            const body = await parseBody(req);
+            let textToProcess = (body.text || '').trim();
+
+            if (!textToProcess) {
+                const messages = await supabaseRequest(
+                    `/messages?conversation_id=eq.${COMMANDER_UNIFIED_CONVERSATION_ID}&order=timestamp.desc&limit=8`,
+                    'GET'
+                ).catch(() => []);
+                if (messages && messages.length > 0) {
+                    textToProcess = messages.reverse().map(m => `${m.role || 'user'}: ${m.content}`).join('\n');
+                }
+            }
+
+            if (!textToProcess) {
+                return sendJson(res, 400, { error: 'No text or conversation history available for extraction' });
+            }
+
+            const result = await extractEntitiesAndRelations(textToProcess);
+            return sendJson(res, 200, {
+                success: true,
+                extracted_nodes: result.nodes?.length || 0,
+                extracted_edges: result.edges?.length || 0,
+                nodes: result.nodes,
+                edges: result.edges
+            });
         }
 
         // Live Chat with Mikasa

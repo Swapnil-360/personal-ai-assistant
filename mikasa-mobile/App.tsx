@@ -43,7 +43,6 @@ import {
   createAudioPlayer
 } from 'expo-audio';
 import { File as ExpoFile } from 'expo-file-system';
-import { createWakeWordCoordinator, WakeWordCoordinator } from './wakeWordCoordinator';
 import { matchWakeWord } from './wakeWordMatcher';
 
 const { width, height } = Dimensions.get('window');
@@ -485,14 +484,20 @@ export default function App() {
   const [isWakeWordEnabled, setIsWakeWordEnabled] = useState(false);
   const [isWakeWordListening, setIsWakeWordListening] = useState(false);
   const isWakeWordEnabledRef = useRef(false);
-  const wakeCoordinatorRef = useRef<WakeWordCoordinator | null>(null);
-  const ambientRecognizerRef = useRef<any>(null);
   const executeCommandRef = useRef<(cmd: string) => void>(() => {});
 
   const listeningTimerRef = useRef<any>(null);
   const activeAudioPlayerRef = useRef<any>(null);
-  const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const audioRecorder = useAudioRecorder({
+    ...RecordingPresets.HIGH_QUALITY,
+    isMeteringEnabled: true
+  });
   const isRecordingAudioRef = useRef(false);
+  const isManualRecordingRef = useRef(false);
+  const isAmbientListeningRef = useRef(false);
+  const isSpeakingRef = useRef(false);
+  const ambientVadIntervalRef = useRef<any>(null);
+  const ambientCycleTimerRef = useRef<any>(null);
 
   // Initialize Audio & Query Hardware Permissions on App Start
   useEffect(() => {
@@ -582,101 +587,297 @@ export default function App() {
     }
   };
 
-  const getWakeCoordinator = () => {
-    if (!wakeCoordinatorRef.current) {
-      wakeCoordinatorRef.current = createWakeWordCoordinator({
-        vadSilenceMs: 1200,
-        echoCooldownMs: 500,
-        onStateChange: (newState) => {
-          if (newState === 'WAKE_DETECTED' || newState === 'COMMAND_LISTENING') {
-            setAssistantState('LISTENING');
-            setStatusText('Listening...');
-            setSubStatusText('"Yes, Commander? Listening..."');
-          } else if (newState === 'PROCESSING') {
-            setAssistantState('THINKING');
-            setStatusText('Thinking...');
-            setSubStatusText('"Reasoning with Gemini..."');
-          } else if (newState === 'STANDBY_LISTENING') {
-            setAssistantState('IDLE');
-            setStatusText('Ready');
-            setSubStatusText('"Say \'Hey Mikasa\' or \'Mikasa\'"');
-          }
-        },
-        onWakeDetected: (_trigger, remainder) => {
-          try {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          } catch (e) {}
-
-          if (remainder && remainder.trim().length > 1) {
-            executeCommandRef.current(remainder.trim());
-          } else {
-            speakAsMikasa('Yes, Commander?');
-          }
-        },
-        onCommandChunk: (text) => {
-          setSubStatusText(`"${text}"`);
-        },
-        onCommandReady: (command) => {
-          if (command && command.trim().length > 0) {
-            executeCommandRef.current(command.trim());
-          }
-        }
-      });
+  // Helper to reliably extract Base64 audio from local URI (Expo SDK 57 File + Fetch Blob Fallback)
+  const getBase64FromUri = async (audioUri: string): Promise<string> => {
+    let base64Audio = '';
+    try {
+      const fileObj = new ExpoFile(audioUri);
+      if (typeof (fileObj as any).base64 === 'function') {
+        base64Audio = await (fileObj as any).base64();
+      } else if (typeof (fileObj as any).base64Sync === 'function') {
+        base64Audio = (fileObj as any).base64Sync();
+      }
+    } catch (fsErr: any) {
+      console.warn('[ExpoFile Base64 Error]:', fsErr?.message || fsErr);
     }
-    return wakeCoordinatorRef.current;
+
+    if (!base64Audio) {
+      try {
+        const resp = await fetch(audioUri);
+        const blob = await resp.blob();
+        base64Audio = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const resultStr = (reader.result as string) || '';
+            const b64 = resultStr.includes(',') ? resultStr.split(',')[1] : resultStr;
+            resolve(b64);
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+      } catch (blobErr: any) {
+        console.warn('[Blob Base64 Error]:', blobErr?.message || blobErr);
+      }
+    }
+    return base64Audio;
+  };
+
+  // Continuous Native Mobile Ambient Voice & Wake-Word Engine
+  const runAmbientListeningCycle = async () => {
+    if (!isWakeWordEnabledRef.current) return;
+    if (isManualRecordingRef.current) return;
+    if (isSpeakingRef.current) {
+      clearTimeout(ambientCycleTimerRef.current);
+      ambientCycleTimerRef.current = setTimeout(runAmbientListeningCycle, 400);
+      return;
+    }
+    if (isExecuting) {
+      clearTimeout(ambientCycleTimerRef.current);
+      ambientCycleTimerRef.current = setTimeout(runAmbientListeningCycle, 500);
+      return;
+    }
+
+    try {
+      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+      await audioRecorder.prepareToRecordAsync({
+        ...RecordingPresets.HIGH_QUALITY,
+        isMeteringEnabled: true
+      });
+      audioRecorder.record();
+      isRecordingAudioRef.current = true;
+      isAmbientListeningRef.current = true;
+    } catch (err: any) {
+      console.warn('[Ambient Record Start Error]:', err?.message || err);
+      isRecordingAudioRef.current = false;
+      isAmbientListeningRef.current = false;
+      clearTimeout(ambientCycleTimerRef.current);
+      ambientCycleTimerRef.current = setTimeout(runAmbientListeningCycle, 1000);
+      return;
+    }
+
+    const cycleStartTime = Date.now();
+    let voiceDetected = false;
+    let voiceStartTime = 0;
+    let lastLoudTime = 0;
+
+    if (ambientVadIntervalRef.current) clearInterval(ambientVadIntervalRef.current);
+
+    ambientVadIntervalRef.current = setInterval(async () => {
+      if (!isWakeWordEnabledRef.current || isManualRecordingRef.current || isSpeakingRef.current) {
+        clearInterval(ambientVadIntervalRef.current);
+        try { await audioRecorder.stop(); } catch (e) {}
+        isRecordingAudioRef.current = false;
+        isAmbientListeningRef.current = false;
+        return;
+      }
+
+      let metering = -160;
+      try {
+        const st = audioRecorder.getStatus();
+        if (st && typeof st.metering === 'number') {
+          metering = st.metering;
+        }
+      } catch (e) {}
+
+      const now = Date.now();
+      const elapsed = now - cycleStartTime;
+
+      if (metering > -35) {
+        if (!voiceDetected) {
+          voiceDetected = true;
+          voiceStartTime = now;
+        }
+        lastLoudTime = now;
+      }
+
+      if (voiceDetected) {
+        const voiceDuration = now - voiceStartTime;
+        const silenceAfterVoice = now - lastLoudTime;
+
+        if ((silenceAfterVoice >= 750 && voiceDuration >= 450) || voiceDuration >= 4000) {
+          clearInterval(ambientVadIntervalRef.current);
+          await processAmbientVoiceSnippet();
+          return;
+        }
+      } else {
+        if (elapsed >= 3200) {
+          clearInterval(ambientVadIntervalRef.current);
+          try {
+            await audioRecorder.stop();
+          } catch (e) {}
+          isRecordingAudioRef.current = false;
+          isAmbientListeningRef.current = false;
+
+          if (isWakeWordEnabledRef.current && !isManualRecordingRef.current && !isSpeakingRef.current) {
+            runAmbientListeningCycle();
+          }
+          return;
+        }
+      }
+    }, 100);
+  };
+
+  const processAmbientVoiceSnippet = async () => {
+    let audioUri: string | null = null;
+    try {
+      await audioRecorder.stop();
+      audioUri = audioRecorder.uri;
+    } catch (e) {}
+    isRecordingAudioRef.current = false;
+    isAmbientListeningRef.current = false;
+
+    try {
+      await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
+    } catch (e) {}
+
+    if (!audioUri) {
+      if (isWakeWordEnabledRef.current) runAmbientListeningCycle();
+      return;
+    }
+
+    const base64Audio = await getBase64FromUri(audioUri);
+    if (!base64Audio) {
+      if (isWakeWordEnabledRef.current) runAmbientListeningCycle();
+      return;
+    }
+
+    try {
+      const res = await commanderFetch('/api/voice/process', {
+        method: 'POST',
+        body: JSON.stringify({
+          audio_base64: base64Audio,
+          mime_type: 'audio/mp4',
+          conversation_id: 'commander_session'
+        })
+      });
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      const transcribedQuery = (data.transcription || '').trim();
+
+      if (!transcribedQuery) {
+        if (isWakeWordEnabledRef.current) runAmbientListeningCycle();
+        return;
+      }
+
+      const wakeMatch = matchWakeWord(transcribedQuery);
+
+      if (wakeMatch.matched) {
+        try {
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        } catch (e) {}
+
+        if (wakeMatch.remainder && wakeMatch.remainder.trim().length > 1) {
+          const cmd = wakeMatch.remainder.trim();
+          executeCommand(cmd, 'voice');
+        } else {
+          setAssistantState('LISTENING');
+          setStatusText('Listening...');
+          setSubStatusText('"Yes, Commander? Listening for command..."');
+
+          isSpeakingRef.current = true;
+          speakAsMikasa('Yes, Commander?', () => {
+            isSpeakingRef.current = false;
+            startHandsFreeCommandCapture();
+          });
+        }
+      } else {
+        if (isWakeWordEnabledRef.current) {
+          setTimeout(runAmbientListeningCycle, 200);
+        }
+      }
+    } catch (err: any) {
+      console.warn('[Ambient Voice Process Error]:', err?.message || err);
+      if (isWakeWordEnabledRef.current) {
+        setTimeout(runAmbientListeningCycle, 1000);
+      }
+    }
+  };
+
+  const startHandsFreeCommandCapture = async () => {
+    if (!isWakeWordEnabledRef.current) return;
+    try {
+      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+      await audioRecorder.prepareToRecordAsync({
+        ...RecordingPresets.HIGH_QUALITY,
+        isMeteringEnabled: true
+      });
+      audioRecorder.record();
+      isRecordingAudioRef.current = true;
+
+      setAssistantState('LISTENING');
+      setStatusText('Listening...');
+      setSubStatusText('"Listening... Speak your command, Commander"');
+
+      let cmdVoiceDetected = false;
+      let cmdLastVoiceTime = Date.now();
+      const cmdStartTime = Date.now();
+
+      const cmdInterval = setInterval(async () => {
+        if (!isRecordingAudioRef.current) {
+          clearInterval(cmdInterval);
+          return;
+        }
+
+        let metering = -160;
+        try {
+          const st = audioRecorder.getStatus();
+          if (st && typeof st.metering === 'number') metering = st.metering;
+        } catch (e) {}
+
+        const now = Date.now();
+        if (metering > -35) {
+          cmdVoiceDetected = true;
+          cmdLastVoiceTime = now;
+        }
+
+        const totalElapsed = now - cmdStartTime;
+        const silenceAfterVoice = now - cmdLastVoiceTime;
+
+        if ((cmdVoiceDetected && silenceAfterVoice >= 1200) || (cmdVoiceDetected && totalElapsed >= 8000)) {
+          clearInterval(cmdInterval);
+          await stopAndProcessVoice();
+        } else if (!cmdVoiceDetected && totalElapsed >= 6000) {
+          clearInterval(cmdInterval);
+          try { await audioRecorder.stop(); } catch (e) {}
+          isRecordingAudioRef.current = false;
+          try {
+            await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
+          } catch (e) {}
+          setAssistantState('IDLE');
+          setStatusText('Ready');
+          setSubStatusText('"Standing by for Hey Mikasa or Mikasa"');
+          setTimeout(runAmbientListeningCycle, 500);
+        }
+      }, 100);
+    } catch (err: any) {
+      console.warn('[Handsfree Command Capture Error]:', err?.message || err);
+      setAssistantState('IDLE');
+      setStatusText('Ready');
+      setSubStatusText('"Ready"');
+      setTimeout(runAmbientListeningCycle, 1000);
+    }
   };
 
   const startAmbientWakeWordListener = async () => {
     isWakeWordEnabledRef.current = true;
-    const coordinator = getWakeCoordinator();
-    coordinator.reset();
-
-    const SpeechRec = typeof window !== 'undefined' ? ((window as any).webkitSpeechRecognition || (window as any).SpeechRecognition) : null;
-    if (SpeechRec) {
-      try {
-        const recognizer = new SpeechRec();
-        recognizer.continuous = true;
-        recognizer.interimResults = true;
-        recognizer.lang = 'en-US';
-
-        recognizer.onresult = (event: any) => {
-          for (let i = event.resultIndex; i < event.results.length; i++) {
-            const transcript = event.results[i][0]?.transcript;
-            if (transcript) coordinator.handleSpeechChunk(transcript);
-          }
-        };
-
-        recognizer.onerror = (err: any) => {
-          console.warn('[Ambient Speech Recognition Warning]:', err?.error || err);
-        };
-
-        recognizer.onend = () => {
-          if (isWakeWordEnabledRef.current) {
-            try { recognizer.start(); } catch (e) {}
-          }
-        };
-
-        recognizer.start();
-        ambientRecognizerRef.current = recognizer;
-      } catch (err: any) {
-        console.warn('[SpeechRec Start Error]:', err.message);
-      }
-    }
     setIsWakeWordListening(true);
+    runAmbientListeningCycle();
   };
 
   const stopAmbientWakeWordListener = () => {
     isWakeWordEnabledRef.current = false;
-    if (ambientRecognizerRef.current) {
-      try {
-        ambientRecognizerRef.current.stop();
-      } catch (e) {}
-      ambientRecognizerRef.current = null;
-    }
-    if (wakeCoordinatorRef.current) {
-      wakeCoordinatorRef.current.reset();
-    }
     setIsWakeWordListening(false);
+    if (ambientVadIntervalRef.current) clearInterval(ambientVadIntervalRef.current);
+    clearTimeout(ambientCycleTimerRef.current);
+    if (isRecordingAudioRef.current && !isManualRecordingRef.current) {
+      try { audioRecorder.stop(); } catch (e) {}
+      isRecordingAudioRef.current = false;
+      isAmbientListeningRef.current = false;
+    }
+    setAssistantState('IDLE');
+    setStatusText('Ready');
+    setSubStatusText('"How can I help you, Commander?"');
   };
 
   const handleToggleWakeWord = async (value: boolean) => {
@@ -1034,43 +1235,13 @@ export default function App() {
       return;
     }
 
-    let base64Audio = '';
-    // Method 1: Expo SDK 57 File class base64
-    try {
-      const fileObj = new ExpoFile(audioUri);
-      if (typeof (fileObj as any).base64 === 'function') {
-        base64Audio = await (fileObj as any).base64();
-      } else if (typeof (fileObj as any).base64Sync === 'function') {
-        base64Audio = (fileObj as any).base64Sync();
-      }
-    } catch (fsErr: any) {
-      console.warn('[ExpoFile Base64 Error]:', fsErr?.message || fsErr);
-    }
-
-    // Method 2: Fetch Blob + FileReader fallback (failsafe for local file URIs)
-    if (!base64Audio) {
-      try {
-        const resp = await fetch(audioUri);
-        const blob = await resp.blob();
-        base64Audio = await new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            const resultStr = (reader.result as string) || '';
-            const b64 = resultStr.includes(',') ? resultStr.split(',')[1] : resultStr;
-            resolve(b64);
-          };
-          reader.onerror = reject;
-          reader.readAsDataURL(blob);
-        });
-      } catch (blobErr: any) {
-        console.warn('[Blob Base64 Error]:', blobErr?.message || blobErr);
-      }
-    }
+    const base64Audio = await getBase64FromUri(audioUri);
 
     if (!base64Audio) {
       setAssistantState('IDLE');
       setStatusText('Ready');
       setSubStatusText('"Could not encode audio"');
+      if (isWakeWordEnabledRef.current) setTimeout(runAmbientListeningCycle, 500);
       return;
     }
 
@@ -1094,6 +1265,7 @@ export default function App() {
         setStatusText('Ready');
         setSubStatusText('"Silence detected. Tap mic to try again."');
         speakAsMikasa('I could not hear you, Commander. Please try again.');
+        if (isWakeWordEnabledRef.current) setTimeout(runAmbientListeningCycle, 1000);
         return;
       }
 
@@ -1136,10 +1308,15 @@ export default function App() {
       setAssistantState('SPEAKING');
       setStatusText('Speaking...');
       setSubStatusText(cleanReply.length > 55 ? `"${cleanReply.slice(0, 52)}..."` : `"${cleanReply}"`);
+      isSpeakingRef.current = true;
       speakAsMikasa(cleanReply, () => {
+        isSpeakingRef.current = false;
         setAssistantState('IDLE');
         setStatusText('Ready');
-        setSubStatusText('"How can I help you, Commander?"');
+        setSubStatusText('"Standing by for Hey Mikasa or Mikasa"');
+        if (isWakeWordEnabledRef.current) {
+          setTimeout(runAmbientListeningCycle, 500);
+        }
       });
     } catch (apiErr: any) {
       console.warn('[Voice API Error]:', apiErr?.message || apiErr);
@@ -1147,6 +1324,7 @@ export default function App() {
       setStatusText('Ready');
       setSubStatusText('"Voice processing failed"');
       Alert.alert('Voice Failed', 'Could not reach Mikasa server. Check Wi-Fi connection.');
+      if (isWakeWordEnabledRef.current) setTimeout(runAmbientListeningCycle, 1000);
     }
   };
 
@@ -1156,23 +1334,38 @@ export default function App() {
     } catch (e) {}
 
     // If Mikasa is speaking, tapping interrupts and silences her
-    if (assistantState === 'SPEAKING') {
+    if (assistantState === 'SPEAKING' || isSpeakingRef.current) {
       if (activeAudioPlayerRef.current) {
         try {
           activeAudioPlayerRef.current.pause();
         } catch (e) {}
       }
       Speech.stop();
+      isSpeakingRef.current = false;
       setAssistantState('IDLE');
       setStatusText('Ready');
       setSubStatusText('"How can I help you, Commander?"');
+      if (isWakeWordEnabledRef.current) {
+        setTimeout(runAmbientListeningCycle, 600);
+      }
       return;
     }
 
-    // If already recording/listening, tapping again means user is done speaking: stop and process immediately!
-    if (assistantState === 'LISTENING' || isRecordingAudioRef.current) {
+    // If already manually recording, tapping again means user is done speaking: stop and process immediately!
+    if (isManualRecordingRef.current) {
+      isManualRecordingRef.current = false;
+      if (listeningTimerRef.current) clearTimeout(listeningTimerRef.current);
       await stopAndProcessVoice();
       return;
+    }
+
+    // If ambient listening was active in background, cleanly halt it to give manual mic tap priority
+    if (isRecordingAudioRef.current) {
+      if (ambientVadIntervalRef.current) clearInterval(ambientVadIntervalRef.current);
+      clearTimeout(ambientCycleTimerRef.current);
+      try { await audioRecorder.stop(); } catch (e) {}
+      isRecordingAudioRef.current = false;
+      isAmbientListeningRef.current = false;
     }
 
     // Otherwise, check microphone permission
@@ -1202,9 +1395,13 @@ export default function App() {
     try {
       // Set audio mode for recording
       await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
-      await audioRecorder.prepareToRecordAsync();
+      await audioRecorder.prepareToRecordAsync({
+        ...RecordingPresets.HIGH_QUALITY,
+        isMeteringEnabled: true
+      });
       audioRecorder.record();
       isRecordingAudioRef.current = true;
+      isManualRecordingRef.current = true;
 
       setAssistantState('LISTENING');
       setStatusText('Listening...');
@@ -1212,8 +1409,12 @@ export default function App() {
 
       // Auto-stop after 10 seconds
       if (listeningTimerRef.current) clearTimeout(listeningTimerRef.current);
-      listeningTimerRef.current = setTimeout(() => { stopAndProcessVoice(); }, 10000);
+      listeningTimerRef.current = setTimeout(async () => {
+        isManualRecordingRef.current = false;
+        await stopAndProcessVoice();
+      }, 10000);
     } catch (recordErr: any) {
+      isManualRecordingRef.current = false;
       console.warn('[Audio Record Start Error]:', recordErr?.message || recordErr);
       setAssistantState('IDLE');
       setStatusText('Ready');
@@ -1493,18 +1694,23 @@ export default function App() {
       setStatusText('Speaking...');
       setSubStatusText(cleanReply.length > 60 ? `"${cleanReply.slice(0, 58)}..."` : `"${cleanReply}"`);
 
-      wakeCoordinatorRef.current?.setSpeaking(true);
+      isSpeakingRef.current = true;
       speakAsMikasa(cleanReply, () => {
-        wakeCoordinatorRef.current?.setSpeaking(false);
+        isSpeakingRef.current = false;
+        if (isWakeWordEnabledRef.current) {
+          setTimeout(runAmbientListeningCycle, 500);
+        }
       });
 
     } catch (err: any) {
       setIsExecuting(false);
-      wakeCoordinatorRef.current?.reset();
+      isSpeakingRef.current = false;
       setAssistantState('IDLE');
       setStatusText('Ready');
       setSubStatusText('"Connection issue encountered, Commander."');
-      speakAsMikasa('Commander, I encountered a connection issue.');
+      speakAsMikasa('Commander, I encountered a connection issue.', () => {
+        if (isWakeWordEnabledRef.current) setTimeout(runAmbientListeningCycle, 1000);
+      });
     }
   };
 

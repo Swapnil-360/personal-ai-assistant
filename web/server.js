@@ -1280,6 +1280,24 @@ const server = http.createServer(async (req, res) => {
                 return sendJson(res, 400, { error: 'No voice audio or query text provided' });
             }
 
+            // Standalone Wake-Word Fast Path ("Hey Mikasa", "Mikasa")
+            const normalizedWakeText = userQuery.toLowerCase().replace(/[^\w\s]/g, '').trim();
+            if (normalizedWakeText === 'hey mikasa' || normalizedWakeText === 'mikasa' || normalizedWakeText === 'hello mikasa' || normalizedWakeText === 'hi mikasa') {
+                return sendJson(res, 200, {
+                    success: true,
+                    transcription: userQuery,
+                    isWakeWordOnly: true,
+                    reply: 'Yes, Commander?',
+                    spokenText: 'Yes, Commander?',
+                    action: 'wake_acknowledged'
+                });
+            }
+
+            // If user said "Hey Mikasa, <command>", strip the wake word prefix so agent focuses on the command
+            if (normalizedWakeText.startsWith('hey mikasa ') || normalizedWakeText.startsWith('mikasa ')) {
+                userQuery = userQuery.replace(/^(?:hey\s+)?mikasa[\s,!:?]+/i, '').trim();
+            }
+
             // Check direct device control shortcuts in voice query
             const pcBridge = require('../local_pc_bridge');
             const lower = userQuery.toLowerCase();

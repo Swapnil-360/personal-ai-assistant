@@ -1287,8 +1287,10 @@ const server = http.createServer(async (req, res) => {
             if (lower.includes('lock pc') || lower.includes('lock my pc') || lower.includes('lock workstation')) {
                 const resLock = pcBridge.lockWorkstation ? pcBridge.lockWorkstation() : { success: true };
                 return sendJson(res, 200, {
+                    success: true,
                     transcription: userQuery,
                     reply: 'Workstation locked immediately, Commander.',
+                    spokenText: 'Workstation locked immediately, Commander.',
                     action: 'lock',
                     result: resLock
                 });
@@ -1297,8 +1299,10 @@ const server = http.createServer(async (req, res) => {
             if (lower.includes('mute') || lower.includes('unmute') || lower.includes('mute audio') || lower.includes('mute pc')) {
                 const resMute = pcBridge.toggleVolumeMute ? pcBridge.toggleVolumeMute() : { success: true };
                 return sendJson(res, 200, {
+                    success: true,
                     transcription: userQuery,
                     reply: 'Audio mute toggled, Commander.',
+                    spokenText: 'Audio mute toggled, Commander.',
                     action: 'mute',
                     result: resMute
                 });
@@ -1310,8 +1314,10 @@ const server = http.createServer(async (req, res) => {
                 const dir = targetPct >= 50 ? 'up' : 'down';
                 if (pcBridge.changeVolume) pcBridge.changeVolume(dir);
                 return sendJson(res, 200, {
+                    success: true,
                     transcription: userQuery,
                     reply: `Volume adjusted towards ${targetPct}%, Commander.`,
+                    spokenText: `Volume adjusted towards ${targetPct}%, Commander.`,
                     action: `volume_set_${targetPct}`
                 });
             }
@@ -1319,8 +1325,10 @@ const server = http.createServer(async (req, res) => {
             if (lower.includes('volume up') || lower.includes('vol up') || lower.includes('sound up')) {
                 const resVol = pcBridge.changeVolume ? pcBridge.changeVolume('up') : { success: true };
                 return sendJson(res, 200, {
+                    success: true,
                     transcription: userQuery,
                     reply: 'Volume turned up, Commander.',
+                    spokenText: 'Volume turned up, Commander.',
                     action: 'volume_up',
                     result: resVol
                 });
@@ -1329,8 +1337,10 @@ const server = http.createServer(async (req, res) => {
             if (lower.includes('volume down') || lower.includes('vol down') || lower.includes('sound down')) {
                 const resVol = pcBridge.changeVolume ? pcBridge.changeVolume('down') : { success: true };
                 return sendJson(res, 200, {
+                    success: true,
                     transcription: userQuery,
                     reply: 'Volume turned down, Commander.',
+                    spokenText: 'Volume turned down, Commander.',
                     action: 'volume_down',
                     result: resVol
                 });
@@ -1339,8 +1349,10 @@ const server = http.createServer(async (req, res) => {
             if (lower.includes('play music') || lower.includes('pause music') || lower.includes('play song') || lower.includes('pause song') || lower === 'play' || lower === 'pause') {
                 const resMedia = pcBridge.controlMedia ? pcBridge.controlMedia('play_pause') : { success: true };
                 return sendJson(res, 200, {
+                    success: true,
                     transcription: userQuery,
                     reply: 'Media playback toggled, Commander.',
+                    spokenText: 'Media playback toggled, Commander.',
                     action: 'play_pause',
                     result: resMedia
                 });
@@ -1349,8 +1361,10 @@ const server = http.createServer(async (req, res) => {
             if (lower.includes('next song') || lower.includes('next track')) {
                 const resMedia = pcBridge.controlMedia ? pcBridge.controlMedia('next') : { success: true };
                 return sendJson(res, 200, {
+                    success: true,
                     transcription: userQuery,
                     reply: 'Skipped to next track, Commander.',
+                    spokenText: 'Skipped to next track, Commander.',
                     action: 'next_track',
                     result: resMedia
                 });
@@ -1359,8 +1373,10 @@ const server = http.createServer(async (req, res) => {
             if (lower.includes('turn off monitor') || lower.includes('monitors off') || lower.includes('turn off screen') || lower.includes('sleep screen')) {
                 const resMon = pcBridge.turnOffMonitors ? pcBridge.turnOffMonitors() : { success: true };
                 return sendJson(res, 200, {
+                    success: true,
                     transcription: userQuery,
                     reply: 'Monitors powered down, Commander.',
+                    spokenText: 'Monitors powered down, Commander.',
                     action: 'monitors_off',
                     result: resMon
                 });
@@ -1385,8 +1401,10 @@ const server = http.createServer(async (req, res) => {
                 await recordConversationTurn(COMMANDER_UNIFIED_CONVERSATION_ID, userQuery, reply, 'reminder-engine').catch(() => {});
                 triggerTgMemoryExtraction(userQuery, reply, COMMANDER_UNIFIED_CONVERSATION_ID).catch(() => {});
                 return sendJson(res, 200, {
+                    success: true,
                     transcription: userQuery,
                     reply: reply,
+                    spokenText: reply,
                     action: reminderExtracted.isAlarm ? 'alarm_set' : 'reminder_set',
                     reminder: rem,
                     alarm: reminderExtracted.isAlarm ? {
@@ -1413,10 +1431,20 @@ const server = http.createServer(async (req, res) => {
             await recordConversationTurn(COMMANDER_UNIFIED_CONVERSATION_ID, userQuery, String(rawReply || ''), 'gemini-voice').catch(() => {});
             triggerTgMemoryExtraction(userQuery, String(rawReply || ''), COMMANDER_UNIFIED_CONVERSATION_ID).catch(() => {});
 
+            const cleanedReply = stripEmojis(String(rawReply || ''));
+            const spokenText = cleanedReply
+                .replace(/[*_#`~]/g, '')
+                .replace(/https?:\/\/\S+/g, '')
+                .replace(/\s+/g, ' ')
+                .trim();
+
             return sendJson(res, 200, {
+                success: true,
                 transcription: userQuery,
-                reply: stripEmojis(String(rawReply || '')),
-                action: Array.isArray(toolsUsed) && toolsUsed.length ? toolsUsed.join(', ') : null
+                reply: cleanedReply,
+                spokenText: spokenText,
+                action: Array.isArray(toolsUsed) && toolsUsed.length ? toolsUsed.join(', ') : null,
+                toolsUsed: toolsUsed
             });
         }
 

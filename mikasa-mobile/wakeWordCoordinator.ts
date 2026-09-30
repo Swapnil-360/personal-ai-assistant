@@ -116,7 +116,7 @@ export class WakeWordCoordinator {
       }
 
       case 'PROCESSING':
-      case 'SPEAKING':
+      default:
         // No-op
         break;
     }
@@ -209,7 +209,7 @@ export function createWakeWordCoordinator(options: CoordinatorOptions = {}): Wak
   return new WakeWordCoordinator(options);
 }
 
-// CommonJS compatibility export for test harness
+declare const module: any;
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     WakeWordCoordinator,

@@ -106,19 +106,19 @@
 **Files:**
 - Modify: `mikasa-mobile/App.tsx`
 
-- [ ] **Step 1: Connect `wakeWordCoordinator` to `App.tsx`**
+- [x] **Step 1: Connect `wakeWordCoordinator` to `App.tsx`**
   Import `wakeWordCoordinator` and wire the `Wake Word ("Hey Mikasa")` settings toggle to start and stop the ambient listener.
 
-- [ ] **Step 2: Wire Visual HUD Feedback**
+- [x] **Step 2: Wire Visual HUD Feedback**
   When in `WAKE_DETECTED` or `COMMAND_LISTENING`, pulse the Arc Reactor HUD ring with high-intensity glowing cyan and display `"Listening for command..."`.
 
-- [ ] **Step 3: Wire Audio & Verbal Acknowledgment**
+- [x] **Step 3: Wire Audio & Verbal Acknowledgment**
   Trigger haptic double-tap and immediate verbal ack: *"Yes, Commander?"* upon wake detection.
 
-- [ ] **Step 4: Wire Automatic Return to Standby**
+- [x] **Step 4: Wire Automatic Return to Standby**
   After speech response finishes playing, engage 500ms echo suppression and return to standby listening.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
   `git add mikasa-mobile/App.tsx && git commit -m "feat(mobile): wire ambient wake word and hands-free HUD loop into App.tsx"`
 
 ---
@@ -128,7 +128,7 @@
 **Files:**
 - Create: `scratch/test_e2e_ambient_voice.js`
 
-- [ ] **Step 1: Write comprehensive end-to-end simulation**
+- [x] **Step 1: Write comprehensive end-to-end simulation**
   Create `scratch/test_e2e_ambient_voice.js` testing:
   1. Wake Word Match ("Hey Mikasa" & "Mikasa")
   2. Immediate Ack generation
@@ -137,8 +137,9 @@
   5. Spoken text extraction
   6. Echo suppression timing
 
-- [ ] **Step 2: Run end-to-end verification**
+- [x] **Step 2: Run end-to-end verification**
   Run `node scratch/test_e2e_ambient_voice.js` and verify 100% pass rate.
 
-- [ ] **Step 3: Final Commit & Git Push**
+- [x] **Step 3: Final Commit & Git Push**
   `git add . && git commit -m "feat(mobile): complete ambient voice & dual wake-word subsystem" && git push origin main`
+

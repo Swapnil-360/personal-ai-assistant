@@ -75,7 +75,7 @@ export function matchWakeWord(text: string): WakeWordResult {
   };
 }
 
-// CommonJS compatibility export for hybrid testing
+declare const module: any;
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
     matchWakeWord,

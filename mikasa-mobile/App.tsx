@@ -43,6 +43,8 @@ import {
   createAudioPlayer
 } from 'expo-audio';
 import { File as ExpoFile } from 'expo-file-system';
+import { createWakeWordCoordinator, WakeWordCoordinator } from './wakeWordCoordinator';
+import { matchWakeWord } from './wakeWordMatcher';
 
 const { width, height } = Dimensions.get('window');
 
@@ -482,6 +484,10 @@ export default function App() {
   const [locationPermissionGranted, setLocationPermissionGranted] = useState<boolean | null>(null);
   const [isWakeWordEnabled, setIsWakeWordEnabled] = useState(false);
   const [isWakeWordListening, setIsWakeWordListening] = useState(false);
+  const isWakeWordEnabledRef = useRef(false);
+  const wakeCoordinatorRef = useRef<WakeWordCoordinator | null>(null);
+  const ambientRecognizerRef = useRef<any>(null);
+  const executeCommandRef = useRef<(cmd: string) => void>(() => {});
 
   const listeningTimerRef = useRef<any>(null);
   const activeAudioPlayerRef = useRef<any>(null);
@@ -576,10 +582,105 @@ export default function App() {
     }
   };
 
-  // Wake Word Engine: Toggle Switch Handler with Permission Handshake
+  const getWakeCoordinator = () => {
+    if (!wakeCoordinatorRef.current) {
+      wakeCoordinatorRef.current = createWakeWordCoordinator({
+        vadSilenceMs: 1200,
+        echoCooldownMs: 500,
+        onStateChange: (newState) => {
+          if (newState === 'WAKE_DETECTED' || newState === 'COMMAND_LISTENING') {
+            setAssistantState('LISTENING');
+            setStatusText('Listening...');
+            setSubStatusText('"Yes, Commander? Listening..."');
+          } else if (newState === 'PROCESSING') {
+            setAssistantState('THINKING');
+            setStatusText('Thinking...');
+            setSubStatusText('"Reasoning with Gemini..."');
+          } else if (newState === 'STANDBY_LISTENING') {
+            setAssistantState('IDLE');
+            setStatusText('Ready');
+            setSubStatusText('"Say \'Hey Mikasa\' or \'Mikasa\'"');
+          }
+        },
+        onWakeDetected: (_trigger, remainder) => {
+          try {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          } catch (e) {}
+
+          if (remainder && remainder.trim().length > 1) {
+            executeCommandRef.current(remainder.trim());
+          } else {
+            speakAsMikasa('Yes, Commander?');
+          }
+        },
+        onCommandChunk: (text) => {
+          setSubStatusText(`"${text}"`);
+        },
+        onCommandReady: (command) => {
+          if (command && command.trim().length > 0) {
+            executeCommandRef.current(command.trim());
+          }
+        }
+      });
+    }
+    return wakeCoordinatorRef.current;
+  };
+
+  const startAmbientWakeWordListener = async () => {
+    isWakeWordEnabledRef.current = true;
+    const coordinator = getWakeCoordinator();
+    coordinator.reset();
+
+    const SpeechRec = typeof window !== 'undefined' ? ((window as any).webkitSpeechRecognition || (window as any).SpeechRecognition) : null;
+    if (SpeechRec) {
+      try {
+        const recognizer = new SpeechRec();
+        recognizer.continuous = true;
+        recognizer.interimResults = true;
+        recognizer.lang = 'en-US';
+
+        recognizer.onresult = (event: any) => {
+          for (let i = event.resultIndex; i < event.results.length; i++) {
+            const transcript = event.results[i][0]?.transcript;
+            if (transcript) coordinator.handleSpeechChunk(transcript);
+          }
+        };
+
+        recognizer.onerror = (err: any) => {
+          console.warn('[Ambient Speech Recognition Warning]:', err?.error || err);
+        };
+
+        recognizer.onend = () => {
+          if (isWakeWordEnabledRef.current) {
+            try { recognizer.start(); } catch (e) {}
+          }
+        };
+
+        recognizer.start();
+        ambientRecognizerRef.current = recognizer;
+      } catch (err: any) {
+        console.warn('[SpeechRec Start Error]:', err.message);
+      }
+    }
+    setIsWakeWordListening(true);
+  };
+
+  const stopAmbientWakeWordListener = () => {
+    isWakeWordEnabledRef.current = false;
+    if (ambientRecognizerRef.current) {
+      try {
+        ambientRecognizerRef.current.stop();
+      } catch (e) {}
+      ambientRecognizerRef.current = null;
+    }
+    if (wakeCoordinatorRef.current) {
+      wakeCoordinatorRef.current.reset();
+    }
+    setIsWakeWordListening(false);
+  };
+
   const handleToggleWakeWord = async (value: boolean) => {
     if (value) {
-      // Must check/request microphone permission first
       let granted = micPermissionGranted;
       if (!granted) {
         granted = await requestMicPermission();
@@ -588,7 +689,7 @@ export default function App() {
       if (!granted) {
         Alert.alert(
           'Microphone Access Required',
-          'Mikasa requires microphone permission to listen for the "Hey, Mikasa" wake word hands-free.',
+          'Mikasa requires microphone permission to listen for the "Hey, Mikasa" or "Mikasa" wake words hands-free.',
           [
             { text: 'Cancel', style: 'cancel' },
             {
@@ -597,26 +698,26 @@ export default function App() {
                 const nowGranted = await requestMicPermission();
                 if (nowGranted) {
                   setIsWakeWordEnabled(true);
-                  setIsWakeWordListening(true);
+                  await startAmbientWakeWordListener();
                   Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                  speakAsMikasa('Wake word activated. Listening for Hey Mikasa.');
+                  speakAsMikasa('Wake word activated. Standing by for Hey Mikasa or Mikasa, Commander.');
                 }
               }
             }
           ]
         );
         setIsWakeWordEnabled(false);
-        setIsWakeWordListening(false);
+        stopAmbientWakeWordListener();
         return;
       }
 
       setIsWakeWordEnabled(true);
-      setIsWakeWordListening(true);
+      await startAmbientWakeWordListener();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      speakAsMikasa('Wake word activated. Standing by for Hey Mikasa, Commander.');
+      speakAsMikasa('Wake word activated. Standing by for Hey Mikasa or Mikasa, Commander.');
     } else {
       setIsWakeWordEnabled(false);
-      setIsWakeWordListening(false);
+      stopAmbientWakeWordListener();
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       speakAsMikasa('Wake word deactivated.');
     }
@@ -1248,6 +1349,7 @@ export default function App() {
 
   // 8. Core Command Execution (Used by Voice & Chat - talks like Telegram)
   const executeCommand = async (rawQuery: string, source: 'voice' | 'chat' = 'chat', attachmentToSend?: PendingAttachment | null) => {
+    executeCommandRef.current = (cmd) => executeCommand(cmd, 'voice');
     const currentAttachment = attachmentToSend !== undefined ? attachmentToSend : pendingAttachment;
     let query = stripEmojis(rawQuery.trim());
     if (!query && !currentAttachment) return;
@@ -1391,10 +1493,14 @@ export default function App() {
       setStatusText('Speaking...');
       setSubStatusText(cleanReply.length > 60 ? `"${cleanReply.slice(0, 58)}..."` : `"${cleanReply}"`);
 
-      speakAsMikasa(cleanReply);
+      wakeCoordinatorRef.current?.setSpeaking(true);
+      speakAsMikasa(cleanReply, () => {
+        wakeCoordinatorRef.current?.setSpeaking(false);
+      });
 
     } catch (err: any) {
       setIsExecuting(false);
+      wakeCoordinatorRef.current?.reset();
       setAssistantState('IDLE');
       setStatusText('Ready');
       setSubStatusText('"Connection issue encountered, Commander."');
@@ -2624,11 +2730,11 @@ export default function App() {
 
                   <View style={styles.settingsRow}>
                     <View>
-                      <Text style={styles.settingsLabel}>Wake Word ("Hey Mikasa")</Text>
+                      <Text style={styles.settingsLabel}>Wake Word ("Hey Mikasa" / "Mikasa")</Text>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
                         <View style={[styles.statusDot, { backgroundColor: isWakeWordListening ? '#10b981' : '#64748b' }]} />
                         <Text style={{ fontSize: 11, color: isWakeWordListening ? '#10b981' : '#64748b' }}>
-                          {isWakeWordListening ? 'Standby listening active' : 'Tap switch to enable'}
+                          {isWakeWordListening ? 'Ambient hands-free active' : 'Tap switch to enable'}
                         </Text>
                       </View>
                     </View>

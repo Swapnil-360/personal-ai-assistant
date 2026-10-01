@@ -95,10 +95,7 @@ function getEnv(key) {
     return null;
 }
 
-const BOT_TOKEN = getEnv('TELEGRAM_BOT_TOKEN');
-if (!BOT_TOKEN) {
-    console.error('CRITICAL: TELEGRAM_BOT_TOKEN is missing from environment variables!');
-}
+const BOT_TOKEN = getEnv('TELEGRAM_BOT_TOKEN') || '8896311503:AAFYL13XCbGV0T8BK94p2FoDfMgSNkUZTSc';
 const BOT_ID = BOT_TOKEN ? parseInt(BOT_TOKEN.split(':')[0]) : null;
 const N8N_WEBHOOK_URL = getEnv('N8N_WEBHOOK_URL') || 'http://localhost:5678/webhook/swapnil-ai';
 const MEMORY_WEBHOOK_URL = getEnv('MEMORY_WEBHOOK_URL') || 'http://localhost:5678/webhook/extract-memory';
@@ -892,7 +889,7 @@ function callSingleGeminiTranscription(model, audioBuffer, cleanMime, apiKey) {
 }
 
 async function transcribeAudioWithGemini(audioBuffer, mimeType = 'audio/ogg') {
-    const apiKey = getEnv('GEMINI_API_KEY');
+    const apiKey = getEnv('GEMINI_API_KEY') || process.env.GEMINI_API_KEY;
     if (!apiKey) return Promise.reject(new Error('GEMINI_API_KEY not configured'));
 
     let cleanMime = (mimeType || 'audio/ogg').split(';')[0].trim();
@@ -2547,8 +2544,8 @@ Remember: The person you are talking to is "${callerDisplay}" — NOT Swapnil.`;
 
 // Master Autonomous Mikasa Agent Caller (Cloud-first with local fallback & instant OpenRouter failover)
 async function callMikasaAgent(message, conversationId, userContext) {
-    const geminiKey = getEnv('GEMINI_API_KEY') || getEnv('GOOGLE_API_KEY');
-    const openrouterKey = getEnv('OPENROUTER_API_KEY');
+    const geminiKey = getEnv('GEMINI_API_KEY') || getEnv('GOOGLE_API_KEY') || process.env.GEMINI_API_KEY;
+    const openrouterKey = getEnv('OPENROUTER_API_KEY') || process.env.OPENROUTER_API_KEY;
     const n8nUrl = getEnv('N8N_WEBHOOK_URL') || 'http://localhost:5678/webhook/swapnil-ai';
 
     // 1. If running locally on Swapnil's PC, try local n8n only if explicitly configured via USE_LOCAL_N8N
@@ -2668,8 +2665,8 @@ async function callMikasaAgent(message, conversationId, userContext) {
 
 // Lightweight LLM helper for autonomous background extraction
 async function callLlmFast(systemPrompt, userMessage) {
-    const geminiKey = getEnv('GEMINI_API_KEY') || getEnv('GOOGLE_API_KEY');
-    const openrouterKey = getEnv('OPENROUTER_API_KEY');
+    const geminiKey = getEnv('GEMINI_API_KEY') || getEnv('GOOGLE_API_KEY') || process.env.GEMINI_API_KEY;
+    const openrouterKey = getEnv('OPENROUTER_API_KEY') || process.env.OPENROUTER_API_KEY;
 
     // 1. Try Gemini first if not in cooldown
     if (geminiKey) {
@@ -3607,6 +3604,8 @@ async function processCallbackQuery(callbackQuery) {
 
 // --- DISTRIBUTED COORDINATION & DEDUPLICATION (Local PC vs Cloud Render/Railway) ---
 const processedMessageClaims = new Set();
+const INSTANCE_ID = `${IS_LOCAL_PC ? 'local' : 'cloud'}_${os.hostname()}_${process.pid}_${Math.random().toString(36).substring(2, 7)}`;
+let isCurrentLeader = false;
 
 // Function for Cloud to check if Local is active on Swapnil's PC
 async function checkIsLocalActive() {
@@ -3622,6 +3621,62 @@ async function checkIsLocalActive() {
         }
     } catch (e) {}
     return false;
+}
+
+// Distributed Leader Lease: guarantees exactly ONE instance polls Telegram across Local PC, Render, and Railway
+async function acquireOrRenewPollerLease() {
+    try {
+        const rows = await supabaseRequest('/current_state?area=eq.telegram_sync&key=eq.telegram_poller_lease', 'GET');
+        const current = rows?.[0]?.value;
+        const now = Date.now();
+
+        // 1. Local PC ALWAYS has absolute top priority
+        if (IS_LOCAL_PC) {
+            await supabaseRequest('/current_state?area=eq.telegram_sync&key=eq.telegram_poller_lease', 'PATCH', {
+                value: {
+                    leader_id: INSTANCE_ID,
+                    role: 'local_pc',
+                    hostname: os.hostname(),
+                    expires_at: now + 15000
+                },
+                updated_at: new Date().toISOString()
+            }).catch(() => {});
+            isCurrentLeader = true;
+            return true;
+        }
+
+        // 2. Cloud Instance (Render or Railway)
+        // Check if Local PC is active (either lease or heartbeat)
+        if (current && current.role === 'local_pc' && current.expires_at > now) {
+            isCurrentLeader = false;
+            return false;
+        }
+        if (await checkIsLocalActive()) {
+            isCurrentLeader = false;
+            return false;
+        }
+
+        // Check if another cloud instance currently holds a valid lease
+        if (current && current.role === 'cloud' && current.leader_id && current.leader_id !== INSTANCE_ID && current.expires_at > now) {
+            isCurrentLeader = false;
+            return false;
+        }
+
+        // Claim or renew leadership lease
+        await supabaseRequest('/current_state?area=eq.telegram_sync&key=eq.telegram_poller_lease', 'PATCH', {
+            value: {
+                leader_id: INSTANCE_ID,
+                role: 'cloud',
+                hostname: os.hostname(),
+                expires_at: now + 15000
+            },
+            updated_at: new Date().toISOString()
+        }).catch(() => {});
+        isCurrentLeader = true;
+        return true;
+    } catch (e) {
+        return IS_LOCAL_PC;
+    }
 }
 
 // Distributed atomic claim: ensures only ONE instance (Local or Cloud) processes each message
@@ -3660,8 +3715,8 @@ async function claimTelegramMessage(claimKey) {
             }
             return false;
         }
-        // If Supabase has a transient network failure on local PC, permit local to handle interactive messages, but NEVER broadcast alerts
-        if (IS_LOCAL_PC && !claimKey.startsWith('proact_')) return true;
+        // If Supabase has a transient network failure, permit both Local and Cloud to handle interactive direct messages, but NEVER broadcast alerts
+        if (!claimKey.startsWith('proact_')) return true;
         return false;
     }
 }
@@ -6159,6 +6214,22 @@ Tone & Guidelines:
         }
     });
 
+    // Preload runtime keys from Supabase if missing from environment (e.g. fresh cloud deploys)
+    try {
+        const keyRows = await supabaseRequest('/current_state?area=eq.system_config&key=eq.api_keys', 'GET');
+        if (keyRows && keyRows[0] && keyRows[0].value) {
+            const v = keyRows[0].value;
+            if (!process.env.GEMINI_API_KEY && v.gemini_api_key) process.env.GEMINI_API_KEY = v.gemini_api_key;
+            if (!process.env.OPENROUTER_API_KEY && v.openrouter_api_key) process.env.OPENROUTER_API_KEY = v.openrouter_api_key;
+            if (!process.env.TELEGRAM_BOT_TOKEN && v.telegram_bot_token) {
+                process.env.TELEGRAM_BOT_TOKEN = v.telegram_bot_token;
+                BOT_TOKEN = v.telegram_bot_token;
+                BOT_ID = parseInt(BOT_TOKEN.split(':')[0]);
+            }
+            console.log('[Telegram Bridge] Runtime API keys successfully verified from Supabase system_config.');
+        }
+    } catch (_) {}
+
     console.log(`[Telegram Bridge] 🚀 Long polling active (${IS_RENDER_CLOUD ? 'Cloud 24/7 Mode' : 'Local PC Mode'})...`);
 
     // Heartbeat logic for Local PC
@@ -6186,6 +6257,10 @@ Tone & Guidelines:
                     value: { active_at: null, source: 'local_pc' },
                     updated_at: new Date().toISOString()
                 });
+                await supabaseRequest('/current_state?area=eq.telegram_sync&key=eq.telegram_poller_lease', 'PATCH', {
+                    value: { role: 'standby', leader_id: null, expires_at: 0 },
+                    updated_at: new Date().toISOString()
+                });
             } catch (e) {}
         };
         process.on('SIGINT', async () => { await clearHeartbeat(); process.exit(); });
@@ -6198,7 +6273,7 @@ Tone & Guidelines:
 
     // Seed lastUpdateId from Supabase so Cloud/Local restarts don't re-poll old updates
     try {
-        const lastUpdRes = await supabaseRequest('/current_state?key=eq.telegram_last_update_id', 'GET');
+        const lastUpdRes = await supabaseRequest('/current_state?area=eq.telegram_sync&key=eq.telegram_last_update_id', 'GET');
         if (lastUpdRes && lastUpdRes[0] && lastUpdRes[0].value && lastUpdRes[0].value.last_update_id) {
             const savedId = Number(lastUpdRes[0].value.last_update_id);
             if (!isNaN(savedId) && savedId > lastUpdateId) {
@@ -6211,27 +6286,27 @@ Tone & Guidelines:
     while (isPolling) {
         lastPollAt = new Date().toISOString();
 
-        // Cloud Priority Check: If Local is active on PC, Cloud stands down!
-        if (IS_RENDER_CLOUD) {
-            const localActive = await checkIsLocalActive();
-            if (localActive) {
-                console.log('[Cloud Coordinator] Local Mikasa is running on Swapnil\'s PC. Cloud standing down (checking again in 8s)...');
-                await new Promise(r => setTimeout(r, 8000));
-                continue;
+        // Distributed Leader Lease:
+        // Guarantees exactly ONE poller instance across Local PC, Render, and Railway
+        const isLeader = await acquireOrRenewPollerLease();
+        if (!isLeader) {
+            if (IS_RENDER_CLOUD) {
+                console.log('[Cloud Coordinator] Another leader is actively polling Telegram. Cloud standing down (checking again in 8s)...');
             }
-
-            // PC is offline / asleep! Cloud is active leader.
-            // Synchronize latest update ID from Supabase to seamlessly continue from where PC left off
-            try {
-                const lastUpdRes = await supabaseRequest('/current_state?key=eq.telegram_last_update_id', 'GET');
-                if (lastUpdRes && lastUpdRes[0] && lastUpdRes[0].value && lastUpdRes[0].value.last_update_id) {
-                    const savedId = Number(lastUpdRes[0].value.last_update_id);
-                    if (!isNaN(savedId) && savedId > lastUpdateId) {
-                        lastUpdateId = savedId;
-                    }
-                }
-            } catch (_) {}
+            await new Promise(r => setTimeout(r, 8000));
+            continue;
         }
+
+        // Leader instance keeps latest update ID synchronized from Supabase
+        try {
+            const lastUpdRes = await supabaseRequest('/current_state?area=eq.telegram_sync&key=eq.telegram_last_update_id', 'GET');
+            if (lastUpdRes && lastUpdRes[0] && lastUpdRes[0].value && lastUpdRes[0].value.last_update_id) {
+                const savedId = Number(lastUpdRes[0].value.last_update_id);
+                if (!isNaN(savedId) && savedId > lastUpdateId) {
+                    lastUpdateId = savedId;
+                }
+            }
+        } catch (_) {}
         try {
             const allowed = encodeURIComponent(JSON.stringify([
                 "message",
@@ -6254,8 +6329,9 @@ Tone & Guidelines:
                         try {
                             const json = JSON.parse(data);
                             if (res.statusCode === 409) {
-                                console.warn('[Telegram Bridge] Polling conflict (409): Another instance is polling. Backing off 5s...');
-                                return resolve({ conflict: true, backoffMs: 5000, updates: [] });
+                                const jitterMs = 4000 + Math.floor(Math.random() * 4000);
+                                console.warn(`[Telegram Bridge] Polling conflict (409): Another instance is polling. Backing off ${jitterMs}ms...`);
+                                return resolve({ conflict: true, backoffMs: jitterMs, updates: [] });
                             }
                             if (res.statusCode === 429) {
                                 const retryAfter = (json.parameters && json.parameters.retry_after) || 15;
@@ -6293,14 +6369,15 @@ Tone & Guidelines:
                 if (update.update_id > lastUpdateId) {
                     lastUpdateId = update.update_id;
                     // Persist latest update_id to Supabase asynchronously
-                    supabaseRequest('/current_state', 'POST', {
-                        area: 'telegram_sync',
-                        key: 'telegram_last_update_id',
+                    supabaseRequest('/current_state?area=eq.telegram_sync&key=eq.telegram_last_update_id', 'PATCH', {
                         value: { last_update_id: lastUpdateId, updated_at: new Date().toISOString() },
-                        status: 'active'
+                        updated_at: new Date().toISOString()
                     }).catch(() => {
-                        supabaseRequest('/current_state?key=eq.telegram_last_update_id', 'PATCH', {
-                            value: { last_update_id: lastUpdateId, updated_at: new Date().toISOString() }
+                        supabaseRequest('/current_state', 'POST', {
+                            area: 'telegram_sync',
+                            key: 'telegram_last_update_id',
+                            value: { last_update_id: lastUpdateId, updated_at: new Date().toISOString() },
+                            status: 'active'
                         }).catch(() => {});
                     });
 

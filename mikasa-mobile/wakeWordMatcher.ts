@@ -20,6 +20,7 @@ export function normalizeSpeechText(text: string): string {
   return text
     .trim()
     .toLowerCase()
+    .replace(/\b(?:mi\s+casa|micasa|mecasa)\b/gi, 'mikasa')
     .replace(/[^\w\s\u0980-\u09FF]/g, ' ') // Preserve alphanumeric & Bengali, strip commas/exclamations
     .replace(/\s+/g, ' ')
     .trim();
@@ -41,30 +42,27 @@ export function matchWakeWord(text: string): WakeWordResult {
     return { matched: false, rawText: raw, normalizedText: '', remainder: '' };
   }
 
-  for (const { trigger, regex } of WAKE_PATTERNS) {
-    const rawMatch = raw.match(regex);
-    if (rawMatch) {
-      const rawAfter = raw.slice(rawMatch[0].length).replace(/^[\s,.:;!?-]+/, '');
-      return {
-        matched: true,
-        trigger: trigger as 'hey mikasa' | 'mikasa',
-        rawText: raw,
-        normalizedText: normalized,
-        remainder: rawAfter
-      };
-    }
+  // Pattern 1: 'Hey Mikasa' (or 'Hi/Ei/Oi/Hello Mikasa', supports natural spoken prefixes)
+  const heyPattern = /(?:^|\b)(?:(?:uh|um|oh|yo|so|acha|arre|bolo|ei\s+je)\s+)?(?:hey|ay|ai|ei|oi|hi|hello)\s*[,.-]?\s*mikasa\b/i;
+  // Pattern 2: standalone 'Mikasa' or 'Ok Mikasa'
+  const mikasaPattern = /(?:^|\b)(?:(?:uh|um|oh|yo|so|acha|arre|bolo)\s+)?(?:ok\s+|okay\s+)?mikasa\b/i;
 
-    const normMatch = normalized.match(regex);
-    if (normMatch) {
-      const normAfter = normalized.slice(normMatch[0].length).replace(/^[\s,.:;!?-]+/, '');
-      return {
-        matched: true,
-        trigger: trigger as 'hey mikasa' | 'mikasa',
-        rawText: raw,
-        normalizedText: normalized,
-        remainder: normAfter
-      };
-    }
+  let match = normalized.match(heyPattern);
+  let trigger: 'hey mikasa' | 'mikasa' = 'hey mikasa';
+  if (!match) {
+    match = normalized.match(mikasaPattern);
+    trigger = 'mikasa';
+  }
+
+  if (match && typeof match.index === 'number') {
+    const after = normalized.slice(match.index + match[0].length).replace(/^[\s,.:;!?-]+/, '');
+    return {
+      matched: true,
+      trigger,
+      rawText: raw,
+      normalizedText: normalized,
+      remainder: after
+    };
   }
 
   return {

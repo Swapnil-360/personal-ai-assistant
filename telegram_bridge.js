@@ -837,7 +837,7 @@ function callSingleGeminiTranscription(model, audioBuffer, cleanMime, apiKey) {
                         }
                     },
                     {
-                        text: 'Listen to this voice message from Commander Swapnil. Transcribe what he said verbatim. If he speaks in Bengali or Banglish, transcribe it accurately in Banglish or Bengali as spoken. If there is no speech, silence, background noise, or unintelligible audio, respond with NOTHING (an empty string). Return ONLY the transcribed speech verbatim with no explanations, notes, conversational filler, or formatting.'
+                        text: 'Listen to this voice message from Commander Swapnil. Transcribe what he said verbatim. If he speaks in Bengali or Banglish, transcribe it accurately in Banglish or Bengali as spoken. Assistant wake-word hint: The assistant name is "Mikasa" (e.g., "Hey Mikasa", "Mikasa", "Ei Mikasa"). Always transcribe this name as "Mikasa" (never "Micasa" or "Mi casa"). If there is no speech, silence, background noise, or unintelligible audio, respond with NOTHING (an empty string). Return ONLY the transcribed speech verbatim with no explanations, notes, conversational filler, or formatting.'
                     }
                 ]
             }
@@ -2808,8 +2808,11 @@ Output strictly raw JSON array. No markdown code blocks, no backticks, no extra 
 
     // 3. Episodic Relational Memory Graph Extraction (Autonomous Background Learning)
     try {
-        const { extractFromRecentTurnsAsync } = require('./memory_graph_engine');
-        extractFromRecentTurnsAsync(conversationId, `User: ${userMessage}\nMikasa: ${assistantReply || ''}`);
+        const q = getGeminiQuotaStatus();
+        if (!q.is_cooldown && q.remaining_this_minute > 5) {
+            const { extractFromRecentTurnsAsync } = require('./memory_graph_engine');
+            extractFromRecentTurnsAsync(conversationId, `User: ${userMessage}\nMikasa: ${assistantReply || ''}`);
+        }
     } catch (_) {}
 }
 

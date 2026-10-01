@@ -12,6 +12,7 @@ import {
   Dimensions,
   Platform,
   KeyboardAvoidingView,
+  Keyboard,
   Alert,
   Modal,
   Switch,
@@ -394,6 +395,27 @@ export default function App() {
   const [isChatSearchOpen, setIsChatSearchOpen] = useState(false);
   const [pendingAttachment, setPendingAttachment] = useState<PendingAttachment | null>(null);
   const chatScrollRef = useRef<ScrollView>(null);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => {
+        setIsKeyboardVisible(true);
+        if (navTab === 'chat') {
+          setTimeout(() => chatScrollRef.current?.scrollToEnd({ animated: true }), 100);
+        }
+      }
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setIsKeyboardVisible(false)
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, [navTab]);
 
   // Tool Execution Card Overlay
   const [isExecuting, setIsExecuting] = useState(false);
@@ -642,7 +664,11 @@ export default function App() {
 
   const safeResetAudioRecorder = async () => {
     try {
-      await audioRecorder.stop();
+      const st = audioRecorder.getStatus();
+      if (st?.isRecording) {
+        await audioRecorder.stop();
+        await new Promise(r => setTimeout(r, 60));
+      }
     } catch (e) {}
     isRecordingAudioRef.current = false;
     isAmbientListeningRef.current = false;
@@ -666,23 +692,39 @@ export default function App() {
 
     isAmbientStartingRef.current = true;
     try {
-      // Ensure any previously active or lingering session is completely stopped & released
-      await safeResetAudioRecorder();
-      await new Promise(r => setTimeout(r, 60));
-
       await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
-      await audioRecorder.prepareToRecordAsync({
-        ...RecordingPresets.HIGH_QUALITY,
-        isMeteringEnabled: true
-      });
+
+      // Check current recorder state before blindly preparing
+      let st: any = null;
+      try { st = audioRecorder.getStatus(); } catch (_) {}
+
+      if (st?.isRecording) {
+        try { await audioRecorder.stop(); } catch (_) {}
+        await new Promise(r => setTimeout(r, 60));
+      }
+
+      // If already prepared (canRecord is true), we can record directly!
+      // Otherwise call prepareToRecordAsync()
+      let freshSt: any = null;
+      try { freshSt = audioRecorder.getStatus(); } catch (_) {}
+
+      if (!freshSt?.canRecord) {
+        await audioRecorder.prepareToRecordAsync({
+          ...RecordingPresets.HIGH_QUALITY,
+          isMeteringEnabled: true
+        });
+      }
+
       audioRecorder.record();
       isRecordingAudioRef.current = true;
       isAmbientListeningRef.current = true;
     } catch (err: any) {
       console.warn('[Ambient Record Start Error]:', err?.message || err);
-      await safeResetAudioRecorder();
+      try { await audioRecorder.stop(); } catch (_) {}
+      isRecordingAudioRef.current = false;
+      isAmbientListeningRef.current = false;
       clearTimeout(ambientCycleTimerRef.current);
-      ambientCycleTimerRef.current = setTimeout(runAmbientListeningCycle, 1000);
+      ambientCycleTimerRef.current = setTimeout(runAmbientListeningCycle, 800);
       return;
     } finally {
       isAmbientStartingRef.current = false;
@@ -717,8 +759,8 @@ export default function App() {
       const now = Date.now();
       const elapsed = now - cycleStartTime;
 
-      // Realistic speech threshold: normal speech close to phone is -50dB to -35dB in Android MediaRecorder/iOS
-      const isVoiceLevel = hasValidMetering ? (metering > -50) : false;
+      // Realistic speech threshold: normal voice at 1-2ft distance is -58dB to -40dB
+      const isVoiceLevel = hasValidMetering ? (metering > -58) : false;
 
       if (isVoiceLevel) {
         if (!voiceDetected) {
@@ -733,7 +775,7 @@ export default function App() {
         const voiceDuration = now - voiceStartTime;
         const silenceAfterVoice = now - lastLoudTime;
 
-        if ((silenceAfterVoice >= 750 && voiceDuration >= 450) || voiceDuration >= 4000) {
+        if ((silenceAfterVoice >= 650 && voiceDuration >= 350) || voiceDuration >= 4000) {
           clearInterval(ambientVadIntervalRef.current);
           await processAmbientVoiceSnippet();
           return;
@@ -748,7 +790,8 @@ export default function App() {
           isAmbientListeningRef.current = false;
 
           if (isWakeWordEnabledRef.current && !isManualRecordingRef.current && !isSpeakingRef.current) {
-            setTimeout(runAmbientListeningCycle, 150);
+            clearTimeout(ambientCycleTimerRef.current);
+            ambientCycleTimerRef.current = setTimeout(runAmbientListeningCycle, 150);
           }
           return;
         } else if (!hasValidMetering && elapsed >= 2600) {
@@ -775,13 +818,19 @@ export default function App() {
     } catch (e) {}
 
     if (!audioUri) {
-      if (isWakeWordEnabledRef.current) setTimeout(runAmbientListeningCycle, 150);
+      if (isWakeWordEnabledRef.current) {
+        clearTimeout(ambientCycleTimerRef.current);
+        ambientCycleTimerRef.current = setTimeout(runAmbientListeningCycle, 150);
+      }
       return;
     }
 
     const base64Audio = await getBase64FromUri(audioUri);
     if (!base64Audio) {
-      if (isWakeWordEnabledRef.current) setTimeout(runAmbientListeningCycle, 150);
+      if (isWakeWordEnabledRef.current) {
+        clearTimeout(ambientCycleTimerRef.current);
+        ambientCycleTimerRef.current = setTimeout(runAmbientListeningCycle, 150);
+      }
       return;
     }
 
@@ -801,7 +850,10 @@ export default function App() {
 
       if (!transcribedQuery) {
         setSubStatusText('"Say \'Hey Mikasa\' or \'Mikasa\'"');
-        if (isWakeWordEnabledRef.current) setTimeout(runAmbientListeningCycle, 150);
+        if (isWakeWordEnabledRef.current) {
+          clearTimeout(ambientCycleTimerRef.current);
+          ambientCycleTimerRef.current = setTimeout(runAmbientListeningCycle, 150);
+        }
         return;
       }
 
@@ -829,13 +881,15 @@ export default function App() {
       } else {
         setSubStatusText('"Say \'Hey Mikasa\' or \'Mikasa\'"');
         if (isWakeWordEnabledRef.current) {
-          setTimeout(runAmbientListeningCycle, 200);
+          clearTimeout(ambientCycleTimerRef.current);
+          ambientCycleTimerRef.current = setTimeout(runAmbientListeningCycle, 200);
         }
       }
     } catch (err: any) {
       console.warn('[Ambient Voice Process Error]:', err?.message || err);
       if (isWakeWordEnabledRef.current) {
-        setTimeout(runAmbientListeningCycle, 1000);
+        clearTimeout(ambientCycleTimerRef.current);
+        ambientCycleTimerRef.current = setTimeout(runAmbientListeningCycle, 1000);
       }
     }
   };
@@ -846,10 +900,14 @@ export default function App() {
       await safeResetAudioRecorder();
       await new Promise(r => setTimeout(r, 60));
       await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
-      await audioRecorder.prepareToRecordAsync({
-        ...RecordingPresets.HIGH_QUALITY,
-        isMeteringEnabled: true
-      });
+
+      const freshSt = audioRecorder.getStatus();
+      if (!freshSt?.canRecord) {
+        await audioRecorder.prepareToRecordAsync({
+          ...RecordingPresets.HIGH_QUALITY,
+          isMeteringEnabled: true
+        });
+      }
       audioRecorder.record();
       isRecordingAudioRef.current = true;
 
@@ -2375,6 +2433,7 @@ export default function App() {
             {navTab === 'chat' && (
               <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
                 style={styles.chatTabScreen}
               >
                 {/* Telegram-style Top Header */}
@@ -2541,7 +2600,17 @@ export default function App() {
                     placeholderTextColor="#64748b"
                     value={chatInput}
                     onChangeText={setChatInput}
-                    onSubmitEditing={() => executeCommand(chatInput, 'chat')}
+                    multiline={true}
+                    returnKeyType="default"
+                    blurOnSubmit={false}
+                    onFocus={() => {
+                      setTimeout(() => chatScrollRef.current?.scrollToEnd({ animated: true }), 150);
+                    }}
+                    onSubmitEditing={() => {
+                      if (chatInput.trim().length > 0 || pendingAttachment) {
+                        executeCommand(chatInput, 'chat');
+                      }
+                    }}
                   />
 
                   {chatInput.trim().length > 0 || pendingAttachment ? (
@@ -3205,7 +3274,8 @@ export default function App() {
                 MAIN NAVIGATION BAR (Exact Match to Image-1)
                 5 Segmented Primary Tabs: Home | Chat | Actions | Memory | Profile
                 ======================================================== */}
-            <View style={styles.bottomNavBar}>
+            {(!isKeyboardVisible || navTab !== 'chat') && (
+              <View style={styles.bottomNavBar}>
               <TouchableOpacity
                 style={[styles.bottomNavBtn, navTab === 'home' && styles.bottomNavBtnActive]}
                 onPress={() => setNavTab('home')}
@@ -3261,6 +3331,7 @@ export default function App() {
                 </Text>
               </TouchableOpacity>
             </View>
+            )}
           </View>
         )}
 
@@ -4554,7 +4625,9 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 13,
     borderWidth: 1,
-    borderColor: '#252936'
+    borderColor: '#252936',
+    maxHeight: 110,
+    minHeight: 38
   },
   chatSendBtn: {
     width: 36,

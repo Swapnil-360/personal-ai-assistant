@@ -1295,9 +1295,20 @@ const server = http.createServer(async (req, res) => {
                 return sendJson(res, 400, { error: 'No voice audio or query text provided' });
             }
 
-            // Standalone Wake-Word Fast Path ("Hey Mikasa", "Mikasa")
-            const normalizedWakeText = userQuery.toLowerCase().replace(/[^\w\s]/g, '').trim();
-            if (normalizedWakeText === 'hey mikasa' || normalizedWakeText === 'mikasa' || normalizedWakeText === 'hello mikasa' || normalizedWakeText === 'hi mikasa') {
+            // Standalone Wake-Word Fast Path ("Hey Mikasa", "Mikasa", "Micasa", etc.)
+            const normalizedWakeText = userQuery.toLowerCase()
+                .replace(/\b(?:mi\s+casa|micasa|mecasa)\b/gi, 'mikasa')
+                .replace(/[^\w\s]/g, '')
+                .trim();
+            if (
+                normalizedWakeText === 'hey mikasa' ||
+                normalizedWakeText === 'mikasa' ||
+                normalizedWakeText === 'hello mikasa' ||
+                normalizedWakeText === 'hi mikasa' ||
+                normalizedWakeText === 'ei mikasa' ||
+                normalizedWakeText === 'ok mikasa' ||
+                normalizedWakeText === 'okay mikasa'
+            ) {
                 return sendJson(res, 200, {
                     success: true,
                     transcription: userQuery,
@@ -1309,8 +1320,14 @@ const server = http.createServer(async (req, res) => {
             }
 
             // If user said "Hey Mikasa, <command>", strip the wake word prefix so agent focuses on the command
-            if (normalizedWakeText.startsWith('hey mikasa ') || normalizedWakeText.startsWith('mikasa ')) {
-                userQuery = userQuery.replace(/^(?:hey\s+)?mikasa[\s,!:?]+/i, '').trim();
+            if (
+                normalizedWakeText.startsWith('hey mikasa ') ||
+                normalizedWakeText.startsWith('mikasa ') ||
+                normalizedWakeText.startsWith('ei mikasa ') ||
+                normalizedWakeText.startsWith('hi mikasa ') ||
+                normalizedWakeText.startsWith('ok mikasa ')
+            ) {
+                userQuery = userQuery.replace(/^(?:(?:uh|um|oh|yo|so|acha|arre|bolo|ei\s+je)\s+)?(?:hey|ay|ai|ei|oi|hi|hello|ok|okay)?\s*[,.-]?\s*(?:mikasa|micasa|mi\s+casa|mecasa)[\s,!:?]+/i, '').trim();
             }
 
             // Check direct device control shortcuts in voice query

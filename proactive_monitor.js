@@ -175,11 +175,26 @@ async function runMorningBriefing(commanderChatIds, sendTelegramMessage, force =
                 }
             } catch (e) {}
 
+            // 6. Gather Today's BUBT Class Routine
+            let classSummary = '';
+            try {
+                const { BUBT_CLASS_ROUTINE } = require('./actions_handler');
+                const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+                const dayName = days[new Date().getDay()];
+                const todayClasses = BUBT_CLASS_ROUTINE[dayName] || [];
+                if (todayClasses.length > 0) {
+                    classSummary = todayClasses.map(c => `• *${c.course}* (${c.time}) — Room \`${c.room}\` [${c.faculty}]`).join('\n');
+                } else {
+                    classSummary = `• No classes today! Dedicated Deep Work & Builder block. 🚀`;
+                }
+            } catch (_) {}
+
             const sitrepLines = [
                 "Good morning, Swapnil! ☀️ Hope you had a restful sleep. 🧣",
                 "─────────────────────────",
                 `🌤️ *Weather in Dhaka:* ${weatherSummary}`,
                 "",
+                classSummary ? `📚 *BUBT Class Schedule:* \n${classSummary}\n` : "",
                 prayerSummary ? `🕌 *Namaz Schedule:* \n${prayerSummary}\n` : "",
                 "🎯 *Your Agenda & Active Tasks:*",
                 tasksSummary,

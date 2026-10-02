@@ -984,6 +984,101 @@ async function generateLinkedInJobRadar(roleOrQuery = null, targetLocation = 'Dh
     };
 }
 
+// 9E. BUBT Fall 2026 Master Class Routine & Schedule
+const BUBT_CLASS_ROUTINE = {
+    monday: [
+        { course: 'CSE 467', title: 'Advanced Database Systems', time: '01:15 PM – 02:45 PM', room: '2909', faculty: 'SHD', intake: '51-2', type: 'Theory' },
+        { course: 'CSE 478', title: 'Lab / Sessional', time: '02:45 PM – 04:15 PM', room: '2517', faculty: 'TAB', intake: '51-2', type: 'Lab' },
+        { course: 'CSE 478', title: 'Lab / Sessional (Continued)', time: '04:15 PM – 05:45 PM', room: '2517', faculty: 'TAB', intake: '51-2', type: 'Lab' }
+    ],
+    tuesday: [
+        { course: 'STA 231', title: 'Statistics & Probability', time: '11:15 AM – 12:45 PM', room: '2319', faculty: 'JS', intake: '51-23', type: 'Theory' },
+        { course: 'CSE 465', title: 'Web Engineering / Systems', time: '02:45 PM – 04:15 PM', room: '2909', faculty: 'FJA', intake: '51-2', type: 'Theory' },
+        { course: 'CSE 477', title: 'Elective / Advanced CSE', time: '04:15 PM – 05:45 PM', room: '2909', faculty: 'TAB', intake: '51-2', type: 'Theory' }
+    ],
+    wednesday: [
+        { course: 'STA 231', title: 'Statistics & Probability', time: '11:15 AM – 12:45 PM', room: '2317', faculty: 'JS', intake: '51-23', type: 'Theory' },
+        { course: 'CSE 465', title: 'Web Engineering / Systems', time: '01:15 PM – 02:45 PM', room: '2909', faculty: 'FJA', intake: '51-2', type: 'Theory' },
+        { course: 'CSE 477', title: 'Elective / Advanced CSE', time: '02:45 PM – 04:15 PM', room: '2909', faculty: 'TAB', intake: '51-2', type: 'Theory' },
+        { course: 'CSE 467', title: 'Advanced Database Systems', time: '04:15 PM – 05:45 PM', room: '2909', faculty: 'SHD', intake: '51-2', type: 'Theory' }
+    ],
+    thursday: [],
+    friday: [],
+    saturday: [],
+    sunday: []
+};
+
+function formatClassRoutineBriefing(dayOrTarget = 'today') {
+    const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const now = new Date();
+    let targetDay = days[now.getDay()];
+
+    if (dayOrTarget === 'tomorrow') {
+        targetDay = days[(now.getDay() + 1) % 7];
+    } else if (typeof dayOrTarget === 'string' && days.includes(dayOrTarget.toLowerCase().trim())) {
+        targetDay = dayOrTarget.toLowerCase().trim();
+    }
+
+    const classes = BUBT_CLASS_ROUTINE[targetDay] || [];
+    const dayCapitalized = targetDay.charAt(0).toUpperCase() + targetDay.slice(1);
+
+    if (classes.length === 0) {
+        return [
+            `📚 *BUBT Class Routine — ${dayCapitalized}* 🧣✨`,
+            `━━━━━━━━━━━━━━━━━━━━━━━━━`,
+            `🎉 *No classes scheduled for ${dayCapitalized}!*`,
+            ``,
+            `_Today is one of your 4 dedicated Deep Work & Building blocks (Thu, Fri, Sat, Sun)._`,
+            `_Full autonomy to build products, code Stark-OS, and make progress on research!_ ⚔️`
+        ].join('\n');
+    }
+
+    const classLines = classes.map((c) => {
+        return `• *${c.course}* (${c.time})\n  🏛️ Room: \`${c.room}\` | 👨‍🏫 Faculty: \`${c.faculty}\` (${c.type})`;
+    }).join('\n\n');
+
+    return [
+        `📚 *BUBT Class Routine — ${dayCapitalized}* 🧣✨`,
+        `━━━━━━━━━━━━━━━━━━━━━━━━━`,
+        classLines,
+        ``,
+        `_Campus: BUBT (Intake 51). Stay sharp and conquer your classes today, Commander!_ ⚔️`
+    ].join('\n');
+}
+
+async function getTailoredLinkedInJobs(roleQuery = null, location = 'Dhaka') {
+    const defaultKeywords = 'Frontend Developer React Next.js';
+    const cleanQuery = roleQuery ? roleQuery.trim() : defaultKeywords;
+    
+    let jobs = await fetchLiveLinkedInJobs({
+        keywords: cleanQuery,
+        location: location,
+        limit: 5
+    });
+
+    if (!jobs || jobs.length === 0) {
+        jobs = await fetchLiveLinkedInJobs({
+            keywords: cleanQuery,
+            location: 'Bangladesh',
+            limit: 5
+        });
+    }
+
+    if (!jobs || jobs.length === 0) {
+        jobs = await fetchLiveLinkedInJobs({
+            keywords: cleanQuery,
+            isRemote: true,
+            limit: 5
+        });
+    }
+
+    return {
+        query: cleanQuery,
+        location,
+        jobs: jobs || []
+    };
+}
+
 // 9B. Live Crypto Sourcing & Discovery Radar (PATHS Web3 Ecosystem)
 async function fetchCryptoSourcingRadar(filterQuery = null, limit = 8) {
     function fetchJson(url) {
@@ -1556,6 +1651,119 @@ async function handleActionIntent(message, context = { isCommander: true }) {
             };
         } catch (pErr) {
             console.warn('[Prayer Intent Error]:', pErr.message);
+        }
+    }
+
+    // 0D. BUBT Class Routine Intent
+    const isClassRoutineQuery = 
+        text.match(/\b(?:class|classes|routine)\b/i) &&
+        (text.match(/\b(?:ajke|today|kal|tomorrow|sombar|monday|mongolbar|tuesday|budhbar|wednesday|bubt|schedule|intake)\b/i) || text.match(/\b(?:class\s+routine|ajker\s+class|kobe\s+class|kon\s+class)\b/i));
+
+    if (isClassRoutineQuery) {
+        let dayTarget = 'today';
+        if (text.match(/\b(?:kal|tomorrow|agamikal)\b/i)) dayTarget = 'tomorrow';
+        else if (text.match(/\b(?:sombar|monday)\b/i)) dayTarget = 'monday';
+        else if (text.match(/\b(?:mongolbar|tuesday)\b/i)) dayTarget = 'tuesday';
+        else if (text.match(/\b(?:budhbar|wednesday)\b/i)) dayTarget = 'wednesday';
+        else if (text.match(/\b(?:brihospotibar|thursday)\b/i)) dayTarget = 'thursday';
+        else if (text.match(/\b(?:shukrobar|friday)\b/i)) dayTarget = 'friday';
+        else if (text.match(/\b(?:shonibar|saturday)\b/i)) dayTarget = 'saturday';
+        else if (text.match(/\b(?:robibar|sunday)\b/i)) dayTarget = 'sunday';
+
+        const feedback = formatClassRoutineBriefing(dayTarget);
+        return {
+            action: 'class_routine',
+            success: true,
+            feedback
+        };
+    }
+
+    // 0E. Music Playback Intent
+    const isPlayMusicQuery = 
+        text.match(/^(?:please\s+)?(?:play|chalao|bajao)\s+(?:some\s+)?(?:music|song|lofi|lo-fi|track|gan|audio)\b/i) ||
+        text.match(/^(?:please\s+)?play\s+(.+)$/i);
+
+    if (isPlayMusicQuery) {
+        let trackQuery = 'lofi hip hop radio beats to relax study to';
+        if (isPlayMusicQuery[1]) {
+            const rawTrack = isPlayMusicQuery[1].trim();
+            if (!rawTrack.match(/^(?:some\s+)?(?:music|song|gan)$/i)) {
+                trackQuery = rawTrack;
+            }
+        }
+
+        const ytUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(trackQuery)}`;
+        const spotifyUrl = `https://open.spotify.com/search/${encodeURIComponent(trackQuery)}`;
+
+        try {
+            const { openBrowserUrl, controlMedia } = require('./local_pc_bridge');
+            openBrowserUrl(ytUrl);
+            controlMedia('play_pause');
+        } catch (_) {}
+
+        return {
+            action: 'play_music',
+            success: true,
+            query: trackQuery,
+            feedback: [
+                `🎵 *Playing Music for You, Swapnil!* 🧣✨`,
+                `━━━━━━━━━━━━━━━━━━━━━━━━━`,
+                `🎶 *Track / Ambience:* *"${trackQuery}"*`,
+                ``,
+                `_Dispatched to your browser & media controls on Swapnil-PC._`,
+                `_Tap below to open directly on YouTube or Spotify:_`
+            ].join('\n'),
+            replyMarkup: {
+                inline_keyboard: [
+                    [
+                        { text: "▶️ Open on YouTube", url: ytUrl },
+                        { text: "🟢 Open on Spotify", url: spotifyUrl }
+                    ]
+                ]
+            }
+        };
+    }
+
+    // 0F. LinkedIn Job Search Intent (with direct apply links)
+    const isJobSearchQuery = 
+        text.match(/\b(?:job|jobs|hiring|opening|openings|vacancy)\b/i) &&
+        (text.match(/\b(?:linkedin|apply|link|links|dao|search|give|find|khoj|khujo)\b/i) || text.match(/\b(?:frontend|product|builder|developer|react|next\.?js)\b/i));
+
+    if (isJobSearchQuery) {
+        let role = 'Frontend Developer React Next.js';
+        if (text.match(/product\s*(?:designer|builder)/i)) role = 'Product Designer Builder';
+        else if (text.match(/full\s*stack/i)) role = 'Full Stack Developer Next.js';
+        else if (text.match(/ai\s*(?:engineer|automation)/i)) role = 'AI Automation Developer';
+
+        let loc = 'Dhaka';
+        if (text.match(/remote/i)) loc = 'remote';
+
+        try {
+            const result = await getTailoredLinkedInJobs(role, loc);
+            const jobs = result.jobs || [];
+
+            if (jobs.length > 0) {
+                const jobList = jobs.map((j, i) => {
+                    return `💼 *${i + 1}. ${j.title}*\n🏢 Company: *${j.company}*\n📍 Location: ${j.location} (${j.posted})\n🔗 [Direct Apply Link](${j.url})`;
+                }).join('\n\n');
+
+                return {
+                    action: 'linkedin_jobs',
+                    success: true,
+                    feedback: [
+                        `💼 *Tailored LinkedIn Jobs for Swapnil* 🧣✨`,
+                        `━━━━━━━━━━━━━━━━━━━━━━━━━`,
+                        `🎯 *Profile Matched:* Product Designer & Builder / Frontend (Next.js & React)`,
+                        `📍 *Location:* ${loc.toUpperCase()}`,
+                        ``,
+                        jobList,
+                        ``,
+                        `_Click any direct link above to open and apply on LinkedIn. Ready whenever you are to draft a custom cover letter or recruiter pitch!_ ⚔️`
+                    ].join('\n')
+                };
+            }
+        } catch (jErr) {
+            console.warn('[Job Search Intent Error]:', jErr.message);
         }
     }
 
@@ -2575,6 +2783,9 @@ module.exports = {
     evaluatePortfolioRelevance,
     PATHS_MEMORY_CATEGORIES,
     PROJECTS,
+    BUBT_CLASS_ROUTINE,
+    formatClassRoutineBriefing,
+    getTailoredLinkedInJobs,
     supabaseRequest,
     getSupabaseKey: () => (getEnv('SUPABASE_KEY') || getEnv('SUPABASE_SERVICE_ROLE_KEY') || process.env.SUPABASE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || supabaseKey)
 };

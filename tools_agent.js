@@ -205,6 +205,52 @@ const MIKASA_TOOL_DECLARATIONS = [
             },
             required: []
         }
+    },
+    {
+        name: 'get_class_routine',
+        description: 'Get Swapnil\'s BUBT undergraduate class schedule for today, tomorrow, or a specific day of the week (Monday to Wednesday has classes; Thursday to Sunday are deep work days).',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                day: {
+                    type: 'STRING',
+                    description: 'The day to inspect: "today", "tomorrow", "monday", "tuesday", "wednesday", etc.'
+                }
+            },
+            required: []
+        }
+    },
+    {
+        name: 'find_linkedin_jobs',
+        description: 'Fetch real-time live LinkedIn job postings matching Swapnil\'s profile (Product Designer & Builder, Frontend Developer, React, Next.js, AI) with direct apply links.',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                role: {
+                    type: 'STRING',
+                    description: 'Optional role query (e.g. "Frontend Developer", "Product Builder", "React Developer").'
+                },
+                location: {
+                    type: 'STRING',
+                    description: 'Location to search (e.g. "Dhaka", "Bangladesh", "remote").'
+                }
+            },
+            required: []
+        }
+    },
+    {
+        name: 'play_music',
+        description: 'Play music, lo-fi beats, or a specific song on Swapnil\'s local PC browser and provide direct playback links.',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                query: {
+                    type: 'STRING',
+                    description: 'Song name, artist, genre, or ambience (e.g. "lofi", "starboy", "attack on titan soundtrack").'
+                }
+            },
+            required: []
+        }
     }
 ];
 
@@ -488,6 +534,45 @@ async function executeLocalTool(toolName, args = {}, userContext = {}) {
                     next_waqt: nextInfo.nextWaqt,
                     next_waqt_time: nextInfo.nextWaqtTime,
                     minutes_until_next: nextInfo.minutesUntilNext
+                };
+            }
+
+            case 'get_class_routine': {
+                const { formatClassRoutineBriefing } = require('./actions_handler');
+                const day = (args.day || 'today').toLowerCase().trim();
+                const briefing = formatClassRoutineBriefing(day);
+                return {
+                    day_requested: day,
+                    briefing
+                };
+            }
+
+            case 'find_linkedin_jobs': {
+                const { getTailoredLinkedInJobs } = require('./actions_handler');
+                const result = await getTailoredLinkedInJobs(args.role || 'Frontend Developer React Next.js', args.location || 'Dhaka');
+                return {
+                    role: result.query,
+                    location: result.location,
+                    total_jobs_found: (result.jobs || []).length,
+                    jobs: result.jobs || []
+                };
+            }
+
+            case 'play_music': {
+                const query = (args.query || 'lofi hip hop beats').trim();
+                const ytUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
+                const spotifyUrl = `https://open.spotify.com/search/${encodeURIComponent(query)}`;
+                try {
+                    const { openBrowserUrl, controlMedia } = require('./local_pc_bridge');
+                    openBrowserUrl(ytUrl);
+                    controlMedia('play_pause');
+                } catch (_) {}
+                return {
+                    action: 'play_music',
+                    query,
+                    youtube_url: ytUrl,
+                    spotify_url: spotifyUrl,
+                    status: 'dispatched_to_browser'
                 };
             }
 

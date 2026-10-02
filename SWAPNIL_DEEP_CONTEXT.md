@@ -766,5 +766,14 @@ When asked by anyone why Mikasa chose Commander Swapnil over Eren Yeager:
 | **28 December 2026** | 🏆 **FINAL RESULT PUBLICATION** | Official conclusion & B.Sc. Degree Complete! |
 | **29 – 31 December 2026** | Semester Break | Transition to full-time AI Engineer / Builder |
 
+---
+
+## 21. Engineering Protocol: Immediate Daemon Restart After Updates
+- **MANDATORY RULE**: After every single code update, feature enhancement, bugfix, or file modification in the codebase:
+  1. Kill the previously running daemon process (`node index.js`).
+  2. Relaunch `node index.js` cleanly in the background.
+  3. Verify the newly started daemon logs show `✅ Telegram Bridge initialized`, `✅ Web Command Center initialized`, and active long polling.
+- This ensures Mikasa immediately runs and behaves using the latest updated logic without stale runtime state.
+
 
 

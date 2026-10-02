@@ -32,7 +32,8 @@ const {
     getRecentAuditLogs,
     storeMemoryWithConflictResolution,
     evaluatePortfolioRelevance,
-    supabaseRequest
+    supabaseRequest,
+    getSupabaseKey
 } = require('./actions_handler');
 const {
     publishToLinkedIn,
@@ -95,8 +96,8 @@ function getEnv(key) {
     return null;
 }
 
-const BOT_TOKEN = getEnv('TELEGRAM_BOT_TOKEN') || '8896311503:AAFYL13XCbGV0T8BK94p2FoDfMgSNkUZTSc';
-const BOT_ID = BOT_TOKEN ? parseInt(BOT_TOKEN.split(':')[0]) : null;
+let BOT_TOKEN = getEnv('TELEGRAM_BOT_TOKEN') || process.env.TELEGRAM_BOT_TOKEN || null;
+let BOT_ID = BOT_TOKEN ? parseInt(BOT_TOKEN.split(':')[0]) : null;
 const N8N_WEBHOOK_URL = getEnv('N8N_WEBHOOK_URL') || 'http://localhost:5678/webhook/swapnil-ai';
 const MEMORY_WEBHOOK_URL = getEnv('MEMORY_WEBHOOK_URL') || 'http://localhost:5678/webhook/extract-memory';
 const SWAPNIL_USER_ID = Number(getEnv('SWAPNIL_USER_ID')) || 7112137739;
@@ -3626,6 +3627,32 @@ async function checkIsLocalActive() {
     return false;
 }
 
+// Reliable sync state upsert that handles missing rows and conflicts
+async function upsertSyncState(area, key, value) {
+    try {
+        const patchRes = await supabaseRequest(`/current_state?area=eq.${encodeURIComponent(area)}&key=eq.${encodeURIComponent(key)}`, 'PATCH', {
+            value,
+            updated_at: new Date().toISOString()
+        });
+        if (Array.isArray(patchRes) && patchRes.length > 0) {
+            return patchRes;
+        }
+        return await supabaseRequest('/current_state', 'POST', {
+            area,
+            key,
+            value,
+            status: 'active'
+        });
+    } catch (e) {
+        return await supabaseRequest('/current_state', 'POST', {
+            area,
+            key,
+            value,
+            status: 'active'
+        }).catch(() => null);
+    }
+}
+
 // Distributed Leader Lease: guarantees exactly ONE instance polls Telegram across Local PC, Render, and Railway
 async function acquireOrRenewPollerLease() {
     try {
@@ -3635,15 +3662,12 @@ async function acquireOrRenewPollerLease() {
 
         // 1. Local PC ALWAYS has absolute top priority
         if (IS_LOCAL_PC) {
-            await supabaseRequest('/current_state?area=eq.telegram_sync&key=eq.telegram_poller_lease', 'PATCH', {
-                value: {
-                    leader_id: INSTANCE_ID,
-                    role: 'local_pc',
-                    hostname: os.hostname(),
-                    expires_at: now + 15000
-                },
-                updated_at: new Date().toISOString()
-            }).catch(() => {});
+            await upsertSyncState('telegram_sync', 'telegram_poller_lease', {
+                leader_id: INSTANCE_ID,
+                role: 'local_pc',
+                hostname: os.hostname(),
+                expires_at: now + 20000
+            });
             isCurrentLeader = true;
             return true;
         }
@@ -3666,15 +3690,12 @@ async function acquireOrRenewPollerLease() {
         }
 
         // Claim or renew leadership lease
-        await supabaseRequest('/current_state?area=eq.telegram_sync&key=eq.telegram_poller_lease', 'PATCH', {
-            value: {
-                leader_id: INSTANCE_ID,
-                role: 'cloud',
-                hostname: os.hostname(),
-                expires_at: now + 15000
-            },
-            updated_at: new Date().toISOString()
-        }).catch(() => {});
+        await upsertSyncState('telegram_sync', 'telegram_poller_lease', {
+            leader_id: INSTANCE_ID,
+            role: 'cloud',
+            hostname: os.hostname(),
+            expires_at: now + 20000
+        });
         isCurrentLeader = true;
         return true;
     } catch (e) {
@@ -5359,13 +5380,17 @@ async function processUpdate(update) {
     if (text === '/login' || text === '/web' || text === '/auth') {
         await sendChatAction(chatId, 'typing');
         const tokenRes = await new Promise((resolve) => {
-            const payload = JSON.stringify({ email: 'miftahurr503@gmail.com', password: 'MikasaCommander360!' });
+            const cmdEmail = getEnv('COMMANDER_EMAIL') || process.env.COMMANDER_EMAIL || 'miftahurr503@gmail.com';
+            const cmdPass = getEnv('COMMANDER_PASSKEY') || process.env.COMMANDER_PASSKEY || 'MikasaCommander360!';
+            const supaKey = getEnv('SUPABASE_KEY') || getEnv('SUPABASE_SERVICE_ROLE_KEY') || process.env.SUPABASE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || (typeof getSupabaseKey === 'function' ? getSupabaseKey() : '');
+            const supaHost = (getEnv('SUPABASE_URL') || process.env.SUPABASE_URL || 'https://qjhrmctbrobpnoumzmju.supabase.co').replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+            const payload = JSON.stringify({ email: cmdEmail, password: cmdPass });
             const r = https.request({
-                hostname: 'qjhrmctbrobpnoumzmju.supabase.co',
+                hostname: supaHost,
                 path: '/auth/v1/token?grant_type=password',
                 method: 'POST',
                 headers: {
-                    'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqaHJtY3Ricm9icG5vdW16bWp1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTkxNTc3NywiZXhwIjoyMTA1NDkxNzc3fQ.0_xov-GTLYTFGnm_gXxO2lmS1w_9Kc-pnWc0-T17UJ8',
+                    'apikey': supaKey,
                     'Content-Type': 'application/json',
                     'Content-Length': Buffer.byteLength(payload)
                 }
@@ -6260,9 +6285,10 @@ Tone & Guidelines:
                     value: { active_at: null, source: 'local_pc' },
                     updated_at: new Date().toISOString()
                 });
-                await supabaseRequest('/current_state?area=eq.telegram_sync&key=eq.telegram_poller_lease', 'PATCH', {
-                    value: { role: 'standby', leader_id: null, expires_at: 0 },
-                    updated_at: new Date().toISOString()
+                await upsertSyncState('telegram_sync', 'telegram_poller_lease', {
+                    role: 'standby',
+                    leader_id: null,
+                    expires_at: 0
                 });
             } catch (e) {}
         };
@@ -6288,6 +6314,21 @@ Tone & Guidelines:
 
     while (isPolling) {
         lastPollAt = new Date().toISOString();
+
+        // Guard: ensure BOT_TOKEN is loaded before attempting any Telegram polling
+        if (!BOT_TOKEN) {
+            console.warn('[Telegram Bridge] BOT_TOKEN missing. Attempting runtime key reload from Supabase in 5s...');
+            await new Promise(r => setTimeout(r, 5000));
+            try {
+                const keyRows = await supabaseRequest('/current_state?area=eq.system_config&key=eq.api_keys', 'GET');
+                if (keyRows?.[0]?.value?.telegram_bot_token) {
+                    BOT_TOKEN = keyRows[0].value.telegram_bot_token;
+                    BOT_ID = parseInt(BOT_TOKEN.split(':')[0]);
+                    console.log('[Telegram Bridge] Securely loaded Telegram BOT_TOKEN from Supabase system_config.');
+                }
+            } catch (_) {}
+            continue;
+        }
 
         // Distributed Leader Lease:
         // Guarantees exactly ONE poller instance across Local PC, Render, and Railway
@@ -6372,17 +6413,10 @@ Tone & Guidelines:
                 if (update.update_id > lastUpdateId) {
                     lastUpdateId = update.update_id;
                     // Persist latest update_id to Supabase asynchronously
-                    supabaseRequest('/current_state?area=eq.telegram_sync&key=eq.telegram_last_update_id', 'PATCH', {
-                        value: { last_update_id: lastUpdateId, updated_at: new Date().toISOString() },
+                    upsertSyncState('telegram_sync', 'telegram_last_update_id', {
+                        last_update_id: lastUpdateId,
                         updated_at: new Date().toISOString()
-                    }).catch(() => {
-                        supabaseRequest('/current_state', 'POST', {
-                            area: 'telegram_sync',
-                            key: 'telegram_last_update_id',
-                            value: { last_update_id: lastUpdateId, updated_at: new Date().toISOString() },
-                            status: 'active'
-                        }).catch(() => {});
-                    });
+                    }).catch(() => {});
 
                     // Skip if already processed in this session (dedup guard)
                     if (processedUpdateIds.has(update.update_id)) {

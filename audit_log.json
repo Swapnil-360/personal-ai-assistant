@@ -1,5 +1,75 @@
 [
   {
+    "timestamp": "2026-10-01T20:00:23.481Z",
+    "user_request": "",
+    "agent_decision": "",
+    "tool_used": "",
+    "action_performed": "",
+    "data_affected": null,
+    "result": "Success",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-10-01T20:00:21.401Z",
+    "user_request": "",
+    "agent_decision": "",
+    "tool_used": "",
+    "action_performed": "",
+    "data_affected": null,
+    "result": "Success",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-10-01T16:17:56.273Z",
+    "user_request": "BUBT Fall 2026 payment deadlines and holidays",
+    "agent_decision": "Learned new [fact] memory; superseded 0 outdated memories",
+    "tool_used": "Supabase /memories",
+    "action_performed": "store_memory",
+    "data_affected": "c230f48f-c1e7-42bf-97a9-47d088b3fb89",
+    "result": "BUBT Fall 2026 Key Deadlines & Holidays: Parents Day is 03 October 2026. 2nd Installment payment (min 50% dues) is 13–22 October 2026. Durga Puja holiday is 21–22 October 2026. Final fee installment is 25 Nov – 10 Dec 2026 (late fee until 15 Dec 2026). Victory Day is 16 Dec 2026. Semester break is 2",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-10-01T16:17:54.363Z",
+    "user_request": "BUBT Fall 2026 Final Exam and B.Sc. result publication date",
+    "agent_decision": "Learned new [fact] memory; superseded 0 outdated memories",
+    "tool_used": "Supabase /memories",
+    "action_performed": "store_memory",
+    "data_affected": "fc2ac383-3e07-4785-a631-c906aa2efa61",
+    "result": "BUBT Fall 2026 Final Exams & Degree Completion: Last day of classes before finals is 15 December 2026. Final Examinations (Swapnil's final undergraduate exams) run from 17 December to 24 December 2026. Official Final Result Publication is 28 December 2026, marking the completion of his B.Sc. in CSE.",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-10-01T16:17:53.186Z",
+    "user_request": "BUBT Fall 2026 Midterm Exam Schedule",
+    "agent_decision": "Learned new [fact] memory; superseded 0 outdated memories",
+    "tool_used": "Supabase /memories",
+    "action_performed": "store_memory",
+    "data_affected": "55d7c4f4-3075-4a74-931d-affe45f98823",
+    "result": "BUBT Fall 2026 Midterm Exams Schedule: Preparatory leave is Friday, 23 October 2026. Midterm Examinations run from 24 October to 31 October 2026. Supplementary Midterms are 09–12 November 2026.",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-10-01T16:17:51.252Z",
+    "user_request": "it's my this semester academic calander if all recognible then I want to learn this to model so she know about it and after all of this my bsc will over means this is the last semester calander about my running semester",
+    "agent_decision": "Learned new [fact] memory; superseded 0 outdated memories",
+    "tool_used": "Supabase /memories",
+    "action_performed": "store_memory",
+    "data_affected": "77ded3c7-aa72-4084-8929-2320d1002afa",
+    "result": "BUBT Final Semester & B.Sc. Graduation: Fall 2026 (05 September 2026 – 31 December 2026) is Swapnil's final running undergraduate semester for his Bachelor of Science in Computer Science & Engineering (B.Sc. in CSE) at BUBT. Upon completion of this semester in December 2026, his B.Sc. degree will be",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-10-01T10:31:21.387Z",
+    "user_request": "Pc te, valorant kheli",
+    "agent_decision": "Learned new [preference] memory; superseded 0 outdated memories",
+    "tool_used": "Supabase /memories",
+    "action_performed": "store_memory",
+    "data_affected": "ba203376-2342-4298-ab56-c185b56317aa",
+    "result": "Swapnil plays Valorant on his PC.",
+    "verification_status": "verified"
+  },
+  {
     "timestamp": "2026-09-30T21:01:39.952Z",
     "user_request": "barcelonar match kobe ache",
     "agent_decision": "Learned new [preference] memory; superseded 0 outdated memories",

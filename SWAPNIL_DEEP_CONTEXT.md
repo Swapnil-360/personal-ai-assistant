@@ -11,7 +11,7 @@ Name: Md. Miftahur Rahman Swapnil
 Preferred name: Swapnil  
 Location context: Bangladesh / Dhaka  
 Education: Bachelor of Science in Computer Science & Engineering at BUBT  
-Current academic stage: Final running semester of B.Sc. (Fall 2026: 05 Sept – 31 Dec 2026) — B.Sc. Degree Complete December 2026!  
+Current academic stage: Final running semester of B.Sc. (Fall 2026: 05 Sept – 31 Dec 2026) — B.Sc. in CSE Degree Complete December 2026!  
 CGPA: 3.60 / 4.00  
 
 Current professional identity:

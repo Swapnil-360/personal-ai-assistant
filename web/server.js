@@ -30,7 +30,8 @@ const {
     fetchCryptoSourcingRadar,
     generateOptimizedPrompt,
     addNote,
-    supabaseRequest
+    supabaseRequest,
+    getSupabaseKey
 } = require('../actions_handler');
 const {
     publishPost,
@@ -70,7 +71,7 @@ const {
 
 const COMMANDER_EMAIL = process.env.COMMANDER_EMAIL || 'miftahurr503@gmail.com';
 const COMMANDER_PASSKEY = process.env.COMMANDER_PASSKEY || 'MikasaCommander360!';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqaHJtY3Ricm9icG5vdW16bWp1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTkxNTc3NywiZXhwIjoyMTA1NDkxNzc3fQ.0_xov-GTLYTFGnm_gXxO2lmS1w_9Kc-pnWc0-T17UJ8';
+const SUPABASE_KEY = process.env.SUPABASE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || (typeof getSupabaseKey === 'function' ? getSupabaseKey() : '');
 
 function getSessionUuid(id = 'web_commander') {
     if (!id || id === 'commander_session' || id === 'web_commander' || id === 'mobile_session' || id === 'generic_session') {

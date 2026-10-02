@@ -5,7 +5,22 @@ const path = require('path');
 const portfolioManager = require('./portfolio_manager');
 const { getLiveWeather, formatWeatherReport } = require('./weather_service');
 
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFqaHJtY3Ricm9icG5vdW16bWp1Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTkxNTc3NywiZXhwIjoyMTA1NDkxNzc3fQ.0_xov-GTLYTFGnm_gXxO2lmS1w_9Kc-pnWc0-T17UJ8';
+function getEnv(key) {
+    if (process.env[key]) return process.env[key];
+    try {
+        const envPath = path.join(__dirname, '.env');
+        if (fs.existsSync(envPath)) {
+            const content = fs.readFileSync(envPath, 'utf8');
+            const match = content.match(new RegExp(`^${key}=([^\\r\\n]+)`, 'm'));
+            if (match) return match[1].trim();
+        }
+    } catch (e) {}
+    return null;
+}
+
+const supabaseUrl = getEnv('SUPABASE_URL') || process.env.SUPABASE_URL || 'https://qjhrmctbrobpnoumzmju.supabase.co';
+const supabaseHost = supabaseUrl.replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+const supabaseKey = getEnv('SUPABASE_KEY') || getEnv('SUPABASE_SERVICE_ROLE_KEY') || process.env.SUPABASE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 const PROJECTS = [
     { id: 'b8e5c1d2-7a4f-4e9b-9c3a-1d5e7f8a9b0c', name: 'CurricuRAG', slug: 'curricurag' },
@@ -121,14 +136,15 @@ const AOT_DIALOGUES = [
 
 function supabaseRequest(path, method = 'GET', body = null, extraHeaders = {}) {
     return new Promise((resolve, reject) => {
+        const activeKey = getEnv('SUPABASE_KEY') || getEnv('SUPABASE_SERVICE_ROLE_KEY') || process.env.SUPABASE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || supabaseKey;
         const payload = body ? JSON.stringify(body) : null;
         const req = https.request({
-            hostname: 'qjhrmctbrobpnoumzmju.supabase.co',
+            hostname: supabaseHost,
             path: '/rest/v1' + path,
             method: method,
             headers: {
-                'apikey': supabaseKey,
-                'Authorization': `Bearer ${supabaseKey}`,
+                'apikey': activeKey,
+                'Authorization': `Bearer ${activeKey}`,
                 'Content-Type': 'application/json',
                 'Prefer': method === 'GET' ? 'count=none' : 'return=representation',
                 ...extraHeaders,
@@ -2536,5 +2552,6 @@ module.exports = {
     evaluatePortfolioRelevance,
     PATHS_MEMORY_CATEGORIES,
     PROJECTS,
-    supabaseRequest
+    supabaseRequest,
+    getSupabaseKey: () => (getEnv('SUPABASE_KEY') || getEnv('SUPABASE_SERVICE_ROLE_KEY') || process.env.SUPABASE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || supabaseKey)
 };

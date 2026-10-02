@@ -440,6 +440,13 @@ const server = http.createServer(async (req, res) => {
                 }).catch(() => {});
             });
 
+            try {
+                const { clearPrayerCache, getPrayerTimes } = require('../prayer_time_service');
+                clearPrayerCache();
+                const pt = await getPrayerTimes(locData);
+                locData.prayer_times = pt.timings12;
+            } catch (_) {}
+
             return sendJson(res, 200, { success: true, location: locData });
         }
 

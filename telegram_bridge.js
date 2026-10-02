@@ -3939,6 +3939,22 @@ async function handleCommanderLocation(chatId, lat, lon, messageId = null) {
         console.warn('[Location Save DB Error]:', dbErr.message);
     }
 
+    let prayerSection = '';
+    try {
+        const { clearPrayerCache, getPrayerTimes } = require('./prayer_time_service');
+        clearPrayerCache();
+        const pt = await getPrayerTimes({ city: locInfo.city, country: locInfo.country, latitude: lat, longitude: lon });
+        if (pt && pt.timings12) {
+            const t = pt.timings12;
+            prayerSection = [
+                `🕌 *Namaz Recalibrated for ${locInfo.city}:*`,
+                `🌅 Fajr: \`${t.Fajr}\` | ☀️ Dhuhr: \`${t.Dhuhr}\``,
+                `⛅ Asr: \`${t.Asr}\` | 🌇 Maghrib: \`${t.Maghrib}\` | 🌌 Isha: \`${t.Isha}\``,
+                ``
+            ].join('\n');
+        }
+    } catch (_) {}
+
     const replyMsg = [
         `📍 *Location Synchronized, Commander Swapnil!* 🧣✨`,
         `━━━━━━━━━━━━━━━━━━━━━━━━━`,
@@ -3946,8 +3962,9 @@ async function handleCommanderLocation(chatId, lat, lon, messageId = null) {
         `🌍 *Country:* ${locInfo.country}`,
         `🎯 *Coordinates:* \`${lat.toFixed(4)}° N, ${lon.toFixed(4)}° E\``,
         ``,
-        `_Real-time weather, situational alerts, and time awareness are calibrated to your coordinates. Wherever you go, I'm watching over you!_ ⚔️`
-    ].join('\n');
+        prayerSection,
+        `_Real-time weather, Namaz reminders, and situational awareness are dynamically calibrated to your coordinates. Wherever you go, I'm watching over you!_ ⚔️`
+    ].filter(Boolean).join('\n');
 
     await sendTelegramMessage(chatId, replyMsg, messageId);
 }

@@ -1536,6 +1536,29 @@ async function handleActionIntent(message, context = { isCommander: true }) {
         };
     }
 
+    // 0C. Namaz / Islamic Prayer Times Intent
+    const isNamazQuery = 
+        text.match(/\b(?:namaz|prayer|salat|salah)\b/i) ||
+        text.match(/\b(?:fajr|dhuhr|zuhr|johr|asr|maghrib|magrib|isha|esha)\s*(?:er\s+)?(?:time|kokhon|waqt|shomoy|schedule)?\b/i) ||
+        text.match(/\b(?:next|upcoming)\s*(?:prayer|namaz|waqt)\b/i) ||
+        text.match(/\b(?:ajker\s+)?namaz\s*(?:er\s+)?(?:shomoy|schedule|list|timing)\b/i);
+
+    if (isNamazQuery && !text.match(/\b(?:remind\s+me|reminder|alarm|mone\s+koriye)\b/i)) {
+        try {
+            const { getPrayerTimes, formatPrayerScheduleBriefing } = require('./prayer_time_service');
+            const prayerData = await getPrayerTimes();
+            const formatted = formatPrayerScheduleBriefing(prayerData);
+            return {
+                action: 'prayer_times',
+                success: true,
+                feedback: formatted,
+                prayerData
+            };
+        } catch (pErr) {
+            console.warn('[Prayer Intent Error]:', pErr.message);
+        }
+    }
+
     // 0B. Recall remembered post draft (e.g. "tell me which post I told you to remember and remind me ?")
     const isRecallPostQuery = (
         text.match(/\b(?:which|what|kono|kon)\s+(?:post|draft)\b.*\b(?:remember|mone|remind|bolsilam|told\s+you)\b/i) ||

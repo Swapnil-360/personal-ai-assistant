@@ -164,11 +164,23 @@ async function runMorningBriefing(commanderChatIds, sendTelegramMessage, force =
                 }
             } catch (e) {}
 
+            // 5. Gather Today's Namaz Times
+            let prayerSummary = '';
+            try {
+                const { getPrayerTimes } = require('./prayer_time_service');
+                const pt = await getPrayerTimes();
+                if (pt && pt.timings12) {
+                    const t = pt.timings12;
+                    prayerSummary = `• Fajr: \`${t.Fajr}\` | Dhuhr: \`${t.Dhuhr}\` | Asr: \`${t.Asr}\` | Maghrib: \`${t.Maghrib}\` | Isha: \`${t.Isha}\``;
+                }
+            } catch (e) {}
+
             const sitrepLines = [
                 "Good morning, Swapnil! ☀️ Hope you had a restful sleep. 🧣",
                 "─────────────────────────",
                 `🌤️ *Weather in Dhaka:* ${weatherSummary}`,
                 "",
+                prayerSummary ? `🕌 *Namaz Schedule:* \n${prayerSummary}\n` : "",
                 "🎯 *Your Agenda & Active Tasks:*",
                 tasksSummary,
                 "",
@@ -290,6 +302,66 @@ async function runLateNightCheck(commanderChatIds, sendTelegramMessage, sendTele
     }
 }
 
+async function runNamazReminders(commanderChatIds, sendTelegramMessage, claimEvent = null) {
+    const chatIds = resolveChatIds(commanderChatIds);
+    if (chatIds.length === 0) return;
+
+    try {
+        const { getPrayerTimes, generatePrePrayerAlert } = require('./prayer_time_service');
+        const prayerData = await getPrayerTimes();
+        if (!prayerData || !prayerData.timings24) return;
+
+        const { dateStr } = getDhakaDateAndParts();
+        const now = new Date();
+        const nowMs = now.getTime();
+
+        const prayers = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
+
+        for (const prayerName of prayers) {
+            const time24 = prayerData.timings24[prayerName];
+            if (!time24) continue;
+
+            const [hStr, mStr] = time24.split(':');
+            const h = parseInt(hStr, 10);
+            const m = parseInt(mStr, 10);
+
+            // Construct Waqt date today in Asia/Dhaka (UTC+6)
+            const year = now.getFullYear();
+            const month = now.getMonth();
+            const day = now.getDate();
+            const waqtDate = new Date(Date.UTC(year, month, day, h - 6, m, 0, 0));
+            const waqtMs = waqtDate.getTime();
+
+            const diffMinutes = Math.round((waqtMs - nowMs) / 60000);
+
+            // Trigger when between 10 and 15 minutes before Waqt start
+            if (diffMinutes >= 10 && diffMinutes <= 15) {
+                const claimKey = `namaz_pre_${dateStr}_${prayerName.toLowerCase()}`;
+                if (typeof claimEvent === 'function') {
+                    const claimed = await claimEvent(claimKey);
+                    if (!claimed) continue; // Already claimed/sent by another active instance
+                }
+
+                console.log(`[Proactive Monitor] 🕌 Dispatching 15-min Namaz reminder for ${prayerName} to ${chatIds.join(', ')}...`);
+                const formatted12 = prayerData.timings12[prayerName] || time24;
+                const alertMessage = generatePrePrayerAlert(prayerName, formatted12, prayerData.city || 'Dhaka');
+
+                for (const chatId of chatIds) {
+                    if (typeof sendTelegramMessage === 'function') {
+                        try {
+                            await sendTelegramMessage(chatId, alertMessage);
+                        } catch (err) {
+                            console.warn(`[Proactive Monitor] Failed sending namaz reminder to ${chatId}:`, err.message);
+                        }
+                    }
+                }
+            }
+        }
+    } catch (err) {
+        console.warn('[Proactive Monitor] Namaz reminder check error:', err.message);
+    }
+}
+
 function initProactiveMonitor(options = {}) {
     const {
         getCommanderChatId,
@@ -326,6 +398,7 @@ function initProactiveMonitor(options = {}) {
         await runBatteryCheck(chatIds, sendTelegramMessage, sendTelegramAudioBuffer);
         await runMorningBriefing(chatIds, sendTelegramMessage, false, claimEvent);
         await runLateNightCheck(chatIds, sendTelegramMessage, sendTelegramAudioBuffer, false, claimEvent, isLocalPcActive, generateLateNightMessage);
+        await runNamazReminders(chatIds, sendTelegramMessage, claimEvent);
     }, 60000);
 
     // Initial check after 10s
@@ -338,6 +411,7 @@ function initProactiveMonitor(options = {}) {
         }
         const chatIds = getTargetChatIds();
         await runBatteryCheck(chatIds, sendTelegramMessage, sendTelegramAudioBuffer);
+        await runNamazReminders(chatIds, sendTelegramMessage, claimEvent);
     }, 10000);
 
     return {
@@ -351,6 +425,10 @@ function initProactiveMonitor(options = {}) {
         triggerLateNightNow: async (chatId) => {
             const targets = chatId ? resolveChatIds(chatId) : getTargetChatIds();
             await runLateNightCheck(targets, sendTelegramMessage, sendTelegramAudioBuffer, true, null, null, generateLateNightMessage);
+        },
+        triggerNamazCheckNow: async (chatId) => {
+            const targets = chatId ? resolveChatIds(chatId) : getTargetChatIds();
+            await runNamazReminders(targets, sendTelegramMessage, null);
         }
     };
 }
@@ -359,5 +437,6 @@ module.exports = {
     initProactiveMonitor,
     runBatteryCheck,
     runMorningBriefing,
-    runLateNightCheck
+    runLateNightCheck,
+    runNamazReminders
 };

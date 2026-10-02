@@ -239,7 +239,48 @@ class RemindersManager {
             }
         }
 
-        // 0C. Calendar Date: "October 5 at 3pm", "5th October", "Sep 30 at 9pm"
+        // 0C. Prayer / Namaz Time: "for Asr", "Maghrib namaz", "10 min before Asr", "Fajr", "Isha"
+        const prayerMatch = cleanText.match(/^(?:(?:at|for|around)\s+)?(?:(\d+)\s*(?:min|mins|minute|minutes)\s+before\s+)?(fajr|dhuhr|zuhr|johr|asr|maghrib|magrib|isha|esha)(?:\s+(?:namaz|prayer|waqt|shomoy))?$/i);
+        if (prayerMatch) {
+            try {
+                const pNameMap = {
+                    fajr: 'Fajr',
+                    dhuhr: 'Dhuhr', zuhr: 'Dhuhr', johr: 'Dhuhr',
+                    asr: 'Asr',
+                    maghrib: 'Maghrib', magrib: 'Maghrib',
+                    isha: 'Isha', esha: 'Isha'
+                };
+                const pName = pNameMap[prayerMatch[2].toLowerCase()] || 'Dhuhr';
+                const offsetMins = prayerMatch[1] ? parseInt(prayerMatch[1], 10) : 0;
+                const defaultTimings = { Fajr: '04:35', Dhuhr: '11:48', Asr: '16:06', Maghrib: '17:45', Isha: '19:00' };
+
+                let time24 = defaultTimings[pName] || '12:00';
+                try {
+                    const { getPrayerTimes } = require('./prayer_time_service');
+                    // Check if prayer_time_service has synchronous or cached timings
+                    const cached = getPrayerTimes(null, nowDate);
+                    if (cached && cached.timings24 && cached.timings24[pName]) {
+                        time24 = cached.timings24[pName];
+                    }
+                } catch (_) {}
+
+                const [hStr, mStr] = time24.split(':');
+                let h = parseInt(hStr, 10);
+                let m = parseInt(mStr, 10) - offsetMins;
+                while (m < 0) {
+                    m += 60;
+                    h -= 1;
+                }
+                const target = new Date(now);
+                target.setHours(h, m, 0, 0);
+                if (target.getTime() <= now) {
+                    target.setDate(target.getDate() + 1);
+                }
+                return target.getTime();
+            } catch (_) {}
+        }
+
+        // 0D. Calendar Date: "October 5 at 3pm", "5th October", "Sep 30 at 9pm"
         const monthFirstMatch = cleanText.match(/^(january|jan|february|feb|march|mar|april|apr|may|june|jun|july|jul|august|aug|september|sep|sept|october|oct|november|nov|december|dec)\s+(\d{1,2})(?:st|nd|rd|th)?\s*(?:at\s+|shomoy\s+)?(?:(\d{1,2})(?::(\d{2}))?\s*(am|pm|ta|tay)?)?$/i);
         const dayFirstMatch = cleanText.match(/^(\d{1,2})(?:st|nd|rd|th)?\s+(?:of\s+)?(january|jan|february|feb|march|mar|april|apr|may|june|jun|july|jul|august|aug|september|sep|sept|october|oct|november|nov|december|dec)\s*(?:at\s+|shomoy\s+)?(?:(\d{1,2})(?::(\d{2}))?\s*(am|pm|ta|tay)?)?$/i);
 
@@ -394,6 +435,19 @@ class RemindersManager {
 
         m = text.match(new RegExp(`^\\/alarm\\s+(?:for\\s+|at\\s+)?(${timeSpecRegex})(?:\\s+(.+))?$`, 'i'));
         if (m) return { timeStr: m[1].trim(), task: m[2] ? m[2].trim() : 'Alarm', isAlarm: true };
+
+        // Pattern 0P: Dedicated Prayer / Namaz Reminders (e.g. "remind me for Asr", "remind me for Maghrib namaz", "remind me 15 mins before Isha")
+        const prayerSpec = `(?:(?:at|for|around)\\s+)?(?:\\d+\\s*(?:min|mins|minute|minutes)\\s+before\\s+)?(?:fajr|dhuhr|zuhr|johr|asr|maghrib|magrib|isha|esha)(?:\\s+(?:namaz|prayer|waqt|shomoy))?`;
+        let pm = text.match(new RegExp(`^(?:please\\s+)?(?:remind\\s+me|remind)(?:\\s+about|\\s+for|\\s+at)?\\s+(${prayerSpec})\\s*$`, 'i'));
+        if (pm) {
+            const rawTime = pm[1].trim();
+            const prayerNameMatch = rawTime.match(/(fajr|dhuhr|zuhr|johr|asr|maghrib|magrib|isha|esha)/i);
+            const pName = prayerNameMatch ? (prayerNameMatch[1].charAt(0).toUpperCase() + prayerNameMatch[1].slice(1).toLowerCase()) : 'Namaz';
+            return {
+                timeStr: rawTime,
+                task: `${pName} Namaz`
+            };
+        }
 
         // Pattern 1: Slash command: /remind [time] [task]
         m = text.match(new RegExp(`^\\/remind\\s+(?:in\\s+|at\\s+|on\\s+)?(${timeSpecRegex})\\s*(?:to\\s+|about\\s+|:\\s*|\\s+)?(.+)$`, 'i'));

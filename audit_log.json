@@ -1,5 +1,55 @@
 [
   {
+    "timestamp": "2026-10-02T14:17:54.539Z",
+    "user_request": "can you give me suitable job from linkedIn so that I can apply ?",
+    "agent_decision": "Learned new [instruction] memory; superseded 0 outdated memories",
+    "tool_used": "Supabase /memories",
+    "action_performed": "store_memory",
+    "data_affected": "f1a18444-7a3f-4309-9a6f-246bdaffdb85",
+    "result": "Swapnil is actively looking for suitable job opportunities on LinkedIn to apply for.",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-10-02T14:15:40.037Z",
+    "user_request": "Dhaka/ remote, Prodect design/builder or frontend",
+    "agent_decision": "Learned new [fact] memory; superseded 0 outdated memories",
+    "tool_used": "Supabase /memories",
+    "action_performed": "store_memory",
+    "data_affected": "4f574f84-5ac6-4d5a-803b-c4ac90ffd51a",
+    "result": "Swapnil is located in or looking for opportunities in Dhaka with remote work options.",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-10-02T14:15:39.017Z",
+    "user_request": "Update portfolio with new project/build: \"Swapnil is targeting job opportunities\"",
+    "agent_decision": "Create task in Personal Portfolio",
+    "tool_used": "Supabase /tasks",
+    "action_performed": "insert",
+    "data_affected": "e589b4c7-fa88-4835-8b3c-a8109b75270f",
+    "result": "Task \"Update portfolio with new project/build: \"Swapnil is targeting job opportunities\"\" registered",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-10-02T14:15:38.314Z",
+    "user_request": "Dhaka/ remote, Prodect design/builder or frontend",
+    "agent_decision": "Learned new [experience] memory; superseded 0 outdated memories",
+    "tool_used": "Supabase /memories",
+    "action_performed": "store_memory",
+    "data_affected": "d6a74945-6de2-49eb-a37e-ff9b3c35f62f",
+    "result": "Swapnil is targeting job opportunities based in Dhaka or remote, focusing on Product design, Product building, or Frontend roles.",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-10-02T14:15:01.129Z",
+    "user_request": "give me recent job for apply",
+    "agent_decision": "Learned new [instruction] memory; superseded 0 outdated memories",
+    "tool_used": "Supabase /memories",
+    "action_performed": "store_memory",
+    "data_affected": "1d8755d9-e714-4208-b390-1640e93f7d71",
+    "result": "Swapnil is actively looking for recent job opportunities to apply for.",
+    "verification_status": "verified"
+  },
+  {
     "timestamp": "2026-10-01T20:00:23.481Z",
     "user_request": "",
     "agent_decision": "",

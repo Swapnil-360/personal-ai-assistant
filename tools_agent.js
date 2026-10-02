@@ -191,6 +191,20 @@ const MIKASA_TOOL_DECLARATIONS = [
             },
             required: ['query']
         }
+    },
+    {
+        name: 'get_prayer_times',
+        description: 'Get today\'s Islamic Namaz prayer times (Fajr, Sunrise, Dhuhr, Asr Hanafi, Maghrib, Isha) and upcoming next prayer countdown for Swapnil\'s location.',
+        parameters: {
+            type: 'OBJECT',
+            properties: {
+                location: {
+                    type: 'STRING',
+                    description: 'Optional city name (e.g. "Dhaka", "Chittagong", "Sylhet") or omit to use Swapnil\'s current dynamic location.'
+                }
+            },
+            required: []
+        }
     }
 ];
 
@@ -457,6 +471,23 @@ async function executeLocalTool(toolName, args = {}, userContext = {}) {
                     total_connected_entities: traversal.nodes.length,
                     connected_entities: traversal.nodes.map(n => `[${n.label}] ${n.name}`),
                     relationships: edgesSummary
+                };
+            }
+
+            case 'get_prayer_times': {
+                const { getPrayerTimes, getNextPrayerInfo } = require('./prayer_time_service');
+                const pData = await getPrayerTimes(args.location || null);
+                const nextInfo = getNextPrayerInfo(pData);
+                return {
+                    city: pData.city,
+                    country: pData.country,
+                    method: pData.method,
+                    school: pData.school,
+                    timings: pData.timings12,
+                    current_waqt: nextInfo.currentWaqt,
+                    next_waqt: nextInfo.nextWaqt,
+                    next_waqt_time: nextInfo.nextWaqtTime,
+                    minutes_until_next: nextInfo.minutesUntilNext
                 };
             }
 

@@ -367,20 +367,20 @@ async function executeLocalTool(toolName, args = {}, userContext = {}) {
 
             case 'manage_reminders': {
                 if (args.action === 'list') {
-                    const list = remindersManager.getPendingReminders();
+                    const list = typeof remindersManager.getPendingReminders === 'function' ? remindersManager.getPendingReminders() : [];
                     return {
                         count: list.length,
                         reminders: list.map(r => ({
                             id: r.id,
                             text: r.text,
-                            time: r.time,
-                            status: r.status
+                            dueAt: new Date(r.dueAt).toISOString(),
+                            timeStr: r.timeStr
                         }))
                     };
                 } else if (args.action === 'create') {
                     const reminderText = args.text || 'Reminder';
                     const timeExpr = args.time_expression || 'in 1 hour';
-                    const chatId = userContext.chatId || 7112137739;
+                    const chatId = userContext.chatId || 7637518428;
                     const created = remindersManager.scheduleReminder(chatId, reminderText, timeExpr);
                     return {
                         success: true,

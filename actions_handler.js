@@ -1606,8 +1606,7 @@ async function handleActionIntent(message, context = { isCommander: true }) {
         };
     }
 
-    const isStillAwake = text.match(/^(?:still\s+awake|are\s+you\s+(?:still\s+)?awake|ekhono\s+jege\s+acho|rat\s+jege\s+kaj|stay\s+with\s+me)\??$/i) ||
-                         text.match(/\b(?:still\s+awake|late\s+night\s+coding|ekhono\s+ghumao\s+ni|rat\s+onek\s+hoye\s+geche)\b/i);
+    const isStillAwake = text.match(/^(?:still\s+awake|are\s+you\s+(?:still\s+)?awake|ekhono\s+jege\s+acho|stay\s+with\s+me)\??$/i);
     if (isStillAwake) {
         const audioFile = fs.existsSync(path.resolve(__dirname, 'web/audio/over_night.mp3')) ? '/audio/over_night.mp3' : '/audio/still_awake.mp3';
         return {
@@ -1619,8 +1618,7 @@ async function handleActionIntent(message, context = { isCommander: true }) {
         };
     }
 
-    const isWelcomeBack = text.match(/^(?:i(?:'m|m)\s+back|finally\s+back|ami\s+(?:back|ashchi|eshechi)|look\s+who(?:'s|\s+is)\s+back)\??$/i) ||
-                          text.match(/\b(?:i(?:'m|m)\s+back|terminal\s+e\s+ashlam|ami\s+ferot\s+ashlam)\b/i);
+    const isWelcomeBack = text.match(/^(?:i(?:'m|m)\s+back|finally\s+back|ami\s+(?:back|ashchi|eshechi)|look\s+who(?:'s|\s+is)\s+back)\??$/i);
     if (isWelcomeBack) {
         return {
             action: 'persona_response',
@@ -1631,14 +1629,26 @@ async function handleActionIntent(message, context = { isCommander: true }) {
         };
     }
 
-    // 0C. Namaz / Islamic Prayer Times Intent
-    const isNamazQuery = 
-        text.match(/\b(?:namaz|prayer|salat|salah)\b/i) ||
-        text.match(/\b(?:fajr|dhuhr|zuhr|johr|asr|maghrib|magrib|isha|esha)\s*(?:er\s+)?(?:time|kokhon|waqt|shomoy|schedule)?\b/i) ||
-        text.match(/\b(?:next|upcoming)\s*(?:prayer|namaz|waqt)\b/i) ||
-        text.match(/\b(?:ajker\s+)?namaz\s*(?:er\s+)?(?:shomoy|schedule|list|timing)\b/i);
+    // Common conversational marker detector:
+    // If the message is a conversational sentence, natural narrative, or status report,
+    // do NOT let regex utility fast-paths intercept it. Let Gemini see the full context!
+    const isConversationalSentence = 
+        text.match(/\b(?:porini|porbo|porechi|portam|porte|jai|jachhi|gelam|khaini|dinner|areh|arey|bolo|bolcho|boleso|ki\s+bolo|akhono|ekhono|amr|amar|ami|shanto|faculty|sir|class\s+e|kintu|mone|hoy|lagche|dekhi|choli|gesilam|chilam|jani|shuno|shuncho)\b/i) ||
+        (text.split(/\s+/).length > 5 && !text.startsWith('/'));
 
-    if (isNamazQuery && !text.match(/\b(?:remind\s+me|reminder|alarm|mone\s+koriye)\b/i)) {
+    // 0C. Namaz / Islamic Prayer Times Intent - ONLY for explicit schedule/timing queries or commands
+    const isNamazExplicit = 
+        text.match(/^(?:\/namaz|\/prayer)\b/i) ||
+        text.match(/^(?:ajker\s+)?(?:namaz|prayer|salat|salah)\s*(?:er\s+)?(?:time|timing|schedule|shomoy|waqt|routine|chart)\??$/i) ||
+        text.match(/^(?:ajker\s+)?(?:namaz|prayer|salat)\??$/i) ||
+        text.match(/^(?:next|upcoming)\s*(?:prayer|namaz|waqt)\??$/i) ||
+        text.match(/^(?:kokhon|what\s+time\s+is)\s+(?:fajr|dhuhr|zuhr|johr|asr|maghrib|magrib|isha|esha)\??$/i) ||
+        text.match(/^(?:fajr|dhuhr|zuhr|johr|asr|maghrib|magrib|isha|esha)\s*(?:er\s+)?(?:time|timing|kokhon|waqt|shomoy)\??$/i) ||
+        text.match(/^(?:namaz|prayer)\s*(?:er\s+)?(?:shomoy|time)\s*(?:koto|kokhon)\??$/i);
+
+    const isNamazQuery = isNamazExplicit && !isConversationalSentence && !text.match(/\b(?:remind\s+me|reminder|alarm|mone\s+koriye)\b/i);
+
+    if (isNamazQuery) {
         try {
             const { getPrayerTimes, formatPrayerScheduleBriefing } = require('./prayer_time_service');
             const prayerData = await getPrayerTimes();
@@ -1654,10 +1664,14 @@ async function handleActionIntent(message, context = { isCommander: true }) {
         }
     }
 
-    // 0D. BUBT Class Routine Intent
-    const isClassRoutineQuery = 
-        text.match(/\b(?:class|classes|routine)\b/i) &&
-        (text.match(/\b(?:ajke|today|kal|tomorrow|sombar|monday|mongolbar|tuesday|budhbar|wednesday|bubt|schedule|intake)\b/i) || text.match(/\b(?:class\s+routine|ajker\s+class|kobe\s+class|kon\s+class)\b/i));
+    // 0D. BUBT Class Routine Intent - ONLY for explicit routine inquiries or commands
+    const isClassRoutineExplicit = 
+        text.match(/^(?:\/routine|\/class|\/classes)\b/i) ||
+        text.match(/^(?:ajke|today|kal|tomorrow|agamikal)?\s*(?:ki\s+)?(?:class|classes)\s*(?:ache|routine|schedule)\??$/i) ||
+        text.match(/^(?:class\s+routine|ajker\s+class|kobe\s+class|kon\s+class|bubt\s+routine|bubt\s+class\s+routine)\??$/i) ||
+        text.match(/^(?:sombar|monday|mongolbar|tuesday|budhbar|wednesday|brihospotibar|thursday|shukrobar|friday|shonibar|saturday|robibar|sunday)\s*(?:er\s+)?(?:class|routine)\??$/i);
+
+    const isClassRoutineQuery = isClassRoutineExplicit && !isConversationalSentence;
 
     if (isClassRoutineQuery) {
         let dayTarget = 'today';
@@ -1678,10 +1692,12 @@ async function handleActionIntent(message, context = { isCommander: true }) {
         };
     }
 
-    // 0E. Music Playback Intent
+    // 0E. Music Playback Intent - ONLY for explicit music playback commands
     const isPlayMusicQuery = 
+        text.match(/^(?:\/play|\/music)\s*(.+)?$/i) ||
         text.match(/^(?:please\s+)?(?:play|chalao|bajao)\s+(?:some\s+)?(?:music|song|lofi|lo-fi|track|gan|audio)\b/i) ||
-        text.match(/^(?:please\s+)?play\s+(.+)$/i);
+        text.match(/^(?:please\s+)?play\s+(?:music|song|lofi|the\s+song)\s+(.+)$/i) ||
+        text.match(/^(?:please\s+)?play\s+(.+)\s+(?:song|track|music|gan)$/i);
 
     if (isPlayMusicQuery) {
         let trackQuery = 'lofi hip hop radio beats to relax study to';
@@ -1724,10 +1740,14 @@ async function handleActionIntent(message, context = { isCommander: true }) {
         };
     }
 
-    // 0F. LinkedIn Job Search Intent (with direct apply links)
-    const isJobSearchQuery = 
-        text.match(/\b(?:job|jobs|hiring|opening|openings|vacancy)\b/i) &&
-        (text.match(/\b(?:linkedin|apply|link|links|dao|search|give|find|khoj|khujo)\b/i) || text.match(/\b(?:frontend|product|builder|developer|react|next\.?js)\b/i));
+    // 0F. LinkedIn Job Search Intent (with direct apply links) - ONLY for explicit search requests
+    const isJobSearchExplicit = 
+        text.match(/^(?:\/jobs|\/linkedin)\b/i) ||
+        text.match(/^(?:find|search|give|show|khoj|khujo|dao)\s+(?:me\s+)?(?:some\s+)?(?:linkedin\s+)?(?:jobs|openings|vacancies|job\s+links)\b/i) ||
+        text.match(/^(?:linkedin\s+)?(?:jobs|openings|job\s+search)\??$/i) ||
+        text.match(/^(?:ajker\s+)?(?:job|jobs)\s*(?:dao|khoj|list|search)\??$/i);
+
+    const isJobSearchQuery = isJobSearchExplicit && !isConversationalSentence;
 
     if (isJobSearchQuery) {
         let role = 'Frontend Developer React Next.js';

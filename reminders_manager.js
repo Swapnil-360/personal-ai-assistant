@@ -521,6 +521,14 @@ class RemindersManager {
         }
         return false;
     }
+
+    scheduleReminder(chatId, text, timeStr, metadata = {}) {
+        return this.addReminder(text, timeStr, chatId, metadata);
+    }
+
+    getPendingReminders() {
+        return this.getActiveReminders();
+    }
 }
 
 module.exports = new RemindersManager();

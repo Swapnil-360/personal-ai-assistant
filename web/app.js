@@ -43,8 +43,8 @@ function checkUrlToken() {
             window.history.replaceState({}, document.title, window.location.pathname);
             showToast("⚔️ Verified Commander token loaded from link.", "success");
         } else if (isLocal) {
-            // Auto-grant commander passkey unconditionally on local PC
-            localStorage.setItem('mikasa_commander_token', 'MikasaCommander360!');
+            // Auto-grant commander access unconditionally on local PC
+            localStorage.setItem('mikasa_commander_token', 'local_authorized');
         }
     } catch (e) {}
 }

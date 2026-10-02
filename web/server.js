@@ -69,8 +69,8 @@ const {
     triggerMemoryExtraction: triggerTgMemoryExtraction
 } = require('../telegram_bridge');
 
-const COMMANDER_EMAIL = process.env.COMMANDER_EMAIL || 'miftahurr503@gmail.com';
-const COMMANDER_PASSKEY = process.env.COMMANDER_PASSKEY || 'MikasaCommander360!';
+const COMMANDER_EMAIL = process.env.COMMANDER_EMAIL || (typeof getEnv === 'function' ? getEnv('COMMANDER_EMAIL') : '') || '';
+const COMMANDER_PASSKEY = process.env.COMMANDER_PASSKEY || (typeof getEnv === 'function' ? getEnv('COMMANDER_PASSKEY') : '') || '';
 const SUPABASE_KEY = process.env.SUPABASE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || (typeof getSupabaseKey === 'function' ? getSupabaseKey() : '');
 
 function getSessionUuid(id = 'web_commander') {
@@ -263,7 +263,7 @@ const server = http.createServer(async (req, res) => {
             const passkey = (body.passkey || body.password || '').trim();
             const email = (body.email || '').trim().toLowerCase();
 
-            // Direct passkey check (MikasaCommander360! allows instant 1-click unlock from landing page)
+            // Direct passkey check (allows instant 1-click unlock from landing page)
             if (passkey === COMMANDER_PASSKEY) {
                 return sendJson(res, 200, {
                     success: true,

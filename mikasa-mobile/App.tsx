@@ -51,7 +51,7 @@ const { width, height } = Dimensions.get('window');
 // Backend Host & Security Handshake (LAN Direct IP for 15ms phone response + Cloud Failover)
 const LAN_API_BASE = 'http://192.168.10.130:3000';
 const CLOUD_API_BASE = 'https://mikasa.mrswapnil.me';
-const COMMANDER_TOKEN = 'MikasaCommander360!';
+const COMMANDER_TOKEN = process.env.EXPO_PUBLIC_COMMANDER_TOKEN || '';
 
 // Resilient Commander API Client with LAN & Cloud Auto-Failover
 const commanderFetch = async (endpoint: string, options: any = {}) => {

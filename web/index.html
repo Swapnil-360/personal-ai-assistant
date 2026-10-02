@@ -2437,11 +2437,6 @@
             const passkey = document.getElementById('commanderPasskey').value.trim();
             if (!passkey) return;
 
-            if (passkey === 'MikasaCommander360!') {
-                localStorage.setItem('mikasa_commander_token', 'MikasaCommander360!');
-                window.location.href = '/commander?token=MikasaCommander360!';
-                return;
-            }
 
             fetch('/api/auth/login', {
                 method: 'POST',

@@ -1648,7 +1648,7 @@
 
     <script>
         const API_BASE = window.location.origin;
-        const COMMANDER_TOKEN = 'MikasaCommander360!';
+        const COMMANDER_TOKEN = new URLSearchParams(window.location.search).get('token') || localStorage.getItem('mikasa_commander_token') || '';
 
         let assistantState = 'IDLE';
 

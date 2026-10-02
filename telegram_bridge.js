@@ -1612,7 +1612,7 @@ async function buildMikasaSystemPrompt(userContext, conversationId) {
                 `- Role/Studies: CSE student at ${p.university || 'BUBT'} (${p.current_semester || '9th'} semester, Intake ${p.intake || '51'}, CGPA: ${p.cgpa || 3.6})`,
                 `- Location: ${p.location || 'Dhaka'}, ${p.country || 'Bangladesh'}`,
                 `- Career Focus: ${p.career_direction || 'Software Development, AI, Automation, Product Building'}`,
-                `- Primary Email: ${p.primary_email || 'miftahurr503@gmail.com'}`
+                `- Primary Email: ${p.primary_email || getEnv('COMMANDER_EMAIL') || process.env.COMMANDER_EMAIL || 'Confidential'}`
             ].join('\n');
         }
 
@@ -3004,7 +3004,9 @@ async function processCallbackQuery(callbackQuery) {
             const req = pendingPrivacyRequests.get(reqId);
             await answerCallbackQuery(id, "Declining request...");
             if (req) {
-                const declineContent = `Hello ${req.callerName}! Swapnil prefers to keep this information private. If you'd like to get in touch, you can reach him directly via LinkedIn (https://www.linkedin.com/in/mr-swapnil/) or email (miftahurr503@gmail.com)! 🧣`;
+                const activeEmail = getEnv('COMMANDER_EMAIL') || process.env.COMMANDER_EMAIL;
+                const emailSuffix = activeEmail ? ` or email (${activeEmail})` : '';
+                const declineContent = `Hello ${req.callerName}! Swapnil prefers to keep this information private. If you'd like to get in touch, you can reach him directly via LinkedIn (https://www.linkedin.com/in/mr-swapnil/)${emailSuffix}! 🧣`;
                 await sendTelegramMessage(req.chatId, declineContent, req.messageId, null, req.connId);
                 await editTelegramMessage(chatId, messageId, `❌ *Request Declined.*\n\nPolitely informed *${req.callerName}* that this information is kept private.`);
                 pendingPrivacyRequests.delete(reqId);
@@ -4011,6 +4013,7 @@ async function processUpdate(update) {
     const userName = msg.from.first_name || msg.from.username || 'Friend';
     let text = (msg.text || '').trim();
     let voiceTranscript = '';
+    console.log(`[Telegram Inbound] Received message from ${userName} (${userId}) in chat ${chatId}: "${text || (hasVoice ? '[Voice Message]' : '[Attachment]')}"`);
 
     if (hasVoice) {
         await sendChatAction(chatId, 'record_voice');
@@ -5380,8 +5383,8 @@ async function processUpdate(update) {
     if (text === '/login' || text === '/web' || text === '/auth') {
         await sendChatAction(chatId, 'typing');
         const tokenRes = await new Promise((resolve) => {
-            const cmdEmail = getEnv('COMMANDER_EMAIL') || process.env.COMMANDER_EMAIL || 'miftahurr503@gmail.com';
-            const cmdPass = getEnv('COMMANDER_PASSKEY') || process.env.COMMANDER_PASSKEY || 'MikasaCommander360!';
+            const cmdEmail = getEnv('COMMANDER_EMAIL') || process.env.COMMANDER_EMAIL || '';
+            const cmdPass = getEnv('COMMANDER_PASSKEY') || process.env.COMMANDER_PASSKEY || '';
             const supaKey = getEnv('SUPABASE_KEY') || getEnv('SUPABASE_SERVICE_ROLE_KEY') || process.env.SUPABASE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || (typeof getSupabaseKey === 'function' ? getSupabaseKey() : '');
             const supaHost = (getEnv('SUPABASE_URL') || process.env.SUPABASE_URL || 'https://qjhrmctbrobpnoumzmju.supabase.co').replace(/^https?:\/\//, '').replace(/\/.*$/, '');
             const payload = JSON.stringify({ email: cmdEmail, password: cmdPass });
@@ -5405,7 +5408,7 @@ async function processUpdate(update) {
             r.end();
         });
 
-        const token = tokenRes.access_token || 'MikasaCommander360!';
+        const token = tokenRes.access_token || getEnv('COMMANDER_PASSKEY') || process.env.COMMANDER_PASSKEY || 'commander_verified';
         const mobileAppUrl = `https://mikasa.mrswapnil.me/app?token=${token}`;
         const desktopUrl = `https://mikasa.mrswapnil.me/commander?token=${token}`;
 
@@ -5420,6 +5423,7 @@ async function processUpdate(update) {
             ]
         };
 
+        const activeEmail = getEnv('COMMANDER_EMAIL') || process.env.COMMANDER_EMAIL || 'Commander';
         const loginMsg = [
             "⚔️ *Commander Access Key Verified!*",
             "",
@@ -5428,7 +5432,7 @@ async function processUpdate(update) {
             `📱 *Mobile App:* [Open Mobile Interface](${mobileAppUrl})`,
             `🖥️ *Desktop Cockpit:* [Open Desktop HUD](${desktopUrl})`,
             "",
-            "🛡️ *Verified Identity:* `miftahurr503@gmail.com`",
+            `🛡️ *Verified Identity:* \`${activeEmail}\``,
             "✨ *Status:* Observer Mode bypassed. You have full control over tasks, chat, reminders, and goals.",
             "",
             "_Saved automatically to your device — zero login barriers._ 🧣"
@@ -5440,9 +5444,10 @@ async function processUpdate(update) {
 
     // 11. Handle /dashboard Command
     if (text === '/dashboard') {
+        const activeEmail = getEnv('COMMANDER_EMAIL') || process.env.COMMANDER_EMAIL || 'Commander';
         await sendTelegramMessage(
             chatId,
-            "🖥️ *Mikasa Executive Command Center Dashboard*\n\nYour operational headquarters is live 24/7:\n🔗 `https://mikasa.mrswapnil.me/commander`\n(Local: `http://localhost:3000/commander`)\n\nType `/login` anytime to get an instant 1-click token as verified `miftahurr503@gmail.com`!",
+            `🖥️ *Mikasa Executive Command Center Dashboard*\n\nYour operational headquarters is live 24/7:\n🔗 \`https://mikasa.mrswapnil.me/commander\`\n(Local: \`http://localhost:3000/commander\`)\n\nType \`/login\` anytime to get an instant 1-click token as verified \`${activeEmail}\`!`,
             msg.message_id
         );
         return;
@@ -6408,6 +6413,9 @@ Tone & Guidelines:
             }
 
             const updates = pollResult.updates || [];
+            if (updates.length > 0) {
+                console.log(`[Telegram Bridge] Fetched ${updates.length} new update(s) from Telegram:`, updates.map(u => u.update_id));
+            }
 
             for (const update of updates) {
                 if (update.update_id > lastUpdateId) {

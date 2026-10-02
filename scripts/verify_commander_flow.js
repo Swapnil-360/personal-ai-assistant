@@ -50,8 +50,9 @@ async function verify() {
         console.error('FAIL: Expected 200 OK with app HTML');
     }
 
-    console.log('\n--- 3. Testing POST /api/auth/login with MikasaCommander360! ---');
-    const loginPayload = JSON.stringify({ passkey: 'MikasaCommander360!' });
+    const passkey = process.env.COMMANDER_PASSKEY || 'test_pass';
+    console.log('\n--- 3. Testing POST /api/auth/login with Passkey ---');
+    const loginPayload = JSON.stringify({ passkey: passkey });
     const loginRes = await request({
         hostname: 'localhost',
         port: 3000,
@@ -65,7 +66,7 @@ async function verify() {
     console.log('Login Status code:', loginRes.statusCode);
     console.log('Login Body:', loginRes.body);
     const loginJson = JSON.parse(loginRes.body);
-    if (loginJson.success && loginJson.access_token === 'MikasaCommander360!') {
+    if (loginJson.success && loginJson.access_token) {
         console.log('PASS: Master passkey login successful');
     } else {
         console.error('FAIL: Login failed');
@@ -78,7 +79,7 @@ async function verify() {
         path: '/api/auth/verify',
         method: 'GET',
         headers: {
-            'Authorization': 'Bearer MikasaCommander360!'
+            'Authorization': `Bearer ${passkey}`
         }
     });
     console.log('Verify Status code:', verifyRes.statusCode);
@@ -98,8 +99,7 @@ async function verify() {
         method: 'GET'
     });
     if (landingRes.body.includes('commanderModal') &&
-        landingRes.body.includes('MikasaCommander360!') &&
-        landingRes.body.includes('/commander?token=')) {
+        landingRes.body.includes('/api/auth/login')) {
         console.log('PASS: Landing page includes Commander modal and instant unlock logic');
     } else {
         console.error('FAIL: Landing page missing modal unlock logic');

@@ -22,7 +22,7 @@ function post(url, body) {
             headers: {
                 'Content-Type': 'application/json',
                 'Content-Length': Buffer.byteLength(postData),
-                'Authorization': 'Bearer MikasaCommander360!'
+                'Authorization': `Bearer ${process.env.COMMANDER_PASSKEY || ''}`
             }
         }, (res) => {
             let data = '';

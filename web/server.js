@@ -371,6 +371,28 @@ const server = http.createServer(async (req, res) => {
             }
         }
 
+        // Supabase Cloud Connectivity Health API
+        if (pathname === '/api/health/supabase' && req.method === 'GET') {
+            try {
+                const resDb = await supabaseRequest('/current_state?limit=1', 'GET');
+                return sendJson(res, 200, {
+                    supabase_ok: true,
+                    has_supabase_key: Boolean(process.env.SUPABASE_KEY || (typeof getSupabaseKey === 'function' && getSupabaseKey())),
+                    has_bot_token: Boolean(process.env.TELEGRAM_BOT_TOKEN),
+                    has_gemini_key: Boolean(process.env.GEMINI_API_KEY),
+                    rows_sample: Array.isArray(resDb) ? resDb.length : 0
+                });
+            } catch (err) {
+                return sendJson(res, 200, {
+                    supabase_ok: false,
+                    has_supabase_key: Boolean(process.env.SUPABASE_KEY || (typeof getSupabaseKey === 'function' && getSupabaseKey())),
+                    has_bot_token: Boolean(process.env.TELEGRAM_BOT_TOKEN),
+                    has_gemini_key: Boolean(process.env.GEMINI_API_KEY),
+                    error: err.message
+                });
+            }
+        }
+
         // Live Geolocation Synchronization API
         if (pathname === '/api/location' && req.method === 'POST') {
             const body = await parseBody(req);

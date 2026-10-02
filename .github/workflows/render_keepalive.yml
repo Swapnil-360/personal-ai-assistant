@@ -1,0 +1,22 @@
+name: Keep Mikasa Render Awake 24/7
+
+on:
+  schedule:
+    # Run every 10 minutes (cron runs in UTC)
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  ping-render:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Mikasa Render Endpoint
+        run: |
+          echo "Pinging Mikasa Render Cloud Failover..."
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://mikasa-assistant.onrender.com/api/status)
+          echo "HTTP Status Code: $STATUS"
+          if [ "$STATUS" -ne 200 ]; then
+            echo "Warning: Render returned status $STATUS"
+          else
+            echo "Render Cloud is Awake and Active! ✅"
+          fi

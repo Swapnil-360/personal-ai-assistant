@@ -1,5 +1,25 @@
 [
   {
+    "timestamp": "2026-10-02T15:53:22.133Z",
+    "user_request": "Areh ki bolo atto taratari akhono Eshat namaz porini rater dinner korini",
+    "agent_decision": "Learned new [fact] memory; superseded 0 outdated memories",
+    "tool_used": "Supabase /memories",
+    "action_performed": "store_memory",
+    "data_affected": "e1cb0728-ed4b-4427-905a-bd4d329f55bf",
+    "result": "Swapnil performs Isha namaz and has his dinner late in the evening.",
+    "verification_status": "verified"
+  },
+  {
+    "timestamp": "2026-10-02T15:43:43.251Z",
+    "user_request": "Amar sleep schedule aste aste thik korte hbe",
+    "agent_decision": "Learned new [instruction] memory; superseded 0 outdated memories",
+    "tool_used": "Supabase /memories",
+    "action_performed": "store_memory",
+    "data_affected": "40dfa49e-6327-4a1d-aa6c-03f28078fe63",
+    "result": "Swapnil wants to gradually fix and improve his sleep schedule.",
+    "verification_status": "verified"
+  },
+  {
     "timestamp": "2026-10-02T14:17:54.539Z",
     "user_request": "can you give me suitable job from linkedIn so that I can apply ?",
     "agent_decision": "Learned new [instruction] memory; superseded 0 outdated memories",

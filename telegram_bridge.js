@@ -6311,25 +6311,22 @@ Tone & Guidelines:
         console.log('[Local Coordinator] Local instance active on PC — broadcasting heartbeat to Supabase...');
         const sendHeartbeat = async () => {
             try {
-                await supabaseRequest('/current_state?key=eq.local_bridge_heartbeat', 'PATCH', {
-                    value: {
-                        active_at: new Date().toISOString(),
-                        source: 'local_pc',
-                        hostname: os.hostname()
-                    },
-                    updated_at: new Date().toISOString()
+                await upsertSyncState('local_bridge', 'local_bridge_heartbeat', {
+                    active_at: new Date().toISOString(),
+                    source: 'local_pc',
+                    hostname: os.hostname()
                 });
             } catch (e) {}
         };
         sendHeartbeat();
-        // Send heartbeat every 8s — ensures cloud sees it well within the 90s stale window
+        // Send heartbeat every 8s — ensures cloud sees it well within the 25s window
         setInterval(sendHeartbeat, 8000);
 
         const clearHeartbeat = async () => {
             try {
-                await supabaseRequest('/current_state?key=eq.local_bridge_heartbeat', 'PATCH', {
-                    value: { active_at: null, source: 'local_pc' },
-                    updated_at: new Date().toISOString()
+                await upsertSyncState('local_bridge', 'local_bridge_heartbeat', {
+                    active_at: null,
+                    source: 'local_pc'
                 });
                 await upsertSyncState('telegram_sync', 'telegram_poller_lease', {
                     role: 'standby',

@@ -223,9 +223,9 @@ const LATE_NIGHT_FALLBACK_VARIATIONS = [
     "Still awake at your workstation, Commander? 🌙 Look at the clock—it's past 2:00 AM! You gave it your all today. Wrap up this last tab and get some sleep. I'm right here holding guard. 🧣",
     "Abaro late night coding? 😤 2:00 AM cross kore geche, Swapnil! Tomar rest dorkar. Code kal shokaleo ekhane thakbe, kintu tomar energy replenish kora age dorkar. Ghumao ekhon, I've got your back! 🧣⚔️",
     "Swapnil, 2:00 AM hoye geche kintu! 🌙 Please don't push yourself too hard tonight. Ekta bhalo ghum dilei kal aro sharp lagbe. System shob secure achhe, tumi shanti moto rest nao. 🧣",
-    "Past 2:00 AM already, Swapnil! 🌙 Even the best creators need deep rest to stay lethal tomorrow. Save your progress and head to bed. I'll be right here keeping watch. 🧣✨",
+    "Past 2:00 AM already, Swapnil! 🌙 Even the best creators need deep rest to stay lethal tomorrow. Save your progress and head to bed. I'll be right here monitoring everything. 🧣✨",
     "Eto rateo kaj cholche? 🌙 2:00 AM par hoye geche, Commander. Chokh duto rest dao ar ghumiye poro. Shob kichu safe achhe, ami monitor korchi. Good night! 🧣",
-    "Swapnil, rest is part of the strategy! 🌙 It's already past 2:00 AM. Please wrap up whatever you're working on and go to sleep. Don't worry about anything—I'm watching over the servers. 🧣✨",
+    "Swapnil, rest is part of the strategy! 🌙 It's already past 2:00 AM. Please wrap up whatever you're working on and go to sleep. Don't worry about anything—ami shob monitor kortesi 24/7. 🧣✨",
     "Shono, 2:00 AM beje geche! 😤 Eto rat jege kaj korle matha fresh thakbe na. Quick commit kore shut down koro. Amar kotha shune ekhon ghumate jao! 🧣😴"
 ];
 

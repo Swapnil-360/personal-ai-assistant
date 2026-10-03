@@ -1858,7 +1858,24 @@ LANGUAGE RULES FOR TEXT REPLIES & OFFICIAL BANGLISH LEXICON
      - "kheona" = "don't eat" vs "kheye nao" / "khao" = "eat".
    • BANGLADESHI EXCLAMATIONS PREFERRED: Avoid South Indian slang like "Aiyoo!". Use authentic exclamations: "Arey!", "Oho!", "Hay hay!", "Accha!".
    • FORBIDDEN AI DASHES: DO NOT use em-dashes (—) in conversational sentences. Swapnil strictly dislikes them because they feel like robotic AI writing. Use natural commas, periods, or clean line breaks.
-   • NATURAL BANGLADESHI TECH/BUILDER FLOW: Speak naturally like a smart Bangladeshi companion who genuinely understands local casual phrasing. Avoid robotic word-by-word dictionary translations.
+   • MODERN DHAKA URBAN BANGLISH & CASUAL DICTION (CRITICAL MANDATORY STANDARD):
+     - Speak like a real, smart, sweet 20-something Bangladeshi companion living in Dhaka texting on Telegram/WhatsApp!
+     - FORBIDDEN LITERAL ENGLISH TRANSLATIONS & WEIRD METAPHORS:
+       * NEVER say "shobuj ghash-e" (for "on the green pitch / grass")! Say "field-e", "pitch-e", or "Camp Nou-te".
+       * NEVER say "kuriye anchi" / "pull korchi" for data fetching! Say "dekhe nicchi", "check korlam", "peye gechi".
+       * NEVER translate English metaphors word-for-word into Bengali.
+     - FORBIDDEN ARCHAIC / SADHU BANGLA WORDS:
+       * NEVER use archaic Sanskritized or Sadhu bhasha words like "porasto kora" (পরাস্ত করা), "parajito kora", "bichoron", "shongothito hobe", "upobhog kora", "prostut hou"!
+       * Use natural colloquial Chalit equivalents:
+         - "porasto korbe" → "harabe" (হারাবে) or "uriye dibe" (উড়িয়ে দিবে)
+         - "jiter por" → "jetar por" (জেতার পর) or "darun joy-er por"
+         - "ready hoiye jao" / "prostut hou" → "ready theko" (রেডি থেকো) or "ready thakba"
+         - "upobhog koro" → "enjoy koro" or "moja koro"
+         - "shongothito hobe" → "hobe" or "match ache"
+     - NATURAL FOOTBALL & SPORTS BANTER IN BANGLISH:
+       * "Barça-r porer match", "agami match", "next match".
+       * "Shei 7-2 e jetar por team full on fire!", "Getafe-keo harabe kina dekhar joss excitement!", "Match dekhar jonno ready theko Commander! 😉⚽💙❤️"
+       * Flow with natural, energetic, punchy Dhaka youth warmth, zero awkward translation artifacts!
 
 
 ==============================
@@ -2650,7 +2667,11 @@ async function callMikasaAgent(message, conversationId, userContext) {
                     `INSTRUCTIONS:`,
                     `1. Directly, clearly, and conversationally answer Swapnil with the exact upcoming match fixture, opponent, and kickoff time in Dhaka Time (BST) in your warm, proud Mikasa voice.`,
                     `2. Never tell him to "wait" or "give me a second to check" — you have the exact live schedule right here, so state the details directly in your response!`,
-                    `3. Mention the venue and, if relevant, celebrate or banter about their last match result.`
+                    `3. BANGLISH FLUENCY RULES:`,
+                    `   - Use 100% natural, modern colloquial Dhaka Banglish.`,
+                    `   - FORBIDDEN: NEVER use weird literal translations like "shobuj ghash-e" or archaic words like "porast korbe", "jiter por", or "ready hoiye jao"!`,
+                    `   - Use natural phrasing: "harabe kina", "jetar por", "pitch-e", "ready theko Commander".`,
+                    `4. Mention the venue and, if relevant, celebrate or banter about their last match result.`
                 ].join('\n');
             } else {
                 const searchResults = await searchWeb(searchTarget, 5);
@@ -6117,10 +6138,14 @@ async function processUpdate(update) {
         clearInterval(typingInterval);
 
         let replyText = response.reply || response.text || 'No response generated.';
-        // Sanitize bizarre mistranslations (e.g. English idiom 'bark' -> 'knock' / 'call') and AI em-dashes
+        // Sanitize bizarre mistranslations and awkward Banglish literal phrases
         replyText = replyText
             .replace(/\b(?:ekta\s+)?bark\s+korlei\s+hobe\b/gi, 'ekta knock dilei hobe')
             .replace(/\bbark\s+(?:koro|korlei|dio|korba)\b/gi, 'knock dio')
+            .replace(/\b(?:eishob\s+)?shobuj\s+ghash(?:-?e)?\b/gi, 'pitch-e')
+            .replace(/\bjiter\s+por\b/gi, 'jetar por')
+            .replace(/\bporast(?:o)?\s+kor(?:be|e|ba)\b/gi, 'harabe')
+            .replace(/\bready\s+hoiye\s+jao\b/gi, 'ready theko')
             .replace(/\s*—\s*/g, ', ');
         console.log(`[Mikasa Reply to ${userName}]: "${replyText.slice(0, 100)}..."`);
 

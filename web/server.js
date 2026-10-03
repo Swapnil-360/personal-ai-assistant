@@ -332,8 +332,12 @@ const server = http.createServer(async (req, res) => {
 
         // --- API ROUTES ---
 
-        // System Status
-        if (pathname === '/api/status' && req.method === 'GET') {
+        // System Status & Health check (Supports GET and HEAD for Uptime monitors like UptimeRobot)
+        if ((pathname === '/api/status' || pathname === '/healthz' || pathname === '/ping') && (req.method === 'GET' || req.method === 'HEAD')) {
+            if (req.method === 'HEAD') {
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                return res.end();
+            }
             let quota = null;
             let coordinator = null;
             try {

@@ -2628,7 +2628,10 @@ async function callMikasaAgent(message, conversationId, userContext) {
     let effectiveMessage = message;
     let searchTarget = detectSearchIntent(message);
     if (!searchTarget && userContext && userContext.replyTo) {
-        searchTarget = detectSearchIntent(userContext.replyTo);
+        const replyText = typeof userContext.replyTo === 'object' ? (userContext.replyTo.text || '') : userContext.replyTo;
+        if (replyText) {
+            searchTarget = detectSearchIntent(replyText);
+        }
     }
 
     if (searchTarget) {

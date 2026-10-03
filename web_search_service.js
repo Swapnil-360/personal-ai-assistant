@@ -163,8 +163,10 @@ async function searchWeb(query, maxResults = 5) {
 /**
  * Detects if a message is an explicit search request
  */
-function detectSearchIntent(text) {
-    if (!text) return null;
+function detectSearchIntent(rawText) {
+    if (!rawText) return null;
+    const text = typeof rawText === 'object' ? (rawText.text || rawText.content || '') : String(rawText);
+    if (!text || typeof text !== 'string') return null;
     const clean = text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/ç/gi, 'c').trim();
 
     // 1. Explicit search commands

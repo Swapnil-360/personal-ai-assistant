@@ -2609,23 +2609,64 @@ async function callMikasaAgent(message, conversationId, userContext) {
 
     // 1B. Autonomous Web Search Injection for Search Queries & Real-time Knowledge
     let effectiveMessage = message;
-    const searchTarget = detectSearchIntent(message);
+    let searchTarget = detectSearchIntent(message);
+    if (!searchTarget && userContext && userContext.replyTo) {
+        searchTarget = detectSearchIntent(userContext.replyTo);
+    }
+
     if (searchTarget) {
         try {
-            console.log(`[Web Search Agent] 🔍 Live web search triggered for: "${searchTarget}"...`);
-            const searchResults = await searchWeb(searchTarget, 5);
-            if (searchResults && searchResults.length > 0) {
-                const searchSnippets = searchResults.map((r, i) => `[Web Result ${i + 1}]:\nTitle: ${r.title}\nSnippet: ${r.snippet}\nSource URL: ${r.url}`).join('\n\n');
+            console.log(`[Web Search Agent] 🔍 Live search / sports lookup triggered for: "${searchTarget}"...`);
+            let sportsSummary = null;
+
+            // Check if this is a live sports query (e.g. Barcelona, Brazil, Football, Cricket)
+            if (searchTarget.match(/\b(?:barca|barcelona|brazil|selecao|madrid|argentina|football|soccer|cricket|khela|match|fixture|schedule)\b/i)) {
+                try {
+                    const { getLiveSportsFixture } = require('./sports_service');
+                    const sportsFixture = await getLiveSportsFixture(searchTarget);
+                    if (sportsFixture && (sportsFixture.upcoming_match || sportsFixture.last_match)) {
+                        const up = sportsFixture.upcoming_match;
+                        sportsSummary = [
+                            `LIVE SPORTS ENGINE FIXTURE DATA FOR: ${sportsFixture.team}`,
+                            up && typeof up === 'object' ? `- Next Match: ${up.match}` : `- Next Match: ${up}`,
+                            up && up.league ? `- League: ${up.league} ${up.round ? '(' + up.round + ')' : ''}` : '',
+                            up && up.dhaka_kickoff_time ? `- Exact Kickoff Time: ${up.dhaka_kickoff_time}` : (up && up.date ? `- Kickoff: ${up.date} ${up.time_utc || ''}` : ''),
+                            up && up.venue ? `- Venue: ${up.venue}` : '',
+                            sportsFixture.last_match ? `- Previous Match Result: ${sportsFixture.last_match.match} (${sportsFixture.last_match.score})` : ''
+                        ].filter(Boolean).join('\n');
+                    }
+                } catch (sErr) {
+                    console.warn('[Sports Service Lookup Warning]:', sErr.message);
+                }
+            }
+
+            if (sportsSummary) {
                 effectiveMessage = [
                     `User Query: "${message}"`,
                     ``,
-                    `REAL-TIME LIVE WEB SEARCH RESULTS FOR: "${searchTarget}"`,
-                    searchSnippets,
+                    `REAL-TIME LIVE SPORTS FIXTURE INTELLIGENCE:`,
+                    sportsSummary,
                     ``,
                     `INSTRUCTIONS:`,
-                    `1. Directly, clearly, and conversationally answer Swapnil based on these live search results in your true Mikasa voice.`,
-                    `2. Answer first with key insights, avoid repetitive boilerplate, and include 1-2 clean clickable markdown source links at the end so he can verify or read more.`
+                    `1. Directly, clearly, and conversationally answer Swapnil with the exact upcoming match fixture, opponent, and kickoff time in Dhaka Time (BST) in your warm, proud Mikasa voice.`,
+                    `2. Never tell him to "wait" or "give me a second to check" — you have the exact live schedule right here, so state the details directly in your response!`,
+                    `3. Mention the venue and, if relevant, celebrate or banter about their last match result.`
                 ].join('\n');
+            } else {
+                const searchResults = await searchWeb(searchTarget, 5);
+                if (searchResults && searchResults.length > 0) {
+                    const searchSnippets = searchResults.map((r, i) => `[Web Result ${i + 1}]:\nTitle: ${r.title}\nSnippet: ${r.snippet}\nSource URL: ${r.url}`).join('\n\n');
+                    effectiveMessage = [
+                        `User Query: "${message}"`,
+                        ``,
+                        `REAL-TIME LIVE WEB SEARCH RESULTS FOR: "${searchTarget}"`,
+                        searchSnippets,
+                        ``,
+                        `INSTRUCTIONS:`,
+                        `1. Directly, clearly, and conversationally answer Swapnil based on these live search results in your true Mikasa voice.`,
+                        `2. Answer first with key insights, avoid repetitive boilerplate, and include 1-2 clean clickable markdown source links at the end so he can verify or read more.`
+                    ].join('\n');
+                }
             }
         } catch (searchErr) {
             console.warn('[Web Search Agent Error]:', searchErr.message);

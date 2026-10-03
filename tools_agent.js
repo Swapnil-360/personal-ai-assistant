@@ -12,6 +12,7 @@ const {
 } = require('./local_pc_bridge');
 const { fetchGitHubCommits, getTasks, createTask, completeTask } = require('./actions_handler');
 const { searchWeb } = require('./web_search_service');
+const { getLiveSportsFixture } = require('./sports_service');
 const remindersManager = require('./reminders_manager');
 
 // 1. Tool Function Declarations for Google Gemini API
@@ -344,19 +345,31 @@ async function executeLocalTool(toolName, args = {}, userContext = {}) {
             }
 
             case 'get_sports_and_news': {
-                let q = args.query;
                 const cat = (args.category || '').toLowerCase();
-                if (!q) {
-                    if (cat.includes('barca') || cat.includes('barcelona')) q = 'FC Barcelona latest match score fixtures news';
-                    else if (cat.includes('brazil')) q = 'Brazil national football team latest match score fixtures news';
-                    else if (cat.includes('cricket')) q = 'cricket live score Bangladesh latest match update';
-                    else if (cat.includes('football')) q = 'football latest match scores news fixtures';
-                    else q = 'latest breaking news world Bangladesh';
+                const q = (args.query || cat || 'barcelona').trim();
+                
+                // If query is for a sports team or match, use dedicated live sports schedule engine
+                if (q.match(/\b(?:barca|barcelona|brazil|selecao|madrid|real madrid|argentina|football|soccer|match|fixture|schedule)\b/i)) {
+                    try {
+                        const sportsData = await getLiveSportsFixture(q);
+                        if (sportsData && (sportsData.upcoming_match || sportsData.last_match)) {
+                            return sportsData;
+                        }
+                    } catch (_) {}
                 }
-                const results = await searchWeb(q, 4);
+
+                let searchQuery = args.query;
+                if (!searchQuery) {
+                    if (cat.includes('barca') || cat.includes('barcelona')) searchQuery = 'FC Barcelona latest match score fixtures news';
+                    else if (cat.includes('brazil')) searchQuery = 'Brazil national football team latest match score fixtures news';
+                    else if (cat.includes('cricket')) searchQuery = 'cricket live score Bangladesh latest match update';
+                    else if (cat.includes('football')) searchQuery = 'football latest match scores news fixtures';
+                    else searchQuery = 'latest breaking news world Bangladesh';
+                }
+                const results = await searchWeb(searchQuery, 4);
                 return {
                     category: args.category,
-                    query: q,
+                    query: searchQuery,
                     results: results.map(r => ({
                         title: r.title,
                         snippet: r.snippet,
@@ -585,8 +598,7 @@ async function executeLocalTool(toolName, args = {}, userContext = {}) {
     }
 }
 
-// 3. Autonomous Tool-Calling Agent Loop
-async function callGeminiWithTools(systemPrompt, userMessage, apiKey, conversationHistory = [], userContext = {}, maxTurns = 3) {
+async function callGeminiWithTools(systemPrompt, userMessage, apiKey, conversationHistory = [], userContext = {}, maxTurns = 4) {
     const contents = [];
 
     // History formatting
@@ -744,6 +756,47 @@ async function callGeminiWithTools(systemPrompt, userMessage, apiKey, conversati
                 }
             }]
         });
+    }
+
+    // If max turns reached, formulate final answer with gathered tool facts rather than erroring out
+    if (executedTools.length > 0) {
+        try {
+            contents.push({
+                role: 'user',
+                parts: [{ text: 'Formulate your final response to Swapnil now using all the live data and tool results gathered above. Deliver the exact match, fixture time, or facts directly in your true Mikasa voice. Do not request further tools.' }]
+            });
+            const finalPayload = JSON.stringify({
+                system_instruction: { parts: [{ text: systemPrompt }] },
+                contents,
+                generationConfig: { temperature: 0.4, maxOutputTokens: 1024 }
+            });
+            const synthRes = await new Promise((resolve, reject) => {
+                const req = https.request({
+                    hostname: 'generativelanguage.googleapis.com',
+                    path: `/v1beta/models/${model}:generateContent?key=${apiKey}`,
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Content-Length': Buffer.byteLength(finalPayload)
+                    },
+                    timeout: 20000
+                }, (res) => {
+                    let d = '';
+                    res.on('data', chunk => d += chunk);
+                    res.on('end', () => {
+                        try { resolve(JSON.parse(d)); } catch (e) { reject(e); }
+                    });
+                });
+                req.on('timeout', () => { req.destroy(); reject(new Error('Final synthesis timeout')); });
+                req.on('error', reject);
+                req.write(finalPayload);
+                req.end();
+            });
+            const text = synthRes?.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('').trim();
+            if (text) {
+                return { reply: text, tools_used: executedTools, engine: model };
+            }
+        } catch (_) {}
     }
 
     throw new Error('Gemini tool execution exceeded maximum turn limit.');

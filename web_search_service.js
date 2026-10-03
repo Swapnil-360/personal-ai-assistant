@@ -165,7 +165,7 @@ async function searchWeb(query, maxResults = 5) {
  */
 function detectSearchIntent(text) {
     if (!text) return null;
-    const clean = text.trim();
+    const clean = text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/ç/gi, 'c').trim();
 
     // 1. Explicit search commands
     let m = clean.match(/^(?:\/search|\/google|\/find)\s+(.+)$/i);
@@ -194,7 +194,7 @@ function detectSearchIntent(text) {
     }
 
     // 5. Sports & Live News queries (FC Barcelona, Brazil, Football, Cricket, Breaking News)
-    const isSportsOrNewsQuery = clean.match(/(?:barca|barcelona|brazil|cricket|football|khela)\s+(?:score|match|game|update|news|result|fixture|schedule|er\s+khobor)|(?:score|match|game|update|news|result|fixture|schedule)\s+(?:of|for)\s+(?:barca|barcelona|brazil)|ajker\s+(?:khobor|news|match|khela)|live\s+cricket\s+score|cricket\s+score|breaking\s+news|latest\s+news/i);
+    const isSportsOrNewsQuery = clean.match(/\b(?:barca|barcelona|brazil|cricket|football)\b.*?\b(?:match|score|khela|fixture|schedule|game|result|news)\b|\b(?:match|score|khela|fixture|schedule|game|result|news)\b.*?\b(?:barca|barcelona|brazil|cricket|football)\b|ajker\s+(?:khobor|news|match|khela)|live\s+cricket\s+score|cricket\s+score|breaking\s+news|latest\s+news/i);
     if (isSportsOrNewsQuery) {
         return clean;
     }
